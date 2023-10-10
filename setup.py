@@ -1,8 +1,23 @@
+import os
 import sys
 from setuptools import find_packages, Command, setup
 
 if sys.version_info < (3, 0):
-    sys.exit('Sorry, Python < 3.0 is not supported.')    
+    sys.exit('Sorry, Python < 3.0 is not supported.')
+    
+def set_environment():
+    env = 'devv'
+    
+    if "--env" in sys.argv:
+        index = sys.argv.index("--env")
+        if index < len(sys.argv) - 1:
+            env = sys.argv[index + 1]
+        
+    os.environ['XAI_ENV'] = env
+    
+
+environment_name = set_environment()
+print(os.environ.get('XAI_ENV')) 
     
 # AryaXAI SDK dependencies
 with open('requirements.txt') as f:

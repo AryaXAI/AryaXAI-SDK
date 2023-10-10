@@ -1,4 +1,8 @@
-__version__ = "0.0.1"
-print(f'Welcome, you are using AryaXAI {__version__}.')
+import os
 
-from arya_xai.xai import xai
+__version__ = "0.0.1"
+env = os.environ.get('XAI_ENV', 'dev')
+
+print(f'Welcome, you are using AryaXAI {__version__} in {env} environment.')
+
+from arya_xai.core.xai import xai
