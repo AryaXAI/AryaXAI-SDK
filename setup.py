@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     classifiers=[
         "Intended Audience :: Developers",
-        "Intended Audience :: Data Scientists",
+        "Intended Audience :: Science/Research",
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
