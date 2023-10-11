@@ -1,7 +1,8 @@
 ## SDK Development
 
 ### Set environment
-Set XAI_ENV=local on your machine for local development. Update it to 'prod' before publishing SDK to PyPI.
+- Set XAI_ENV=local on your machine for local development.
+- Set XAI_API_KEY={Your-API-key}
 
 ### Update build tools
 ```
@@ -27,6 +28,10 @@ arya_xai.get_version()
 ```
 
 ## Publish SDK
+
+### Set environment variable
+> XAI_ENV=prod
+
 ### Install twine
 ```
 pip install twine
