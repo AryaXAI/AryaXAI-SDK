@@ -11,4 +11,6 @@ def get_version():
 print(f'Welcome, you are using AryaXAI {get_version()} in {env} environment.')
 
 #import core modules so that they can be imported directly
-from arya_xai.core.xai import xai
+from arya_xai.core.xai import Xai
+
+xai = Xai()
