@@ -1,7 +1,6 @@
 import requests
 from pydantic import BaseModel
 
-
 class APIClient(BaseModel):
     """API client to interact with Arya XAI services
     """

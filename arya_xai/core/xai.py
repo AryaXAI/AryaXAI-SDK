@@ -6,7 +6,7 @@ from arya_xai.common.environment import Environment
 from arya_xai.common.xai_uris import LOGIN_URI, GET_WORKSPACES_URI
 import getpass
 
-class Xai(BaseModel):
+class XAI(BaseModel):
     """Base class to connect with AryaXAI platform
     """
     env: Environment = Environment()
@@ -32,4 +32,5 @@ class Xai(BaseModel):
 
         :return: list of workspace
         """
-        return self.api_client.get(GET_WORKSPACES_URI)
+        workspaces = self.api_client.get(GET_WORKSPACES_URI)
+        return workspaces['details']
