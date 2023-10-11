@@ -1,7 +1,7 @@
 import os
 
 __version__ = "0.0.1"
-env = os.environ.get('XAI_ENV', 'local')
+env = os.environ.get('XAI_ENV', 'prod')
 
 def get_version():
     """prints SDK version
