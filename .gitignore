@@ -19,3 +19,6 @@ build
 _build
 _static
 _templates
+
+# Venv
+*venv

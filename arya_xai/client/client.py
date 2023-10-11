@@ -8,7 +8,7 @@ class APIClient(BaseModel):
     base_url: str = ''
     auth_token: str = ''
     headers: dict = {
-        'accept': 'application/json'
+        'Content-Type': 'application/json'
     }
 
     def __init__(self, **kwargs):
@@ -26,7 +26,7 @@ class APIClient(BaseModel):
         """
         self.set_auth_token(auth_token)
         self.headers = {
-            'accept': 'application/json',
+            'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.auth_token}'
         }
 
