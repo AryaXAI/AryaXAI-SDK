@@ -1,22 +1,4 @@
-## Arya XAI
+A python client for [AryaXAI](https://xai.arya.ai).
 
-A python package to interact with Arya XAI services.
-
-### Update build tools
-> pip install --user setuptools wheel --upgrade
-
-### Build package
-> python setup.py sdist bdist_wheel
-
-### Run quick test locally
-1. Run below command to install package locally,
-> pip install -e .
-
-2. Go to python shell,
-> Python
-
-In python shell, run below statements to do quick test of package
-```
-import arya_xai
-arya_xai.test()
-```
+## About us
+AryaXAI is a full stack ML Observability tool for mission-critical AI functions. Designed by Arya.ai, it is aimed to deliver much required common platform between stakeholders and deliver AI transparency, trust and auditability.

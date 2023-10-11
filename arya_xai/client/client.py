@@ -4,12 +4,11 @@ from pydantic import BaseModel
 class APIClient(BaseModel):
     """API client to interact with Arya XAI services
     """
-    base_url: str
-    auth_token: str
+    base_url: str = ''
+    auth_token: str = ''
     
-    def __init__(self, base_url):
-        self.base_url = base_url
-        self.auth_token = ''
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         
     def set_auth_token(self, auth_token):
         """sets jwt auth token value

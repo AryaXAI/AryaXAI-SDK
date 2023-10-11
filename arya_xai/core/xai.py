@@ -8,12 +8,8 @@ from arya_xai.common.xai_uris import LOGIN_URI, GET_WORKSPACES_URI
 class xai(BaseModel):
     """Base class to connect with AryaXAI platform
     """
-    api_client: APIClient
-    env: Environment
-    
-    def __init__(self):
-        self.env = Environment()
-        self.api_client = APIClient(self.env.get_base_url())
+    env: Environment = Environment()
+    api_client: APIClient = APIClient(base_url=env.get_base_url())
 
     def login(self, api_key=None):
         """login to AryaXAI platform
