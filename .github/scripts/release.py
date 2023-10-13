@@ -10,7 +10,7 @@ def get_last_version() -> str:
             ["gh", "release", "view", "--json", "tagName"],
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
         )
         .stdout.decode("utf8")
         .strip()
