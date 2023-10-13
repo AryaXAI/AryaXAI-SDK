@@ -1,5 +1,3 @@
-.vscode
-
 # Compiled python modules.
 *.pyc
 __pycache__
@@ -9,7 +7,7 @@ __pycache__
 build
 
 # Python egg metadata, regenerated from source files by setuptools.
-/*.egg-info
+*/*.egg-info
 
 # Environment variables
 .env.dev
