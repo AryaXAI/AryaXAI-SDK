@@ -26,6 +26,7 @@ class XAI(BaseModel):
 
         res = self.api_client.post(LOGIN_URI, payload={'access_token': access_token})
         self.api_client.update_headers(res['access_token'])
+        self.api_client.set_access_token(access_token)
         
         print('Authenticated successfully.')
         
