@@ -1,10 +1,11 @@
 import os
 from pydantic import BaseModel
-
 from arya_xai.client.client import APIClient
 from arya_xai.common.environment import Environment
-from arya_xai.common.xai_uris import LOGIN_URI, GET_WORKSPACES_URI
+
+from arya_xai.common.xai_uris import CREATE_WORKSPACE_URI, LOGIN_URI, GET_WORKSPACES_URI
 import getpass
+from typing import List
 
 from arya_xai.core.workspace import Workspace
 
@@ -29,7 +30,7 @@ class XAI(BaseModel):
         
         print('Authenticated successfully.')
         
-    def get_workspaces(self):
+    def get_workspaces(self) -> List[Workspace]:
         """get user workspaces
 
         :return: list of workspace
@@ -37,6 +38,15 @@ class XAI(BaseModel):
         user_workspaces = []
         
         workspaces = self.api_client.get(GET_WORKSPACES_URI)
-        user_workspaces = [Workspace(**workspace) for workspace in workspaces['details']]
+        user_workspaces = [Workspace(api_client=self.api_client, **workspace) for workspace in workspaces['details']]
         
         return user_workspaces
+    
+    def create_workspace(self, workspace_name:str) -> Workspace:
+        """create user workspace
+
+        :return: response 
+        """
+        
+        res = self.api_client.post(CREATE_WORKSPACE_URI,{"workspace_name":workspace_name})
+        return res.get('details')
