@@ -7,15 +7,16 @@ def get_last_version() -> str:
     """Return the version number of the last release."""
     json_string = (
         subprocess.run(
-            ["gh", "release", "view", "--json", "tagName"],
+            ["git", "describe", "--tags", "--abbrev=0"],
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
+            text=True
         )
         .stdout.decode("utf8")
         .strip()
     )
-
+    
     return json.loads(json_string)["tagName"]
 
 
@@ -30,11 +31,8 @@ def create_new_patch_release():
     try:
         last_version_number = get_last_version()
     except subprocess.CalledProcessError as err:
-        if err.stderr.decode("utf8").startswith("HTTP 404:"):
             # The project doesn't have any releases yet.
             new_version_number = "0.0.1"
-        else:
-            raise
     else:
         new_version_number = bump_patch_number(last_version_number)
 
