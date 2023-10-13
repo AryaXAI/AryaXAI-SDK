@@ -10,11 +10,14 @@ def get_last_version() -> str:
             ["gh", "release", "view", "--json", "tagName"],
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
+            text=True
         )
         .stdout.decode("utf8")
         .strip()
     )
+    
+    print(json_string)
 
     return json.loads(json_string)["tagName"]
 
