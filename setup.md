@@ -6,12 +6,12 @@
 
 ### Update build tools
 ```
-pip install setuptools wheel --upgrade
+pip install --upgrade build
 ```
 
 ### Build SDK
 ```
-python setup.py sdist bdist_wheel
+python -m build
 ```
 
 ### Install locally
