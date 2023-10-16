@@ -38,9 +38,7 @@ git checkout origin/main
 ```
 
 ### Build and Publish SDK
-```
-gh release create --repo AryaXAI/arya-xai-sdk --generate-notes <Your-Version>
-```
+Go to github.com and launch release workflow for main branch.
 
 ## Documentation
 Go to docs directory,
