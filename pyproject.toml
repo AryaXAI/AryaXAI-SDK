@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=60", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "arya-xai"
+dynamic = ["version"]
 [tool.setuptools_scm]
