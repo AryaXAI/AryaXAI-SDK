@@ -12,7 +12,6 @@ build
 */*.egg-info
 
 # Environment variables
-.env.dev
 .env.prod
 
 # Documentation files
