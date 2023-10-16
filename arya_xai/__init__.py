@@ -1,6 +1,6 @@
 import os
 
-env = os.environ.get('XAI_ENV', 'local')
+env = os.environ.get('XAI_ENV', 'testing')
 
 print(f'Welcome, you are using AryaXAI in {env} environment.')
 
