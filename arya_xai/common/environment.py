@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 class Environment(BaseModel):
     """Environment class to load current environment
     """
-    XAI_ENV: str = os.getenv("XAI_ENV", 'testing')
+    XAI_ENV: str = os.getenv("XAI_ENV", 'prod')
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
