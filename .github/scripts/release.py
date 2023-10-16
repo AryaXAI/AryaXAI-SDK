@@ -30,9 +30,10 @@ def create_new_patch_release():
     """Create a new patch release on GitHub."""
     try:
         last_version_number = get_last_version()
-    except subprocess.CalledProcessError as err:
-            # The project doesn't have any releases yet.
-            new_version_number = "0.0.1"
+    except subprocess.CalledProcessError as err: 
+        print(err)
+        # The project doesn't have any releases yet.
+        new_version_number = "0.0.1"
     else:
         new_version_number = bump_patch_number(last_version_number)
 
