@@ -11,6 +11,8 @@ jobs:
         with:
           fetch-depth: 0
       - run: python3 -m pip install --upgrade build && python3 -m build
+        env:
+          XAI_ENV: ${{ secrets.XAI_ENV }}
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
