@@ -5,19 +5,18 @@ import subprocess
 
 def get_last_version() -> str:
     """Return the version number of the last release."""
-    latest_release = (
+    json_string = (
         subprocess.run(
-            ["git", "describe", "--tags", "--abbrev=0"],
+            ["gh", "release", "view", "--json", "tagName"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
         )
-        .stdout
+        .stdout.decode("utf8")
         .strip()
     )
-    
-    return latest_release
+
+    return json.loads(json_string)["tagName"]
 
 
 def bump_patch_number(version_number: str) -> str:
