@@ -32,33 +32,14 @@ arya_xai.get_version()
 ### Set environment variable
 > XAI_ENV=prod
 
-### Install twine
+### Checkout main
 ```
-pip install twine
-```
-
-### Build SDK
-```
-python setup.py sdist bdist_wheel
+git checkout origin/main
 ```
 
-### Verify build
-Check your distribution files for errors,
+### Build and Publish SDK
 ```
-twine check dist/*
-```
-
-### Set crendentials
-Ensure you have PyPi (https://pypi.org/) user account and you are collaborator to arya-xai project. Generate API token from your account and put it in file .pypirc in your home($HOME/.pypirc) or user(C:\Users\<your username>) directory as given below,
-```
-[pypi]
-username = __token__
-password = <Your-api-token>
-```
-
-### Publish SDK
-```
-twine upload dist/*
+gh release create --repo AryaXAI/arya-xai-sdk --generate-notes <Your-Version>
 ```
 
 ## Documentation
