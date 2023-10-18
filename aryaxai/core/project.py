@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List
-from arya_xai.common.xai_uris import (
+from aryaxai.common.xai_uris import (
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_DATA_DRIFT_DIAGNOSIS_REPORT_URI,

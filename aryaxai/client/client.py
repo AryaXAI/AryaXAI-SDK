@@ -1,5 +1,5 @@
 import requests
-from arya_xai.common.xai_uris import LOGIN_URI
+from aryaxai.common.xai_uris import LOGIN_URI
 import jwt
 from pydantic import BaseModel
 

@@ -43,7 +43,7 @@ Go to github.com and launch release workflow for main branch.
 ## Documentation
 Go to root directory and run below command. It updates documentation schema files (.rst files)
 ```
-sphinx-apidoc -o docs arya_xai/
+sphinx-apidoc -o docs aryaxai/
 ```
 
 Go to docs directory and run below command (generates html template from .rst files)

@@ -1,5 +1,5 @@
-arya\_xai package
-=================
+aryaxai package
+===============
 
 Subpackages
 -----------
@@ -7,14 +7,14 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   arya_xai.client
-   arya_xai.common
-   arya_xai.core
+   aryaxai.client
+   aryaxai.common
+   aryaxai.core
 
 Module contents
 ---------------
 
-.. automodule:: arya_xai
+.. automodule:: aryaxai
    :members:
    :undoc-members:
    :show-inheritance:

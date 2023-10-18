@@ -1,7 +1,7 @@
-arya_xai
+aryaxai
 ========
 
 .. toctree::
    :maxdepth: 4
 
-   arya_xai
+   aryaxai

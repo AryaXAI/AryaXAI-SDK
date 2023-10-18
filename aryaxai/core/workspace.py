@@ -1,11 +1,11 @@
 from pydantic import BaseModel
 from typing import List
-from arya_xai.client.client import APIClient
-from arya_xai.common.enums import UserRole
-from arya_xai.common.xai_uris import CREATE_PROJECT_URI, UPDATE_WORKSPACE_URI
+from aryaxai.client.client import APIClient
+from aryaxai.common.enums import UserRole
+from aryaxai.common.xai_uris import CREATE_PROJECT_URI, UPDATE_WORKSPACE_URI
 
-from arya_xai.core.usage_control import UsageControl
-from arya_xai.core.project import Project
+from aryaxai.core.usage_control import UsageControl
+from aryaxai.core.project import Project
 
 
 class Workspace(BaseModel):
@@ -45,8 +45,8 @@ class Workspace(BaseModel):
         }
         res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         self.user_workspace_name = new_workspace_name
-        return res.get("details")
-
+        return res.get("details")    
+    
     def delete_workspace(self) -> str:
         """deletes the current workspace
         :return: response

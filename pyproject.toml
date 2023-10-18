@@ -3,6 +3,6 @@ requires = ["setuptools>=60", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arya-xai"
+name = "aryaxai"
 dynamic = ["version"]
 [tool.setuptools_scm]
