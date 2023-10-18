@@ -7,7 +7,7 @@ pip install arya-xai
 
 ### Getting Started
 ```
-from arya_xai import xai
+from aryaxai import xai
 
 xai.login()
 

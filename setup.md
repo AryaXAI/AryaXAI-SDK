@@ -23,8 +23,9 @@ pip install -e .
 ### Quicktest
 Launch Python shell and run below commands to in python shell to quicktest SDK,
 ```
-import arya_xai
-arya_xai.get_version()
+from aryaxai import xai
+xai.get_workspaces()
+```
 ```
 
 ## Publish SDK
