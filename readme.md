@@ -2,7 +2,7 @@ A python client for [AryaXAI](https://xai.arya.ai).
 
 ### Installation
 ```
-pip install arya-xai
+pip install aryaxai
 ```
 
 ### Getting Started
