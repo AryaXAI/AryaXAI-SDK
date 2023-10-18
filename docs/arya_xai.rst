@@ -11,17 +11,6 @@ Subpackages
    arya_xai.common
    arya_xai.core
 
-Submodules
-----------
-
-arya\_xai.xai module
---------------------
-
-.. automodule:: arya_xai.xai
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Module contents
 ---------------
 

@@ -1,5 +1,5 @@
-arya-xai-sdk
-============
+arya_xai
+========
 
 .. toctree::
    :maxdepth: 4
