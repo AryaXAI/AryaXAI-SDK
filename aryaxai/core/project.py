@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.types import ProjectConfig
+from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
@@ -15,6 +16,7 @@ from aryaxai.common.xai_uris import (
     UPLOAD_DATA_WITH_CHECK_URI,
 )
 import pandas as pd
+import json
 
 
 class Project(BaseModel):
@@ -106,14 +108,26 @@ class Project(BaseModel):
         res = self.api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
-    def upload_file(self, file_path: str, config: Optional[ProjectConfig]):
+    def upload_file(self, file_path: str, config: Optional[ProjectConfig] = None):
         project_config = self.config()
 
         if project_config == "Not Found":
             if not config:
+                config = {
+                    "project_type": "",
+                    "unique_identifier": "",
+                    "true_label": "",
+                    "tag": "",
+                    "pred_label": "",
+                    "feature_exclude": [],
+                }
                 raise Exception(
-                    "Project Config is required, since no config is set for project"
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config)}"
                 )
+
+            Validate.check_for_missing_keys(
+                config, ["project_type", "unique_identifier", "true_label", "tag"]
+            )
 
             valid_project_type = ["classification", "regression"]
             if not config["project_type"] in valid_project_type:
@@ -140,19 +154,23 @@ class Project(BaseModel):
                     f"{config['unique_identifier']} is not a valid unique_identifier, select from {column_names}"
                 )
 
-            if config["feature_exclude"]:
-                self.delete_file(uploaded_path)
+            if config.get("feature_exclude"):
                 if not all(
                     feature in column_names for feature in config["feature_exclude"]
                 ):
+                    self.delete_file(uploaded_path)
                     raise Exception(
                         f"feature_exclude is not valid, select valid values from {column_names}"
                     )
 
+            feature_exclude = [
+                config["unique_identifier"],
+                config["true_label"],
+                *config.get("feature_exclude", []),
+            ]
+
             feature_include = [
-                feature
-                for feature in column_names
-                if feature not in config["feature_exclude"]
+                feature for feature in column_names if feature not in feature_exclude
             ]
 
             payload = {
@@ -160,15 +178,21 @@ class Project(BaseModel):
                 "project_type": config["project_type"],
                 "unique_identifier": config["unique_identifier"],
                 "true_label": config["true_label"],
-                "pred_label": config["pred_label"],
+                "pred_label": config.get("pred_label"),
                 "metadata": {
+                    "path": uploaded_path,
                     "tag": config["tag"],
-                    "features_exclude": config["feature_exclude"],
+                    "tags": [config["tag"]],
+                    "drop_duplicate_uid": False,
+                    "feature_exclude": feature_exclude,
                     "feature_include": feature_include,
+                    "feature_encodings": {},
+                    "feature_actual_used": [],
                 },
             }
+
             res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
-            return res
+            return res.get("details")
 
         file = self.api_client.file(
             f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data",
