@@ -23,8 +23,9 @@ pip install -e .
 ### Quicktest
 Launch Python shell and run below commands to in python shell to quicktest SDK,
 ```
-import arya_xai
-arya_xai.get_version()
+from aryaxai import xai
+xai.get_workspaces()
+```
 ```
 
 ## Publish SDK
@@ -41,7 +42,12 @@ git checkout origin/main
 Go to github.com and launch release workflow for main branch.
 
 ## Documentation
-Go to docs directory,
+Go to root directory and run below command. It updates documentation schema files (.rst files)
+```
+sphinx-apidoc -o docs aryaxai/
+```
+
+Go to docs directory and run below command (generates html template from .rst files)
 ```
 cd docs
 ```

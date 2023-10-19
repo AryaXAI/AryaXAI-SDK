@@ -1,16 +1,15 @@
 from pydantic import BaseModel
 from typing import List
-from arya_xai.client.client import APIClient
-from arya_xai.common.enums import UserRole
-from arya_xai.common.xai_uris import (
+from aryaxai.client.client import APIClient
+from aryaxai.common.enums import UserRole
+from aryaxai.common.xai_uris import (
     CREATE_PROJECT_URI,
-    GET_PROJECT_URI,
     GET_WORKSPACES_URI,
     UPDATE_WORKSPACE_URI,
 )
 
-from arya_xai.core.usage_control import UsageControl
-from arya_xai.core.project import Project
+from aryaxai.core.usage_control import UsageControl
+from aryaxai.core.project import Project
 
 
 class Workspace(BaseModel):

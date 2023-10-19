@@ -1,13 +1,13 @@
 import os
 from pydantic import BaseModel
-from arya_xai.client.client import APIClient
-from arya_xai.common.environment import Environment
+from aryaxai.client.client import APIClient
+from aryaxai.common.environment import Environment
 
-from arya_xai.common.xai_uris import CREATE_WORKSPACE_URI, LOGIN_URI, GET_WORKSPACES_URI
+from aryaxai.common.xai_uris import CREATE_WORKSPACE_URI, LOGIN_URI, GET_WORKSPACES_URI
 import getpass
 from typing import List
 
-from arya_xai.core.workspace import Workspace
+from aryaxai.core.workspace import Workspace
 
 
 class XAI(BaseModel):

@@ -1,8 +1,8 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from arya_xai.client.client import APIClient
-from arya_xai.common.types import ProjectConfig
-from arya_xai.common.xai_uris import (
+from aryaxai.client.client import APIClient
+from aryaxai.common.types import ProjectConfig
+from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
     GET_DATA_DIAGNOSIS_URI,

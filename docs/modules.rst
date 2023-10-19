@@ -1,7 +1,7 @@
-arya-xai-sdk
-============
+aryaxai
+========
 
 .. toctree::
    :maxdepth: 4
 
-   arya_xai
+   aryaxai
