@@ -34,7 +34,7 @@ class XAI(BaseModel):
 
         print("Authenticated successfully.")
 
-    def get_workspaces(self):
+    def workspaces(self):
         """get user workspaces
 
         :return: list of workspace
@@ -48,6 +48,22 @@ class XAI(BaseModel):
         ]
 
         return user_workspaces
+
+    def workspace(self, workspace_name):
+        workspaces = self.workspaces()
+
+        workspace = next(
+            filter(
+                lambda workspace: workspace.user_workspace_name == workspace_name,
+                workspaces,
+            ),
+            None,
+        )
+
+        if workspace is None:
+            raise Exception("Project Not Found")
+
+        return workspace
 
     def create_workspace(self, workspace_name: str) -> Workspace:
         """create user workspace
