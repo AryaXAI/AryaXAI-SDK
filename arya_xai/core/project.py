@@ -1,10 +1,20 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+from arya_xai.client.client import APIClient
+from arya_xai.common.types import ProjectConfig
 from arya_xai.common.xai_uris import (
+    DATA_DRFIT_DIAGNOSIS_URI,
+    DELETE_DATA_FILE_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
-    GET_DATA_DRIFT_DIAGNOSIS_REPORT_URI,
+    GET_PROJECT_CONFIG,
+    UPDATE_PROJECT_URI,
+    UPLOAD_DATA_FILE_INFO_URI,
+    UPLOAD_DATA_FILE_URI,
+    UPLOAD_DATA_URI,
+    UPLOAD_DATA_WITH_CHECK_URI,
 )
+import pandas as pd
 
 
 class Project(BaseModel):
@@ -20,18 +30,204 @@ class Project(BaseModel):
     updated_at: str
     metadata: dict
     access_type: str
+    api_client: APIClient
 
-    # def get_data_summary(self):
-    #     res = self.api_client.post(f"{GET_DATA_SUMMARY}/?project_name={self.user_project_name}&refresh=true'")
-    #     return res
+    def __init__(self, api_client, **kwargs):
+        super().__init__(api_client=api_client, **kwargs)
 
-    # def get_data_diagnosis(self):
-    #     res = self.api_client.get(f"{GET_DATA_DIAGNOSIS_URI}/?project_name={self.user_project_name}")
-    #     return res
+    def rename_project(self, new_project_name: str) -> str:
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "rename_project": new_project_name,
+            },
+        }
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+        self.user_project_name = new_project_name
+        return res.get("details")
 
-    # def get_data_diagnosis_drift_report(self):
-    #     res = self.api_client.get(f"{GET_DATA_DRIFT_DIAGNOSIS_REPORT_URI}/?project_name={self.user_project_name}")
-    #     return res
+    def delete_project(self) -> str:
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "delete_project": self.user_project_name,
+            },
+        }
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+        return res.get("details")
+
+    def add_user_to_project(self, email: str, role: str):
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "add_user_project": {
+                    "email": email,
+                    "role": role,
+                },
+            },
+        }
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+        return res.get("details")
+
+    def remove_user_from_project(self, email: str):
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {"remove_user_project": email},
+        }
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+        return res.get("details")
+
+    def update_user_access_for_workspace(self, email: str, role: str):
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "update_user_project": {
+                    "email": email,
+                    "role": role,
+                },
+            },
+        }
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+        return res.get("details")
+
+    def config(self):
+        res = self.api_client.get(
+            f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
+        )
+
+        return res.get("details")
+
+    def delete_file(self, path: str):
+        payload = {
+            "project_name": self.project_name,
+            "workspace_name": self.workspace_name,
+            "path": path,
+        }
+        res = self.api_client.post(DELETE_DATA_FILE_URI, payload)
+        return res.get("details")
+
+    def upload_file(self, file_path: str, config: Optional[ProjectConfig]):
+        project_config = self.config()
+
+        if project_config == "Not Found":
+            if not config:
+                raise Exception(
+                    "Project Config is required, since no config is set for project"
+                )
+
+            valid_project_type = ["classification", "regression"]
+            if not config["project_type"] in valid_project_type:
+                raise Exception(
+                    f"{config['project_type']} is not a valid project_type, select from {valid_project_type}"
+                )
+
+            file = self.api_client.file(
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={config['tag']}",
+                file_path,
+            )
+
+            uploaded_path = file.get("metadata").get("filepath")
+
+            file_info = self.api_client.post(
+                UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
+            )
+
+            column_names = file_info.get("details").get("column_names")
+
+            if not config["unique_identifier"] in column_names:
+                self.delete_file(uploaded_path)
+                raise Exception(
+                    f"{config['unique_identifier']} is not a valid unique_identifier, select from {column_names}"
+                )
+
+            if config["feature_exclude"]:
+                self.delete_file(uploaded_path)
+                if not all(
+                    feature in column_names for feature in config["feature_exclude"]
+                ):
+                    raise Exception(
+                        f"feature_exclude is not valid, select valid values from {column_names}"
+                    )
+
+            feature_include = [
+                feature
+                for feature in column_names
+                if feature not in config["feature_exclude"]
+            ]
+
+            payload = {
+                "project_name": self.project_name,
+                "project_type": config["project_type"],
+                "unique_identifier": config["unique_identifier"],
+                "true_label": config["true_label"],
+                "pred_label": config["pred_label"],
+                "metadata": {
+                    "tag": config["tag"],
+                    "features_exclude": config["feature_exclude"],
+                    "feature_include": feature_include,
+                },
+            }
+            res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
+            return res
+
+        file = self.api_client.file(
+            f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data",
+            file_path,
+        )
+
+        payload = {
+            "path": file.get("metadata").get("filepath"),
+            "type": "data",
+            "project_name": self.project_name,
+        }
+        res = self.api_client.post(UPLOAD_DATA_URI, payload)
+        return res
+
+    def data_summary(self, tag: str) -> pd.DataFrame:
+        res = self.api_client.post(
+            f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
+        )
+        valid_tags = res["data"]["data"].keys()
+        if tag not in valid_tags:
+            raise Exception(f"Not a vaild tag. Pick a valid tag from {valid_tags}")
+
+        print(res["data"]["overview"])
+        summary = pd.DataFrame(res["data"]["data"][tag]).drop(
+            ["Warnings", "data_description"], axis=1
+        )
+        return summary
+
+    def data_diagnosis(self, tag: str):
+        res = self.api_client.get(
+            f"{GET_DATA_DIAGNOSIS_URI}?project_name={self.project_name}"
+        )
+        valid_tags = res["details"].keys()
+        if tag not in valid_tags:
+            raise Exception(f"Not a vaild tag. Pick a valid tag from {valid_tags}")
+
+        data_diagnosis = pd.DataFrame(res["details"][tag]["alerts"])
+        data_diagnosis[["Tag", "Description"]] = data_diagnosis[0].str.extract(
+            r"\['(.*?)'] (.+?) #"
+        )
+        data_diagnosis["Description"] = data_diagnosis["Description"].str.replace(
+            r"[^\w\s]", "", regex=True
+        )
+        data_diagnosis = data_diagnosis[["Description", "Tag"]]
+        return data_diagnosis
+
+    def data_drift_diagnosis(self, baseline_tags: List[str], current_tags: List[str]):
+        payload = {
+            "project_name": self.project_name,
+            "baseline_tags": baseline_tags,
+            "current_tags": current_tags,
+        }
+        res = self.api_client.post(DATA_DRFIT_DIAGNOSIS_URI, payload)
+
+        data_drift_diagnosis = pd.DataFrame(
+            res["details"]["results"]["detailed_report"]
+        ).drop(["current_small_hist", "ref_small_hist"], axis=1)
+
+        return data_drift_diagnosis
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}', created_at='{self.created_at}')"

@@ -2,7 +2,12 @@ from pydantic import BaseModel
 from typing import List
 from arya_xai.client.client import APIClient
 from arya_xai.common.enums import UserRole
-from arya_xai.common.xai_uris import CREATE_PROJECT_URI, UPDATE_WORKSPACE_URI
+from arya_xai.common.xai_uris import (
+    CREATE_PROJECT_URI,
+    GET_PROJECT_URI,
+    GET_WORKSPACES_URI,
+    UPDATE_WORKSPACE_URI,
+)
 
 from arya_xai.core.usage_control import UsageControl
 from arya_xai.core.project import Project
@@ -14,24 +19,17 @@ class Workspace(BaseModel):
     created_by: str
     user_workspace_name: str
     workspace_name: str
-    projects: List[Project]
     user_access: List[str]
     created_at: str
     updated_at: str
     enterprise: bool
     usage_control: UsageControl
     access_type: str
-    api_client: APIClient
+    __api_client: APIClient
 
     def __init__(self, api_client, **kwargs):
-        super().__init__(api_client=api_client, **kwargs)
-
-    def get_projects(self):
-        """get user projects for this Workspace
-
-        :return: list of Projects
-        """
-        return self.projects
+        super().__init__(**kwargs)
+        self.__api_client = api_client
 
     def rename_workspace(self, new_workspace_name: str) -> str:
         """rename the current workspace to new name
@@ -40,10 +38,12 @@ class Workspace(BaseModel):
         :return: response
         """
         payload = {
-            "workspace_name": self.user_workspace_name,
-            "modify_req": {"rename_workspace": new_workspace_name},
+            "workspace_name": self.workspace_name,
+            "modify_req": {
+                "rename_workspace": new_workspace_name,
+            },
         }
-        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         self.user_workspace_name = new_workspace_name
         return res.get("details")
 
@@ -52,10 +52,10 @@ class Workspace(BaseModel):
         :return: response
         """
         payload = {
-            "workspace_name": self.user_workspace_name,
+            "workspace_name": self.workspace_name,
             "modify_req": {"delete_workspace": self.user_workspace_name},
         }
-        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def add_user_to_workspace(self, email: str, role: UserRole) -> str:
@@ -66,10 +66,15 @@ class Workspace(BaseModel):
         :return: response
         """
         payload = {
-            "workspace_name": self.user_workspace_name,
-            "modify_req": {"add_user_workspace": {"email": email, "role": role}},
+            "workspace_name": self.workspace_name,
+            "modify_req": {
+                "add_user_workspace": {
+                    "email": email,
+                    "role": role,
+                },
+            },
         }
-        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def remove_user_from_workspace(self, email: str) -> str:
@@ -79,10 +84,12 @@ class Workspace(BaseModel):
         :return: response
         """
         payload = {
-            "workspace_name": self.user_workspace_name,
-            "modify_req": {"remove_user_workspace": email},
+            "workspace_name": self.workspace_name,
+            "modify_req": {
+                "remove_user_workspace": email,
+            },
         }
-        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def update_user_access_for_workspace(self, email: str, role: UserRole) -> str:
@@ -93,11 +100,47 @@ class Workspace(BaseModel):
         :return: _description_
         """
         payload = {
-            "workspace_name": self.user_workspace_name,
-            "modify_req": {"update_user_workspace": {"email": email, "role": role}},
+            "workspace_name": self.workspace_name,
+            "modify_req": {
+                "update_user_workspace": {
+                    "email": email,
+                    "role": role,
+                }
+            },
         }
-        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
+
+    def projects(self):
+        """get user projects for this Workspace
+
+        :return: list of Projects
+        """
+        workspaces = self.__api_client.get(GET_WORKSPACES_URI)
+        current_workspace = next(
+            filter(
+                lambda workspace: workspace["workspace_name"] == self.workspace_name,
+                workspaces["details"],
+            )
+        )
+        projects = [
+            Project(api_client=self.__api_client, **project)
+            for project in current_workspace["projects"]
+        ]
+        return projects
+
+    def project(self, project_name: str):
+        projects = self.projects()
+
+        project = next(
+            filter(lambda project: project.user_project_name == project_name, projects),
+            None,
+        )
+
+        if project is None:
+            raise Exception("Project Not Found")
+
+        return project
 
     def create_project(self, project_name: str) -> Project:
         """creates new project in the current workspace
@@ -105,8 +148,11 @@ class Workspace(BaseModel):
         :param project_name: name for the project
         :return: response
         """
-        payload = {"project_name": project_name, "workspace_name": self.workspace_name}
-        res = self.api_client.post(CREATE_PROJECT_URI, payload)
+        payload = {
+            "project_name": project_name,
+            "workspace_name": self.workspace_name,
+        }
+        res = self.__api_client.post(CREATE_PROJECT_URI, payload)
         project = Project(**res["details"])
         return project
 
