@@ -154,6 +154,20 @@ class Project(BaseModel):
                 defaults to None
         :return: response
         """
+
+        def upload_file_and_return_path() -> str:
+            res = self.__api_client.file(
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
+                file_path,
+            )
+
+            if not res["success"]:
+                raise Exception(res.get("details"))
+
+            uploaded_path = res.get("metadata").get("filepath")
+
+            return uploaded_path
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -179,15 +193,7 @@ class Project(BaseModel):
                     f"{config['project_type']} is not a valid project_type, select from {valid_project_type}"
                 )
 
-            file = self.__api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
-                file_path,
-            )
-
-            if not file["success"]:
-                raise Exception(file.get("details"))
-
-            uploaded_path = file.get("metadata").get("filepath")
+            uploaded_path = upload_file_and_return_path()
 
             file_info = self.__api_client.post(
                 UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
@@ -246,15 +252,7 @@ class Project(BaseModel):
 
             return res.get("details")
 
-        file = self.__api_client.file(
-            f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
-            file_path,
-        )
-
-        if not file["success"]:
-            raise Exception(file.get("details"))
-
-        uploaded_path = file.get("metadata").get("filepath")
+        uploaded_path = upload_file_and_return_path()
 
         payload = {
             "path": uploaded_path,
