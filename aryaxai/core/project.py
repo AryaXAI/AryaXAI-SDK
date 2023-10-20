@@ -359,14 +359,14 @@ class Project(BaseModel):
         Returns:
             str: data drift dashboard url
         """
-        res = self.api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
+        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
 
         if not res['success']:
             error_details = res.get('details', 'Failed to get dashboard url')
             raise Exception(error_details)
 
         dashboard_url = res.get('hosted_path', None)
-        auth_token = self.api_client.get_auth_token()
+        auth_token = self.__api_client.get_auth_token()
         query_params = f'?id={auth_token}'
 
         return f"{dashboard_url}{query_params}"
@@ -380,14 +380,14 @@ class Project(BaseModel):
         Returns:
             str: target drift dashboard url
         """        
-        res = self.api_client.post(TARGET_DRIFT_DASHBOARD_URI, config)
+        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, config)
 
         if not res['success']:
             error_details = res.get('details', 'Failed to get dashboard url')
             raise Exception(error_details)
 
         dashboard_url = res.get('hosted_path', None)
-        auth_token = self.api_client.get_auth_token()
+        auth_token = self.__api_client.get_auth_token()
         query_params = f'?id={auth_token}'
 
         return f"{dashboard_url}{query_params}"
@@ -401,14 +401,14 @@ class Project(BaseModel):
         Returns:
             None: bias monitoring dashboard url
         """        
-        res = self.api_client.post(BIAS_MONITORING_DASHBOARD_URI, config)
+        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, config)
 
         if not res['success']:
             error_details = res.get('details', 'Failed to get dashboard url')
             raise Exception(error_details)
 
         dashboard_url = res.get('hosted_path', None)
-        auth_token = self.api_client.get_auth_token()
+        auth_token = self.__api_client.get_auth_token()
         query_params = f'?id={auth_token}'
 
         return f"{dashboard_url}{query_params}"
@@ -422,14 +422,14 @@ class Project(BaseModel):
         Returns:
             str: model performance dashboard url
         """        
-        res = self.api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, config)
+        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, config)
 
         if not res['success']:
             error_details = res.get('details', 'Failed to get dashboard url')
             raise Exception(error_details)
 
         dashboard_url = res.get('hosted_path', None)
-        auth_token = self.api_client.get_auth_token()
+        auth_token = self.__api_client.get_auth_token()
         query_params = f'?id={auth_token}'
 
         return f"{dashboard_url}{query_params}"

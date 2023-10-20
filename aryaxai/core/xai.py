@@ -13,8 +13,16 @@ from aryaxai.core.workspace import Workspace
 class XAI(BaseModel):
     """Base class to connect with AryaXAI platform"""
 
-    env: Environment = Environment()
-    api_client: APIClient = APIClient(base_url=env.get_base_url())
+    env: Environment
+    __api_client: APIClient
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.env = Environment()
+        self.__api_client = APIClient(
+            base_url=self.env.get_base_url()
+        )
 
     def login(self):
         """login to AryaXAI platform
@@ -28,9 +36,9 @@ class XAI(BaseModel):
         if not access_token:
             raise ValueError("Either set XAI_ACCESS_TOKEN or pass the Access token")
 
-        res = self.api_client.post(LOGIN_URI, payload={"access_token": access_token})
-        self.api_client.update_headers(res["access_token"])
-        self.api_client.set_access_token(access_token)
+        res = self.__api_client.post(LOGIN_URI, payload={"access_token": access_token})
+        self.__api_client.update_headers(res["access_token"])
+        self.__api_client.set_access_token(access_token)
 
         print("Authenticated successfully.")
 
@@ -41,9 +49,9 @@ class XAI(BaseModel):
         """
         user_workspaces = []
 
-        workspaces = self.api_client.get(GET_WORKSPACES_URI)
-        user_workspaces = [
-            Workspace(api_client=self.api_client, **workspace)
+        workspaces = self.__api_client.get(GET_WORKSPACES_URI)
+        user_workspaces = [ 
+            Workspace(api_client=self.__api_client, **workspace)
             for workspace in workspaces["details"]
         ]
 
@@ -77,12 +85,12 @@ class XAI(BaseModel):
         :return: response
         """
 
-        res = self.api_client.post(
+        res = self.__api_client.post(
             CREATE_WORKSPACE_URI, {"workspace_name": workspace_name}
         )
         if not res["success"]:
             raise Exception(res.get("details"))
 
-        workspace = Workspace(api_client=self.api_client, **res["workspace_details"])
+        workspace = Workspace(api_client=self.__api_client, **res["workspace_details"])
 
         return workspace
