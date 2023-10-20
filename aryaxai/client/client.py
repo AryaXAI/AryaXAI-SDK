@@ -15,6 +15,14 @@ class APIClient(BaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def get_auth_token(self) -> str:
+        """get jwt auth token value
+
+        Returns:
+            str: jwt auth token
+        """
+        return self.auth_token
+
     def set_auth_token(self, auth_token):
         """sets jwt auth token value
 
