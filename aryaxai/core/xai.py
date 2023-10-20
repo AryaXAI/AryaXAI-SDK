@@ -34,7 +34,7 @@ class XAI(BaseModel):
 
         print("Authenticated successfully.")
 
-    def workspaces(self):
+    def workspaces(self) -> List[Workspace]:
         """get user workspaces
 
         :return: list of workspace
@@ -49,7 +49,12 @@ class XAI(BaseModel):
 
         return user_workspaces
 
-    def workspace(self, workspace_name):
+    def workspace(self, workspace_name) -> Workspace:
+        """select specific workspace
+
+        :param workspace_name: Name of the workspace to be used
+        :return: Workspace
+        """
         workspaces = self.workspaces()
 
         workspace = next(
@@ -61,7 +66,7 @@ class XAI(BaseModel):
         )
 
         if workspace is None:
-            raise Exception("Project Not Found")
+            raise Exception("Workspace Not Found")
 
         return workspace
 
@@ -75,4 +80,9 @@ class XAI(BaseModel):
         res = self.api_client.post(
             CREATE_WORKSPACE_URI, {"workspace_name": workspace_name}
         )
-        return res.get("details")
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        workspace = Workspace(api_client=self.api_client, **res["workspace_details"])
+
+        return workspace

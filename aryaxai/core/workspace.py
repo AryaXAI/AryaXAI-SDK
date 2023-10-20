@@ -7,8 +7,6 @@ from aryaxai.common.xai_uris import (
     GET_WORKSPACES_URI,
     UPDATE_WORKSPACE_URI,
 )
-
-from aryaxai.core.usage_control import UsageControl
 from aryaxai.core.project import Project
 
 
@@ -18,17 +16,13 @@ class Workspace(BaseModel):
     created_by: str
     user_workspace_name: str
     workspace_name: str
-    user_access: List[str]
     created_at: str
-    updated_at: str
-    enterprise: bool
-    usage_control: UsageControl
-    access_type: str
+
     __api_client: APIClient
 
-    def __init__(self, api_client, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.__api_client = api_client
+        self.__api_client = kwargs.get("api_client")
 
     def rename_workspace(self, new_workspace_name: str) -> str:
         """rename the current workspace to new name
@@ -110,7 +104,7 @@ class Workspace(BaseModel):
         res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
-    def projects(self):
+    def projects(self) -> List[Project]:
         """get user projects for this Workspace
 
         :return: list of Projects
@@ -128,7 +122,12 @@ class Workspace(BaseModel):
         ]
         return projects
 
-    def project(self, project_name: str):
+    def project(self, project_name: str) -> Project:
+        """Select specific project
+
+        :param project_name: Name of the project
+        :return: Project
+        """
         projects = self.projects()
 
         project = next(

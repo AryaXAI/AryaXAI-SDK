@@ -63,7 +63,6 @@ class APIClient(BaseModel):
             response = requests.request(
                 method, url, headers=self.headers, json=payload, files=files
             )
-            print(response.json())
             response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as e:
@@ -95,6 +94,12 @@ class APIClient(BaseModel):
         return response
 
     def file(self, uri, file_path: str):
+        """makes multipart request to send files
+
+        :param uri: api uri
+        :param file_path: file path
+        :return: JSON response
+        """
         files = {"in_file": open(file_path, "rb")}
         self.refresh_bearer_token()
         response = self.request("POST", uri, files=files)
