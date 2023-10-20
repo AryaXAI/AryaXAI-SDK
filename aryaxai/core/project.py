@@ -1,3 +1,4 @@
+from common.payload import MonitoringPayload
 from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
@@ -14,6 +15,10 @@ from aryaxai.common.xai_uris import (
     UPLOAD_DATA_FILE_URI,
     UPLOAD_DATA_URI,
     UPLOAD_DATA_WITH_CHECK_URI,
+    DATA_DRIFT_DASHBOARD_URI,
+    TARGET_DRIFT_DASHBOARD_URI,
+    BIAS_MONITORING_DASHBOARD_URI,
+    MODEL_PERFORMANCE_DASHBOARD_URI,
 )
 import pandas as pd
 import json
@@ -252,6 +257,92 @@ class Project(BaseModel):
         ).drop(["current_small_hist", "ref_small_hist"], axis=1)
 
         return data_drift_diagnosis
+    
+
+    def get_data_drift_dashboard(self, config: MonitoringPayload) -> str:
+        """get data drift dashboard url
+
+        Args:
+            config (MonitoringPayload): config for data drift dashboard
+
+        Returns:
+            str: data drift dashboard url
+        """
+        res = self.api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
+
+        if not res['success']:
+            error_details = res.get('details', 'Failed to get dashboard url')
+            raise Exception(error_details)
+
+        dashboard_url = res.get('hosted_path', None)
+        auth_token = self.api_client.get_auth_token()
+        query_params = f'?id={auth_token}'
+
+        return f"{dashboard_url}{query_params}"
+    
+    def get_target_drift_dashboard(self, config: MonitoringPayload) -> str:
+        """get target drift dashboard url
+
+        Args:
+            config (MonitoringPayload): config for target drift dashboard
+
+        Returns:
+            str: target drift dashboard url
+        """        
+        res = self.api_client.post(TARGET_DRIFT_DASHBOARD_URI, config)
+
+        if not res['success']:
+            error_details = res.get('details', 'Failed to get dashboard url')
+            raise Exception(error_details)
+
+        dashboard_url = res.get('hosted_path', None)
+        auth_token = self.api_client.get_auth_token()
+        query_params = f'?id={auth_token}'
+
+        return f"{dashboard_url}{query_params}"
+    
+    def get_bias_monitoring_dashboard(self, config: MonitoringPayload) -> str:
+        """get bias monitoring dashboard url
+
+        Args:
+            config (MonitoringPayload): config for bias monitoring dashboard
+
+        Returns:
+            None: bias monitoring dashboard url
+        """        
+        res = self.api_client.post(BIAS_MONITORING_DASHBOARD_URI, config)
+
+        if not res['success']:
+            error_details = res.get('details', 'Failed to get dashboard url')
+            raise Exception(error_details)
+
+        dashboard_url = res.get('hosted_path', None)
+        auth_token = self.api_client.get_auth_token()
+        query_params = f'?id={auth_token}'
+
+        return f"{dashboard_url}{query_params}"
+    
+    def get_model_performance_dashboard(self, config: MonitoringPayload) -> str:
+        """get model performance dashboard url
+
+        Args:
+            config (MonitoringPayload): config for model performance dashboard
+
+        Returns:
+            str: model performance dashboard url
+        """        
+        res = self.api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, config)
+
+        if not res['success']:
+            error_details = res.get('details', 'Failed to get dashboard url')
+            raise Exception(error_details)
+
+        dashboard_url = res.get('hosted_path', None)
+        auth_token = self.api_client.get_auth_token()
+        query_params = f'?id={auth_token}'
+
+        return f"{dashboard_url}{query_params}"
+
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}', created_at='{self.created_at}')"

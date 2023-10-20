@@ -27,3 +27,9 @@ GET_DATA_DIAGNOSIS_URI = f"{API_VERSION}/project/get_data_diagnosis"
 DATA_DRFIT_DIAGNOSIS_URI = f"{API_VERSION}/project/run_data_drift_diagnosis"
 GET_PROJECT_CONFIG = f"{API_VERSION}/users/get_xai_config"
 UPDATE_PROJECT_CONFIG = f"{API_VERSION}/users/xai_config_update"
+
+# Monitoring
+DATA_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/data_drift_dashboard"
+TARGET_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/target_drift_dashboard"
+BIAS_MONITORING_DASHBOARD_URI = f"{API_VERSION}/dashboard/bias_monitoring_dashboard"
+MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_dashboard"
