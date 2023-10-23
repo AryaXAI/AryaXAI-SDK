@@ -12,17 +12,20 @@ from aryaxai.core.workspace import Workspace
 
 class XAI(BaseModel):
     """Base class to connect with AryaXAI platform"""
-
-    env: Environment = Environment()
+    __env: Environment = Environment()
     __api_client: APIClient
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-        self.env = Environment()
+        debug = self.__env.get_debug()
+        base_url = self.__env.get_base_url()
+
         self.__api_client = APIClient(
-            base_url=self.env.get_base_url()
+            debug=debug,
+            base_url=base_url
         )
+
 
     def login(self):
         """login to AryaXAI platform

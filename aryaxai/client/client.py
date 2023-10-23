@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class APIClient(BaseModel):
     """API client to interact with Arya XAI services"""
-
+    debug: bool = False
     base_url: str = ""
     access_token: str = ""
     auth_token: str = ""
