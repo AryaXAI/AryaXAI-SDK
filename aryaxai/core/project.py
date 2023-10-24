@@ -6,6 +6,8 @@ from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import MonitoringPayload
 from aryaxai.common.trigger import TriggerPayload
 
+from IPython.display import IFrame, display
+
 from aryaxai.common.xai_uris import (
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
@@ -353,7 +355,7 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, config: MonitoringPayload) -> str:
+    def get_data_drift_dashboard(self, config: MonitoringPayload):
         """get data drift dashboard url
 
         Args:
@@ -372,9 +374,11 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(
+            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
+        )
 
-    def get_target_drift_dashboard(self, config: MonitoringPayload) -> str:
+    def get_target_drift_dashboard(self, config: MonitoringPayload):
         """get target drift dashboard url
 
         Args:
@@ -393,9 +397,11 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(
+            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
+        )
 
-    def get_bias_monitoring_dashboard(self, config: MonitoringPayload) -> str:
+    def get_bias_monitoring_dashboard(self, config: MonitoringPayload):
         """get bias monitoring dashboard url
 
         Args:
@@ -414,9 +420,11 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(
+            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
+        )
 
-    def get_model_performance_dashboard(self, config: MonitoringPayload) -> str:
+    def get_model_performance_dashboard(self, config: MonitoringPayload):
         """get model performance dashboard url
 
         Args:
@@ -435,7 +443,9 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(
+            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
+        )
     
     def triggers(self) -> dict:
         """get monitoring triggers of project
