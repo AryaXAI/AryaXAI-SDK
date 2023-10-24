@@ -11,6 +11,7 @@ from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
     DELETE_TRIGGER_URI,
+    EXECUTED_TRIGGER_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_PROJECT_CONFIG,
@@ -492,6 +493,27 @@ class Project(BaseModel):
 
         if not res['success']:
             return Exception(res.get("details", "Failed to delete trigger"))
+
+        return res.get("details")
+    
+    def alerts(self, page_num: int = 1) -> dict:
+        """get monitoring alerts of project
+
+        Args:
+            page_num (int, optional): _description_. Defaults to 1.
+
+        Returns:
+            dict: _description_
+        """
+        payload = {
+            "page_num": page_num,
+            "project_name": self.project_name
+        }
+        
+        res = self.__api_client.post(EXECUTED_TRIGGER_URI, payload)
+
+        if not res['success']:
+            return Exception(res.get("details", "Failed to get alerts"))
 
         return res.get("details")
 

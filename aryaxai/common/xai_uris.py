@@ -35,3 +35,5 @@ MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_da
 GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
 CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
 DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
+
+EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"
