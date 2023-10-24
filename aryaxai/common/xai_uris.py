@@ -30,3 +30,8 @@ DATA_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/data_drift_dashboard"
 TARGET_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/target_drift_dashboard"
 BIAS_MONITORING_DASHBOARD_URI = f"{API_VERSION}/dashboard/bias_monitoring_dashboard"
 MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_dashboard"
+
+# Alerts
+GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
+CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
+DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"

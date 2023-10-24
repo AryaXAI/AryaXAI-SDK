@@ -3,13 +3,18 @@ from typing import List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.types import ProjectConfig
 from aryaxai.common.validation import Validate
-from aryaxai.common.payload import MonitoringPayload
+from aryaxai.common.monitoring import MonitoringPayload
+from aryaxai.common.trigger import TriggerPayload
+
 from aryaxai.common.xai_uris import (
+    CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
+    DELETE_TRIGGER_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_PROJECT_CONFIG,
+    GET_TRIGGERS_URI,
     UPDATE_PROJECT_URI,
     UPLOAD_DATA_FILE_INFO_URI,
     UPLOAD_DATA_FILE_URI,
@@ -430,6 +435,65 @@ class Project(BaseModel):
         query_params = f"?id={auth_token}"
 
         return f"{dashboard_url}{query_params}"
+    
+    def triggers(self) -> dict:
+        """get monitoring triggers of project
+
+        Returns:
+            str: trigger details
+        """
+        url = f"{GET_TRIGGERS_URI}?project_name={self.project_name}"
+        res = self.__api_client.get(url)
+
+        if not res['success']:
+            return Exception(res.get("details", "Failed to get triggers"))
+
+        return res.get("details")
+    
+    def create_trigger(self, trigger: TriggerPayload) -> str:
+        """create monitoring trigger for project
+
+        Args:
+            trigger (dict): trigger payload
+
+        Returns:
+            str: _description_
+        """
+        payload = {
+				"project_name": self.project_name,
+				"modify_req": {
+					"create_trigger": trigger,
+				},
+			}
+        res = self.__api_client.post(CREATE_TRIGGER_URI, payload)
+
+        if not res['success']:
+            return Exception(res.get("details", "Failed to create trigger"))
+
+        return res.get("details")
+    
+    def delete_trigger(self, trigger_name: str) -> str:
+        """delete monitoring trigger for project
+
+        Args:
+            trigger_name (str): trigger name
+
+        Returns:
+            str: _description_
+        """
+        payload = {
+				"project_name": self.project_name,
+				"modify_req": {
+					"delete_trigger": trigger_name,
+				},
+			}
+
+        res = self.__api_client.post(DELETE_TRIGGER_URI, payload)
+
+        if not res['success']:
+            return Exception(res.get("details", "Failed to delete trigger"))
+
+        return res.get("details")
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
