@@ -355,7 +355,7 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, config: MonitoringPayload):
+    def get_data_drift_dashboard(self, config: dict):
         """get data drift dashboard url
 
         Args:
@@ -363,7 +363,20 @@ class Project(BaseModel):
 
         Returns:
             str: data drift dashboard url
-        """
+        """        
+        # xai_config = self.config()
+        # xai_config.update(config)
+        
+        # print('\nxai_config')
+        # print(xai_config)
+        # print('xai_config\n')
+        
+        # payload = MonitoringPayload(**xai_config)
+       
+        # print('\npayload')
+        # print(payload)
+        # print('payload\n')
+        
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
 
         if not res["success"]:

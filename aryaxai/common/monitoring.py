@@ -17,6 +17,9 @@ class MonitoringPayload(BaseModel):
     date_feature: str
     features_to_use: List[str]
     model_type: Optional[str]
-        
+
     stat_test_name: str
-    stat_test_threshold: int
+    stat_test_threshold: float
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
