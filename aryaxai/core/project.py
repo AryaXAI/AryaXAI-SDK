@@ -364,18 +364,18 @@ class Project(BaseModel):
         Returns:
             str: data drift dashboard url
         """        
-        # xai_config = self.config()
-        # xai_config.update(config)
+        xai_config = self.config()
+        xai_config.update(config)
         
-        # print('\nxai_config')
-        # print(xai_config)
-        # print('xai_config\n')
+        print('\nxai_config')
+        print(xai_config)
+        print('xai_config\n')
         
-        # payload = MonitoringPayload(**xai_config)
+        payload = MonitoringPayload(**xai_config)
        
-        # print('\npayload')
-        # print(payload)
-        # print('payload\n')
+        print('\npayload')
+        print(payload)
+        print('payload\n')
         
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
 
