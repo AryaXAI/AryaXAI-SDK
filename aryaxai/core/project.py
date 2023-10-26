@@ -454,7 +454,7 @@ class Project(BaseModel):
             if passed_tag not in available_tags:
                 raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
             
-        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
+        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -491,7 +491,7 @@ class Project(BaseModel):
             if passed_tag not in available_tags:
                 raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
             
-        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
+        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
