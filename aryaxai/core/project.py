@@ -3,8 +3,10 @@ from typing import List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.types import ProjectConfig
 from aryaxai.common.validation import Validate
-from aryaxai.common.monitoring import MonitoringPayload
+from aryaxai.common.monitoring import DataDriftPayload, MonitoringPayload, TargetDriftPayload
 from aryaxai.common.trigger import TriggerPayload
+
+import pandas as pd
 
 from IPython.display import IFrame, display
 
@@ -355,7 +357,7 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, config: dict):
+    def get_data_drift_dashboard(self, payload: dict):
         """get data drift dashboard url
 
         Args:
@@ -363,21 +365,22 @@ class Project(BaseModel):
 
         Returns:
             str: data drift dashboard url
-        """        
+        """
+        passed_tags = payload.get('base_line_tag')
+
         xai_config = self.config()
-        xai_config.update(config)
+        available_tags = xai_config['metadata']['avaialble_tags']
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
         
-        print('\nxai_config')
-        print(xai_config)
-        print('xai_config\n')
-        
-        payload = MonitoringPayload(**xai_config)
-       
-        print('\npayload')
-        print(payload)
-        print('payload\n')
-        
-        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
+        payload = DataDriftPayload(
+            project_name=self.project_name,
+            **payload
+        )
+                
+        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -391,7 +394,7 @@ class Project(BaseModel):
             IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
         )
 
-    def get_target_drift_dashboard(self, config: MonitoringPayload):
+    def get_target_drift_dashboard(self, payload: dict):
         """get target drift dashboard url
 
         Args:
@@ -400,7 +403,21 @@ class Project(BaseModel):
         Returns:
             str: target drift dashboard url
         """
-        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, config)
+        payload = TargetDriftPayload(
+            project_name=self.project_name,
+            **payload
+        )
+        
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config['metadata']['avaialble_tags']
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+        print(payload)
+        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -472,9 +489,17 @@ class Project(BaseModel):
         if not res['success']:
             return Exception(res.get("details", "Failed to get triggers"))
 
-        return res.get("details")
+        monitoring_triggers = res.get("details", [])
+        
+        if not monitoring_triggers:
+            return []
+        
+        monitoring_triggers = pd.DataFrame(monitoring_triggers)
+        monitoring_triggers = monitoring_triggers.drop('project_name', axis=1)
+        
+        return monitoring_triggers
     
-    def create_trigger(self, trigger: TriggerPayload) -> str:
+    def create_trigger(self, trigger: dict) -> str:
         """create monitoring trigger for project
 
         Args:
@@ -483,18 +508,23 @@ class Project(BaseModel):
         Returns:
             str: _description_
         """
+        trigger_payload = TriggerPayload(
+            project_name=self.project_name,
+            **trigger
+        )
+        
         payload = {
-				"project_name": self.project_name,
-				"modify_req": {
-					"create_trigger": trigger,
-				},
-			}
+            "project_name": self.project_name,
+            "modify_req": {
+                "create_trigger": trigger_payload.model_dump(),
+			},
+		}
         res = self.__api_client.post(CREATE_TRIGGER_URI, payload)
 
         if not res['success']:
             return Exception(res.get("details", "Failed to create trigger"))
 
-        return res.get("details")
+        return 'Trigger created successfully.'
     
     def delete_trigger(self, trigger_name: str) -> str:
         """delete monitoring trigger for project
@@ -517,7 +547,7 @@ class Project(BaseModel):
         if not res['success']:
             return Exception(res.get("details", "Failed to delete trigger"))
 
-        return res.get("details")
+        return pd.DataFrame(res.get("details", []))
     
     def alerts(self, page_num: int = 1) -> dict:
         """get monitoring alerts of project
@@ -538,7 +568,13 @@ class Project(BaseModel):
         if not res['success']:
             return Exception(res.get("details", "Failed to get alerts"))
 
-        return res.get("details")
+        monitoring_alerts = res.get("details", [])
+        
+        if not monitoring_alerts:
+            return []
+        
+        return pd.DataFrame(monitoring_alerts)
+
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
