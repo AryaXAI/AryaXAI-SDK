@@ -39,7 +39,13 @@ git checkout origin/main
 ```
 
 ### Build and Publish SDK
-Go to github.com and launch release workflow for main branch.
+1) Go to github.com and launch release workflow for main branch.
+or
+2) Manual release
+```
+py -m build
+py -m twine upload dist/*
+```
 
 ## Documentation
 Go to root directory and run below command. It updates documentation schema files (.rst files)

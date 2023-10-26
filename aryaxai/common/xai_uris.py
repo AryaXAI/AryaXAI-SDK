@@ -40,3 +40,11 @@ REMOVE_MODEL_URI = f"{API_VERSION}/ai-models/remove_model"
 GET_TAGS_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
 RUN_MODEL_ON_DATA_URI = f"{API_VERSION}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
+
+
+# Alerts
+GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
+CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
+DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
+
+EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"
