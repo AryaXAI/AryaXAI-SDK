@@ -22,8 +22,8 @@ class XAI(BaseModel):
         base_url = self.__env.get_base_url()
 
         self.__api_client = APIClient(
-            debug=False,
-            base_url='https://api-m.aryaxai.com'
+            debug=True,
+            base_url='http://3.108.15.217:30010'
         )
 
 

@@ -1,6 +1,6 @@
 import os
 
-env = os.environ.get('XAI_ENV', 'testing')
+env = os.environ.get('XAI_ENV', 'prod')
 logger_on = os.environ.get('DEBUG', False)
 
 if logger_on:
