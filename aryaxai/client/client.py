@@ -57,7 +57,7 @@ class APIClient(BaseModel):
             )
             self.update_headers(response["access_token"])
 
-    def request(self, method, uri, payload={}, files=None):
+    def base_request(self, method, uri, payload={}, files=None):
         """makes request to xai base service
 
         :param uri: api uri
@@ -71,10 +71,19 @@ class APIClient(BaseModel):
             response = requests.request(
                 method, url, headers=self.headers, json=payload, files=files
             )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            raise Exception(f"{method} request failed: {e}")
+            if 400 <= response.status_code < 500:
+                raise Exception(response.json())
+            elif 500 <= response.status_code < 600:
+                raise Exception(response.json())
+            else:
+                return response
+        except Exception as e:
+            raise e
+
+    def request(self, method, uri, payload):
+        self.refresh_bearer_token()
+        response = self.base_request(method, uri, payload)
+        return response
 
     def get(self, uri):
         """makes get request to xai base service
@@ -85,8 +94,8 @@ class APIClient(BaseModel):
         """
 
         self.refresh_bearer_token()
-        response = self.request("GET", uri)
-        return response
+        response = self.base_request("GET", uri)
+        return response.json()
 
     def post(self, uri, payload={}):
         """makes post request to xai base service
@@ -98,8 +107,8 @@ class APIClient(BaseModel):
         """
 
         self.refresh_bearer_token()
-        response = self.request("POST", uri, payload)
-        return response
+        response = self.base_request("POST", uri, payload)
+        return response.json()
 
     def file(self, uri, file_path: str):
         """makes multipart request to send files
@@ -110,5 +119,5 @@ class APIClient(BaseModel):
         """
         files = {"in_file": open(file_path, "rb")}
         self.refresh_bearer_token()
-        response = self.request("POST", uri, files=files)
-        return response
+        response = self.base_request("POST", uri, files=files)
+        return response.json()

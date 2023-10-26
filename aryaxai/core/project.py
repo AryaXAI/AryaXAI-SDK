@@ -1,15 +1,38 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
-from aryaxai.common.types import ProjectConfig
+from aryaxai.common.types import DataConfig, ProjectConfig
 from aryaxai.common.validation import Validate
-from aryaxai.common.payload import MonitoringPayload
+from aryaxai.common.monitoring import (
+    BiasMonitoringPayload,
+    DataDriftPayload,
+    MonitoringPayload,
+    TargetDriftPayload,
+)
+from aryaxai.common.trigger import TriggerPayload
+
+import pandas as pd
+
+from IPython.display import IFrame, display
+
 from aryaxai.common.xai_uris import (
+    CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
+    DOWNLOAD_TAG_DATA_URI,
+    DELETE_TRIGGER_URI,
+    EXECUTED_TRIGGER_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
+    GET_MODELS_URI,
     GET_PROJECT_CONFIG,
+    GET_TAGS_URI,
+    MODEL_PARAMETERS_URI,
+    REMOVE_MODEL_URI,
+    RUN_MODEL_ON_DATA_URI,
+    TRAIN_MODEL_URI,
+    UPDATE_ACTIVE_MODEL_URI,
+    GET_TRIGGERS_URI,
     UPDATE_PROJECT_URI,
     UPLOAD_DATA_FILE_INFO_URI,
     UPLOAD_DATA_FILE_URI,
@@ -22,6 +45,7 @@ from aryaxai.common.xai_uris import (
 )
 import pandas as pd
 import json
+import io
 
 
 class Project(BaseModel):
@@ -347,7 +371,7 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, config: MonitoringPayload) -> str:
+    def get_data_drift_dashboard(self, payload: dict):
         """get data drift dashboard url
 
         Args:
@@ -356,7 +380,20 @@ class Project(BaseModel):
         Returns:
             str: data drift dashboard url
         """
-        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, config)
+        payload = DataDriftPayload(project_name=self.project_name, **payload)
+
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config["metadata"]["avaialble_tags"]
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(
+                    f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}"
+                )
+
+        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -366,9 +403,9 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650))
 
-    def get_target_drift_dashboard(self, config: MonitoringPayload) -> str:
+    def get_target_drift_dashboard(self, payload: dict):
         """get target drift dashboard url
 
         Args:
@@ -377,7 +414,20 @@ class Project(BaseModel):
         Returns:
             str: target drift dashboard url
         """
-        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, config)
+        payload = TargetDriftPayload(project_name=self.project_name, **payload)
+
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config["metadata"]["avaialble_tags"]
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(
+                    f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}"
+                )
+
+        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -387,9 +437,9 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650))
 
-    def get_bias_monitoring_dashboard(self, config: MonitoringPayload) -> str:
+    def get_bias_monitoring_dashboard(self, payload: dict):
         """get bias monitoring dashboard url
 
         Args:
@@ -398,7 +448,20 @@ class Project(BaseModel):
         Returns:
             None: bias monitoring dashboard url
         """
-        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, config)
+        payload = BiasMonitoringPayload(project_name=self.project_name, **payload)
+
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config["metadata"]["avaialble_tags"]
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(
+                    f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}"
+                )
+
+        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -408,9 +471,9 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650))
 
-    def get_model_performance_dashboard(self, config: MonitoringPayload) -> str:
+    def get_model_performance_dashboard(self, payload: dict):
         """get model performance dashboard url
 
         Args:
@@ -419,7 +482,20 @@ class Project(BaseModel):
         Returns:
             str: model performance dashboard url
         """
-        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, config)
+        payload = BiasMonitoringPayload(project_name=self.project_name, **payload)
+
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config["metadata"]["avaialble_tags"]
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(
+                    f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}"
+                )
+
+        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -429,7 +505,352 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
-        return f"{dashboard_url}{query_params}"
+        display(IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650))
+
+    def triggers(self) -> dict:
+        """get monitoring triggers of project
+
+        Returns:
+            str: trigger details
+        """
+        url = f"{GET_TRIGGERS_URI}?project_name={self.project_name}"
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to get triggers"))
+
+        monitoring_triggers = res.get("details", [])
+
+        if not monitoring_triggers:
+            return []
+
+        monitoring_triggers = pd.DataFrame(monitoring_triggers)
+        monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
+
+        return monitoring_triggers
+
+    def create_trigger(self, trigger: dict) -> str:
+        """create monitoring trigger for project
+
+        Args:
+            trigger (dict): trigger payload
+
+        Returns:
+            str: _description_
+        """
+        trigger_payload = TriggerPayload(project_name=self.project_name, **trigger)
+
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "create_trigger": trigger_payload.model_dump(),
+            },
+        }
+        res = self.__api_client.post(CREATE_TRIGGER_URI, payload)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to create trigger"))
+
+        return "Trigger created successfully."
+
+    def delete_trigger(self, trigger_name: str) -> str:
+        """delete monitoring trigger for project
+
+        Args:
+            trigger_name (str): trigger name
+
+        Returns:
+            str: _description_
+        """
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "delete_trigger": trigger_name,
+            },
+        }
+
+        res = self.__api_client.post(DELETE_TRIGGER_URI, payload)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to delete trigger"))
+
+        return pd.DataFrame(res.get("details", []))
+
+    def alerts(self, page_num: int = 1) -> dict:
+        """get monitoring alerts of project
+
+        Args:
+            page_num (int, optional): _description_. Defaults to 1.
+
+        Returns:
+            dict: _description_
+        """
+        payload = {"page_num": page_num, "project_name": self.project_name}
+
+        res = self.__api_client.post(EXECUTED_TRIGGER_URI, payload)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to get alerts"))
+
+        monitoring_alerts = res.get("details", [])
+
+        if not monitoring_alerts:
+            return []
+
+        return pd.DataFrame(monitoring_alerts)
+
+    def train_model(
+        self,
+        model_type: str,
+        data_config: Optional[DataConfig] = None,
+        model_config: Optional[dict] = None,
+    ) -> str:
+        """Train new model
+
+        :param model_type: type of model
+        :param data_config: config for the data, defaults to None
+        :param model_config: config with hyper parameters for the model, defaults to None
+        :return: response
+        """
+        project_config = self.config()
+
+        if project_config == "Not Found":
+            raise Exception("Upload files first")
+
+        available_models = self.available_models()
+
+        if model_type not in available_models:
+            raise Exception(
+                f"{model_type} is not a valid model_type, select from \n{available_models}"
+            )
+
+        if data_config:
+            if data_config.get("feature_exclude"):
+                if not all(
+                    feature in project_config["metadata"]["feature_include"]
+                    for feature in data_config["feature_exclude"]
+                ):
+                    raise Exception(
+                        f"feature_exclude is not valid,\nalready excluded features : {project_config['metadata']['feature_exclude']} \nselect valid values from : {project_config['metadata']['feature_include'] }"
+                    )
+
+            if data_config.get("tags"):
+                available_tags = self.tags()
+                if not all(tag in available_tags for tag in data_config["tags"]):
+                    raise Exception(
+                        f"tags is not valid,select valid values from :\n{available_tags}"
+                    )
+
+        if model_config:
+            model_params = self.__api_client.get(MODEL_PARAMETERS_URI)
+            model_name = f"{model_type}_{project_config['project_type']}".lower()
+            model_parameters = model_params.get(model_name)
+
+            if model_parameters:
+                for model_config_param in model_config.keys():
+                    model_param = model_parameters.get(model_config_param)
+                    model_config_param_value = model_config[model_config_param]
+
+                    if not model_param:
+                        raise Exception(
+                            f"Invalid model config for {model_type} \n {json.dumps(model_parameters)}"
+                        )
+
+                    if model_param["type"] == "select":
+                        if model_config_param_value not in model_param["value"]:
+                            raise Exception(
+                                f"Invalid value for {model_config_param}, select from {model_param['value']}"
+                            )
+                    elif model_param["type"] == "input":
+                        if model_config_param_value > model_param["max"]:
+                            raise Exception(
+                                f"{model_config_param} value cannot be greater than {model_param['max']}"
+                            )
+                        if model_config_param_value < model_param["min"]:
+                            raise Exception(
+                                f"{model_config_param} value cannot be less than {model_param['min']}"
+                            )
+
+        data_conf = data_config or {}
+
+        feature_exclude = [
+            *project_config["metadata"]["feature_exclude"],
+            *data_conf.get("feature_exclude", []),
+        ]
+
+        feature_include = [
+            feature
+            for feature in project_config["metadata"]["feature_include"]
+            if feature not in feature_exclude
+        ]
+
+        feature_encodings = (
+            data_conf.get("feature_encodings")
+            or project_config["metadata"]["feature_encodings"]
+        )
+
+        drop_duplicate_uid = (
+            data_conf.get("drop_duplicate_uid")
+            or project_config["metadata"]["drop_duplicate_uid"]
+        )
+
+        tags = data_conf.get("tags") or project_config["metadata"]["tags"]
+
+        payload = {
+            "project_name": self.project_name,
+            "project_type": project_config["project_type"],
+            "unique_identifier": project_config["unique_identifier"],
+            "true_label": project_config["true_label"],
+            "metadata": {
+                "model_name": model_type,
+                "model_parameters": model_config,
+                "feature_include": feature_include,
+                "feature_exclude": feature_exclude,
+                "feature_encodings": feature_encodings,
+                "drop_duplicate_uid": drop_duplicate_uid,
+                "tags": tags,
+            },
+        }
+
+        res = self.__api_client.post(TRAIN_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return "Model Trained Successfully"
+
+    def models(self) -> pd.DataFrame:
+        """Models trained for the project
+
+        :return: Dataframe with details of all models
+        """
+        res = self.__api_client.get(
+            f"{GET_MODELS_URI}?project_name={self.project_name}"
+        )
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        staged_models = res["details"]["staged"]
+
+        staged_models_df = pd.DataFrame(staged_models)
+
+        return staged_models_df
+
+    def available_models(self) -> List[str]:
+        """Returns all models which can be trained on platform
+
+        :return: list of all models
+        """
+        res = self.__api_client.get(
+            f"{GET_MODELS_URI}?project_name={self.project_name}"
+        )
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        available_models = list(
+            map(lambda data: data["model_name"], res["details"]["available"])
+        )
+
+        return available_models
+
+    def activate_model(self, model_name: str):
+        """Sets the model to active for the project
+
+        :param model_name: name of the model
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+        }
+        res = self.__api_client.post(UPDATE_ACTIVE_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res.get("details")
+
+    def remove_model(self, model_name: str):
+        """Removes the trained model for the project
+
+        :param model_name: name of the model
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+        }
+        res = self.__api_client.post(REMOVE_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res.get("details")
+
+    def model_inference(self, tag: str, model_name: Optional[str] = None):
+        """Run model inference on data
+
+        :param tag: data tag for running inference
+        :param model_name: name of the model, defaults to active model for the project
+        :return: model inference dataframe
+        """
+        available_tags = self.tags()
+        if tag not in available_tags:
+            raise Exception(
+                f"{tag} tag is not valid, select valid tag from :\n{available_tags}"
+            )
+
+        models = self.models()
+
+        available_models = models["model_name"].to_list()
+
+        if model_name and model_name not in available_models:
+            raise Exception(
+                f"{model_name} model is not valid,select valid model from :\n{available_models}"
+            )
+
+        model = (
+            model_name
+            or models.loc[models["status"] == "active"]["model_name"].values[0]
+        )
+
+        run_model_payload = {
+            "project_name": self.project_name,
+            "model_name": model,
+            "tags": tag,
+        }
+
+        run_model_res = self.__api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
+
+        if not run_model_res["success"]:
+            raise Exception(run_model_res["details"])
+
+        download_tag_payload = {
+            "project_name": self.project_name,
+            "tag": f"{tag}_{model}_Inference",
+        }
+
+        tag_data = self.__api_client.request(
+            "POST", DOWNLOAD_TAG_DATA_URI, download_tag_payload
+        )
+
+        tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
+
+        return tag_data_df
+
+    def tags(self) -> List[str]:
+        res = self.__api_client.get(f"{GET_TAGS_URI}?project_name={self.project_name}")
+
+        if not res["details"]["tags_details"]:
+            raise Exception("Upload files first")
+
+        tags = list(
+            map(lambda data: data["tag"], res["details"]["tags_details"]),
+        )
+
+        return tags
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
