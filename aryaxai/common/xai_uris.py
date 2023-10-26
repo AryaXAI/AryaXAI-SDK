@@ -30,3 +30,13 @@ DATA_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/data_drift_dashboard"
 TARGET_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/target_drift_dashboard"
 BIAS_MONITORING_DASHBOARD_URI = f"{API_VERSION}/dashboard/bias_monitoring_dashboard"
 MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_dashboard"
+
+# Auto ML
+MODEL_PARAMETERS_URI = f"{API_VERSION}/users/get_xai_model_parameters"
+TRAIN_MODEL_URI = f"{API_VERSION}/users/xai_config_update"
+GET_MODELS_URI = f"{API_VERSION}/ai-models/get_all_models"
+UPDATE_ACTIVE_MODEL_URI = f"{API_VERSION}/ai-models/update_active_model"
+REMOVE_MODEL_URI = f"{API_VERSION}/ai-models/remove_model"
+GET_TAGS_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
+RUN_MODEL_ON_DATA_URI = f"{API_VERSION}/ai-models/run_model_on_data"
+DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
