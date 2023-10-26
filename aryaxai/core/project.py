@@ -3,7 +3,7 @@ from typing import List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.types import ProjectConfig
 from aryaxai.common.validation import Validate
-from aryaxai.common.monitoring import DataDriftPayload, MonitoringPayload, TargetDriftPayload
+from aryaxai.common.monitoring import BiasMonitoringPayload, DataDriftPayload, MonitoringPayload, TargetDriftPayload
 from aryaxai.common.trigger import TriggerPayload
 
 import pandas as pd
@@ -366,7 +366,12 @@ class Project(BaseModel):
         Returns:
             str: data drift dashboard url
         """
-        passed_tags = payload.get('base_line_tag')
+        payload = DataDriftPayload(
+            project_name=self.project_name,
+            **payload
+        )
+        
+        passed_tags = payload.base_line_tag
 
         xai_config = self.config()
         available_tags = xai_config['metadata']['avaialble_tags']
@@ -374,11 +379,6 @@ class Project(BaseModel):
         for passed_tag in passed_tags:
             if passed_tag not in available_tags:
                 raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
-        
-        payload = DataDriftPayload(
-            project_name=self.project_name,
-            **payload
-        )
                 
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload.dict())
 
@@ -416,7 +416,7 @@ class Project(BaseModel):
         for passed_tag in passed_tags:
             if passed_tag not in available_tags:
                 raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
-        print(payload)
+
         res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload.dict())
 
         if not res["success"]:
@@ -431,7 +431,7 @@ class Project(BaseModel):
             IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
         )
 
-    def get_bias_monitoring_dashboard(self, config: MonitoringPayload):
+    def get_bias_monitoring_dashboard(self, payload: dict):
         """get bias monitoring dashboard url
 
         Args:
@@ -440,7 +440,21 @@ class Project(BaseModel):
         Returns:
             None: bias monitoring dashboard url
         """
-        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, config)
+        payload = BiasMonitoringPayload(
+            project_name=self.project_name,
+            **payload
+        )
+        
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config['metadata']['avaialble_tags']
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+            
+        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -454,7 +468,7 @@ class Project(BaseModel):
             IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
         )
 
-    def get_model_performance_dashboard(self, config: MonitoringPayload):
+    def get_model_performance_dashboard(self, payload: dict):
         """get model performance dashboard url
 
         Args:
@@ -463,7 +477,21 @@ class Project(BaseModel):
         Returns:
             str: model performance dashboard url
         """
-        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, config)
+        payload = BiasMonitoringPayload(
+            project_name=self.project_name,
+            **payload
+        )
+        
+        passed_tags = payload.base_line_tag
+
+        xai_config = self.config()
+        available_tags = xai_config['metadata']['avaialble_tags']
+
+        for passed_tag in passed_tags:
+            if passed_tag not in available_tags:
+                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+            
+        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -536,11 +564,11 @@ class Project(BaseModel):
             str: _description_
         """
         payload = {
-				"project_name": self.project_name,
-				"modify_req": {
-					"delete_trigger": trigger_name,
-				},
-			}
+            "project_name": self.project_name,
+            "modify_req": {
+                "delete_trigger": trigger_name,
+            },
+        }
 
         res = self.__api_client.post(DELETE_TRIGGER_URI, payload)
 
