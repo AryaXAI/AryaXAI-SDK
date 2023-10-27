@@ -151,7 +151,12 @@ class Workspace(BaseModel):
             "workspace_name": self.workspace_name,
         }
         res = self.__api_client.post(CREATE_PROJECT_URI, payload)
-        project = Project(**res["details"])
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        project = Project(api_client=self.__api_client, **res["details"])
+
         return project
 
     def __print__(self) -> str:

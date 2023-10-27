@@ -7,7 +7,7 @@ class Environment(BaseModel):
     Environment class to load current environment
     """
     debug: bool = False
-    XAI_ENV: str = os.getenv("XAI_ENV", 'testing')
+    XAI_ENV: str = os.getenv("XAI_ENV", 'prod')
     
     def __init__(self):
         super().__init__()

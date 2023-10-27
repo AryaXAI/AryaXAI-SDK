@@ -3,3 +3,4 @@ pyjwt==2.8.0
 python-dotenv==1.0.0
 requests==2.31.0
 pandas==1.5.3
+plotly==5.18.0
