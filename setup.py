@@ -8,7 +8,7 @@ with open('requirements.txt', 'r', encoding='utf-8') as pr:
 
 setup(
     name='aryaxai',
-    version='0.0.21',
+    version='0.0.24',
     description='Full stack ML Observability with AryaXAI',
     long_description=long_description,
     long_description_content_type='text/markdown',

@@ -1,14 +1,24 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
+from aryaxai.common.constants import (
+    DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
+    MAIL_FREQUENCIES,
+    MODEL_PERF_TRIGGER_REQUIRED_FIELDS,
+    MODEL_TYPES,
+    DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
+    DATA_DRIFT_STAT_TESTS,
+    TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS,
+    TARGET_DRIFT_STAT_TESTS,
+    BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
+    MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
+    TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
+)
 from aryaxai.common.types import ProjectConfig
 from aryaxai.common.validation import Validate
-from aryaxai.common.monitoring import BiasMonitoringPayload, DataDriftPayload, MonitoringPayload, TargetDriftPayload
-from aryaxai.common.trigger import TriggerPayload
+from aryaxai.common.monitoring import BiasMonitoringPayload, DataDriftPayload, ModelPerformancePayload, TargetDriftPayload
 
 import pandas as pd
-
-from IPython.display import IFrame, display
 
 from aryaxai.common.xai_uris import (
     CREATE_TRIGGER_URI,
@@ -32,6 +42,8 @@ from aryaxai.common.xai_uris import (
 )
 import pandas as pd
 import json
+
+from aryaxai.core.dashboard import Dashboard
 
 
 class Project(BaseModel):
@@ -357,104 +369,91 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, payload: dict):
-        """get data drift dashboard url
+    def get_data_drift_dashboard(self, payload: DataDriftPayload = None) -> Dashboard:
+        """get data drift dashboard
 
-        Args:
-            config (MonitoringPayload): config for data drift dashboard
-
-        Returns:
-            str: data drift dashboard url
-        """
-        payload = DataDriftPayload(
-            project_name=self.project_name,
-            **payload
-        )
+        :param payload: data drift payload
+                {
+                    "base_line_tag": "",
+                    "current_tag": "",
+                    "stat_test_name": "",
+                    "stat_test_threshold": "",
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "features_to_use": []
+                }
+                defaults to None
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: Dashboard
+        """        
+        if not payload:
+            # get default dashboard
+            pass
         
-        passed_tags = payload.base_line_tag
+        payload['project_name'] = self.project_name
+        
+        # validate payload
+        Validate.check_for_missing_keys(
+            payload, DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS
+        )
+            
+        if payload['stat_test_name'] not in DATA_DRIFT_STAT_TESTS:
+            raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
+                            
+        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
 
-        xai_config = self.config()
-        available_tags = xai_config['metadata']['avaialble_tags']
+        if not res["success"]:
+            error_details = res.get("details", "Failed to get dashboard url")
+            raise Exception(error_details)
 
-        for passed_tag in passed_tags:
-            if passed_tag not in available_tags:
-                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+        dashboard_url = res.get("hosted_path", None)
+        auth_token = self.__api_client.get_auth_token()
+        query_params = f"?id={auth_token}"
                 
-        res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload.dict())
+        return Dashboard(url=f"{dashboard_url}{query_params}")
 
-        if not res["success"]:
-            error_details = res.get("details", "Failed to get dashboard url")
-            raise Exception(error_details)
+    def get_target_drift_dashboard(self, payload: TargetDriftPayload = None) -> Dashboard:
+        """get target drift dashboard
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.__api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
-
-        display(
-            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
-        )
-
-    def get_target_drift_dashboard(self, payload: dict):
-        """get target drift dashboard url
-
-        Args:
-            config (MonitoringPayload): config for target drift dashboard
-
-        Returns:
-            str: target drift dashboard url
+        :param payload: target drift payload
+                {
+                    "base_line_tag": "",
+                    "current_tag": "",
+                    "stat_test_name": "",
+                    "stat_test_threshold": "",
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "model_type": "",
+                    "baseline_true_label": "",
+                    "current_true_label": ""
+                }
+                defaults to None
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: Dashboard
         """
-        payload = TargetDriftPayload(
-            project_name=self.project_name,
-            **payload
+        if not payload:
+            # get default dashboard
+            pass
+        
+        payload['project_name'] = self.project_name
+        
+        # validate payload
+        Validate.check_for_missing_keys(
+            payload, TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS
         )
         
-        passed_tags = payload.base_line_tag
-
-        xai_config = self.config()
-        available_tags = xai_config['metadata']['avaialble_tags']
-
-        for passed_tag in passed_tags:
-            if passed_tag not in available_tags:
-                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
-
-        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload.dict())
-
-        if not res["success"]:
-            error_details = res.get("details", "Failed to get dashboard url")
-            raise Exception(error_details)
-
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.__api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
-
-        display(
-            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
-        )
-
-    def get_bias_monitoring_dashboard(self, payload: dict):
-        """get bias monitoring dashboard url
-
-        Args:
-            config (MonitoringPayload): config for bias monitoring dashboard
-
-        Returns:
-            None: bias monitoring dashboard url
-        """
-        payload = BiasMonitoringPayload(
-            project_name=self.project_name,
-            **payload
-        )
-        
-        passed_tags = payload.base_line_tag
-
-        xai_config = self.config()
-        available_tags = xai_config['metadata']['avaialble_tags']
-
-        for passed_tag in passed_tags:
-            if passed_tag not in available_tags:
-                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+        if payload['model_type'] not in MODEL_TYPES:
+            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {MODEL_TYPES}.")
             
-        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload.dict())
+        if payload['stat_test_name'] not in TARGET_DRIFT_STAT_TESTS:
+            raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS}.")
+        
+        res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -463,35 +462,40 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
+        
+        return Dashboard(url=f"{dashboard_url}{query_params}")
 
-        display(
-            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
-        )
 
-    def get_model_performance_dashboard(self, payload: dict):
-        """get model performance dashboard url
+    def get_bias_monitoring_dashboard(self, payload: BiasMonitoringPayload = None) -> Dashboard:
+        """get bias monitoring dashboard
 
-        Args:
-            config (MonitoringPayload): config for model performance dashboard
-
-        Returns:
-            str: model performance dashboard url
+        :param payload: bias monitoring payload
+                {
+                    "base_line_tag": "",
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "model_type": "",
+                    "baseline_true_label": "",
+                    "baseline_pred_label": "",
+                    features_to_use: []
+                }
+                defaults to None
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: Dashboard
         """
-        payload = BiasMonitoringPayload(
-            project_name=self.project_name,
-            **payload
+        Validate.check_for_missing_keys(
+            payload, BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS
         )
         
-        passed_tags = payload.base_line_tag
-
-        xai_config = self.config()
-        available_tags = xai_config['metadata']['avaialble_tags']
-
-        for passed_tag in passed_tags:
-            if passed_tag not in available_tags:
-                raise Exception(f"{passed_tag} is not a valid tag. Pick a valid tag from {available_tags}")
+        payload['project_name'] = self.project_name
+        
+        # validate payload    
+        if payload['model_type'] not in MODEL_TYPES:
+            raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}.")
             
-        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload.dict())
+        res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -500,16 +504,60 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
+        
+        return Dashboard(url=f"{dashboard_url}{query_params}")
 
-        display(
-            IFrame(src=f"{dashboard_url}{query_params}", width=800, height=650)
+    def get_model_performance_dashboard(self, payload: ModelPerformancePayload = None) -> Dashboard:
+        """get model performance dashboard
+
+        :param payload: model performance payload
+                {
+                    "base_line_tag": "",
+                    "current_tag": "",
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "model_type": "",
+                    "baseline_true_label": "",
+                    "baseline_pred_label": "",
+                    "current_true_label": "",
+                    "current_pred_label": ""
+                }
+                defaults to None
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: Dashboard
+        """
+        if not payload:
+            # get default dashboard
+            pass
+        
+        payload['project_name'] = self.project_name
+        
+        # validate payload
+        Validate.check_for_missing_keys(
+            payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS
         )
+        if payload['model_type'] not in MODEL_TYPES:
+            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {MODEL_TYPES}.")
+            
+        res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
+
+        if not res["success"]:
+            error_details = res.get("details", "Failed to get dashboard url")
+            raise Exception(error_details)
+
+        dashboard_url = res.get("hosted_path", None)
+        auth_token = self.__api_client.get_auth_token()
+        query_params = f"?id={auth_token}"
+        
+        return Dashboard(url=f"{dashboard_url}{query_params}")
+
     
-    def triggers(self) -> dict:
+    def monitoring_triggers(self) -> dict:
         """get monitoring triggers of project
 
-        Returns:
-            str: trigger details
+        :return: DataFrame
         """
         url = f"{GET_TRIGGERS_URI}?project_name={self.project_name}"
         res = self.__api_client.get(url)
@@ -520,31 +568,98 @@ class Project(BaseModel):
         monitoring_triggers = res.get("details", [])
         
         if not monitoring_triggers:
-            return []
+            return 'No triggers found.'
         
         monitoring_triggers = pd.DataFrame(monitoring_triggers)
         monitoring_triggers = monitoring_triggers.drop('project_name', axis=1)
         
         return monitoring_triggers
     
-    def create_trigger(self, trigger: dict) -> str:
+    def create_monitoring_trigger(self, type: str, payload: dict) -> str:
         """create monitoring trigger for project
 
-        Args:
-            trigger (dict): trigger payload
-
-        Returns:
-            str: _description_
+        :param type: trigger type ["Data Drift", "Target Drift", "Model Performance"]
+        :param payload: Data Drift Trigger Payload
+                {
+                    "trigger_name": "",
+                    "mail_list": [],
+                    "frequency": "",
+                    "stat_test_name": "",
+                    "stat_test_threshold": 0,
+                    "datadrift_features_per": 7,
+                    "features_to_use": [],
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "base_line_tag": "",
+                    "current_tag": ""
+                } OR Target Drift Trigger Payload
+                {
+                    "trigger_name": "",
+                    "mail_list": [],
+                    "frequency": "",
+                    "model_type": "",
+                    "stat_test_name": ""
+                    "stat_test_threshold": 0,
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "base_line_tag": "",
+                    "current_tag": "",
+                    "baseline_true_label": "",
+                    "current_true_label": ""
+                } OR Model Performance Trigger Payload
+                {
+                    "trigger_name": "",
+                    "mail_list": [],
+                    "frequency": "",
+                    "model_type": "",
+                    "model_performance_metric": "",
+                    "model_performance_threshold": "",
+                    "date_feature": "",
+                    "baseline_date": { "start_date": "", "end_date": ""},
+                    "current_date": { "start_date": "", "end_date": ""},
+                    "base_line_tag": "",
+                    "baseline_true_label": "",
+                    "baseline_pred_label": ""                   
+                }
+                defaults to None
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: _description_
         """
-        trigger_payload = TriggerPayload(
-            project_name=self.project_name,
-            **trigger
-        )
+        payload['project_name'] = self.project_name
+            
+        if type == "Data Drift":
+            Validate.check_for_missing_keys(
+                payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS
+            )
+        elif type == "Target Drift":
+            Validate.check_for_missing_keys(
+                payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
+            )
+            
+            if payload['model_type'] not in MODEL_TYPES:
+                raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}")
+        elif type == "Model Performance":
+            Validate.check_for_missing_keys(
+                payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS
+            )
+            
+            if payload['model_type'] not in MODEL_TYPES:
+                raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}")
+        else:
+            raise Exception('Invalid trigger type. Please use one of ["Data Drift", "Target Drift", "Model Performance"]')
         
+        if payload['frequency'] not in MAIL_FREQUENCIES:
+            raise Exception(f"Invalid frequency value. Please use one of {MAIL_FREQUENCIES}")
+            
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "create_trigger": trigger_payload.model_dump(),
+                "create_trigger": payload,
 			},
 		}
         res = self.__api_client.post(CREATE_TRIGGER_URI, payload)
@@ -554,19 +669,16 @@ class Project(BaseModel):
 
         return 'Trigger created successfully.'
     
-    def delete_trigger(self, trigger_name: str) -> str:
+    def delete_monitoring_trigger(self, name: str) -> str:
         """delete monitoring trigger for project
 
-        Args:
-            trigger_name (str): trigger name
-
-        Returns:
-            str: _description_
+        :param name: trigger name
+        :return: str
         """
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "delete_trigger": trigger_name,
+                "delete_trigger": name,
             },
         }
 
@@ -575,16 +687,13 @@ class Project(BaseModel):
         if not res['success']:
             return Exception(res.get("details", "Failed to delete trigger"))
 
-        return pd.DataFrame(res.get("details", []))
+        return 'Monitoring trigger deleted successfully.'
     
     def alerts(self, page_num: int = 1) -> dict:
         """get monitoring alerts of project
 
-        Args:
-            page_num (int, optional): _description_. Defaults to 1.
-
-        Returns:
-            dict: _description_
+        :param page_num: page num, defaults to 1
+        :return: DataFrame
         """
         payload = {
             "page_num": page_num,
@@ -599,7 +708,7 @@ class Project(BaseModel):
         monitoring_alerts = res.get("details", [])
         
         if not monitoring_alerts:
-            return []
+            return 'No monitoring alerts found.'
         
         return pd.DataFrame(monitoring_alerts)
 
