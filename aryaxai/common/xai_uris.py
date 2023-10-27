@@ -41,10 +41,13 @@ GET_TAGS_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
 RUN_MODEL_ON_DATA_URI = f"{API_VERSION}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
 
+# Explainability
+GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"
+SEARCH_CASE_URI = f"{API_VERSION}/ai-models/search_case"
+CASE_INFO_URI = f"{API_VERSION}/ai-models/get_case_info"
 
 # Alerts
 GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
 CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
 DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
-
 EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"

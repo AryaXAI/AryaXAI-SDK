@@ -16,12 +16,14 @@ import pandas as pd
 from IPython.display import IFrame, display
 
 from aryaxai.common.xai_uris import (
+    CASE_INFO_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_DATA_FILE_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
+    GET_CASES_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_MODELS_URI,
@@ -30,6 +32,7 @@ from aryaxai.common.xai_uris import (
     MODEL_PARAMETERS_URI,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
+    SEARCH_CASE_URI,
     TRAIN_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
     GET_TRIGGERS_URI,
@@ -46,6 +49,8 @@ from aryaxai.common.xai_uris import (
 import pandas as pd
 import json
 import io
+
+from aryaxai.core.case import Case
 
 
 class Project(BaseModel):
@@ -841,6 +846,10 @@ class Project(BaseModel):
         return tag_data_df
 
     def tags(self) -> List[str]:
+        """Available Tags for Project
+
+        :return: list of tags
+        """
         res = self.__api_client.get(f"{GET_TAGS_URI}?project_name={self.project_name}")
 
         if not res["details"]["tags_details"]:
@@ -851,6 +860,76 @@ class Project(BaseModel):
         )
 
         return tags
+
+    def cases(
+        self,
+        unique_identifier: Optional[str] = None,
+        tag: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ):
+        """Cases for the Project
+
+        :param unique_identifier: unique identifer of the case for filtering, defaults to None
+        :param tag: data tag for filtering, defaults to None
+        :param start_date: start date for filtering, defaults to None
+        :param end_date: end data for filtering, defaults to None
+        """
+
+        def get_cases():
+            payload = {
+                "project_name": self.project_name,
+                "page_num": 1,
+            }
+            res = self.__api_client.post(GET_CASES_URI, payload)
+            return res
+
+        def search_cases():
+            payload = {
+                "project_name": self.project_name,
+                "unique_identifier": unique_identifier,
+                "start_date": start_date,
+                "end_date": end_date,
+                "tag": tag,
+                "page_num": 1,
+            }
+            res = self.__api_client.post(SEARCH_CASE_URI, payload)
+            return res
+
+        cases = (
+            search_cases()
+            if unique_identifier or tag or start_date or end_date
+            else get_cases()
+        )
+
+        if not cases["success"]:
+            raise Exception("No cases found")
+
+        cases_df = pd.DataFrame(cases.get("details"))
+
+        return cases_df
+
+    def case_info(self, unique_identifer: str, tag: str):
+        """Info for case
+
+        :param unique_identifer: _description_
+        :param tag: _description_
+        :raises Exception: _description_
+        :return: _description_
+        """
+        payload = {
+            "project_name": self.project_name,
+            "unique_identifier": unique_identifer,
+            "tag": tag,
+        }
+        res = self.__api_client.post(CASE_INFO_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        case = Case(**res["details"])
+
+        return case
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
