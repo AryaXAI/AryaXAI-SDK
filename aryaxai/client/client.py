@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 class APIClient(BaseModel):
     """API client to interact with Arya XAI services"""
+
     debug: bool = False
     base_url: str = ""
     access_token: str = ""
@@ -52,7 +53,7 @@ class APIClient(BaseModel):
                     options={"verify_signature": False, "verify_exp": True},
                 )
         except jwt.exceptions.ExpiredSignatureError as e:
-            response = self.request(
+            response = self.base_request(
                 "POST", LOGIN_URI, {"access_token": self.access_token}
             )
             self.update_headers(response["access_token"])
