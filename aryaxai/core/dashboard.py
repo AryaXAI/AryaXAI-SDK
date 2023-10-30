@@ -11,6 +11,7 @@ class Dashboard(BaseModel):
         super().__init__(**kwargs)
 
         self.print_config()
+        self.plot()
 
     def plot(self, width: int=1000, height: int=800):
         """plot the dashboard by remote url
@@ -35,7 +36,7 @@ class Dashboard(BaseModel):
         """
         config = {k: v for k, v in self.config.items() if v is not None}
 
-        print("Default Config: ", end='')
+        print("Using config: ", end='')
         print(json.dumps(config, indent=4))
         
     def __print__(self) -> str:

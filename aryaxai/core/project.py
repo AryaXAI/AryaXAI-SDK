@@ -9,6 +9,7 @@ from aryaxai.common.constants import (
     DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
     DATA_DRIFT_STAT_TESTS,
     TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS,
+    TARGET_DRIFT_MODEL_TYPES,
     TARGET_DRIFT_STAT_TESTS,
     BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
@@ -176,8 +177,12 @@ class Project(BaseModel):
         :return: response
         """
         res = self.__api_client.get(f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}")
+        
+        if not res["success"]:
+            error_details = res.get("details", "Failed to get dashboard url")
+            raise Exception(error_details)
 
-        return res
+        return res['details']
 
     def delete_file(self, path: str) -> str:
         """deletes file for the project
@@ -396,6 +401,25 @@ class Project(BaseModel):
         ).drop(["current_small_hist", "ref_small_hist"], axis=1)
 
         return data_drift_diagnosis
+    
+    def get_default_dashboard_config(self, uri: str) -> dict:
+        """get default config value of given dashboard
+
+        :param uri: uri of the dashboard
+        :return: dict of dashboard config
+        """
+        config = {"project_name": self.project_name}
+        
+        try:
+            res = self.__api_client.post(uri, config)
+
+            if not res["success"]:
+                # take default config when not passed
+                config = res['config']
+        except:
+            pass
+        
+        return config
 
     def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
         """get data drift dashboard
@@ -406,13 +430,13 @@ class Project(BaseModel):
                 "current_tag": "",
                 "stat_test_name": "",
                 "stat_test_threshold": "",
+                "features_to_use": []
                 "date_feature": "",
                 "baseline_date": { "start_date": "", "end_date": ""},
                 "current_date": { "start_date": "", "end_date": ""},
-                "features_to_use": []
             }
             defaults to None
-            keys:
+            key values for payload:
                 stat_test_name=
                     chisquare (Chi-Square test):
                         default for categorical features if the number of labels for feature > 2
@@ -457,28 +481,35 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            try:
-                res = self.__api_client.post(
-                    DATA_DRIFT_DASHBOARD_URI,
-                    {"project_name": self.project_name}
-                )
-
-                if not res["success"]:
-                    # take default config when not passed
-                    payload = res['config']
-            except:
-                pass
+            payload = self.get_default_dashboard_config(DATA_DRIFT_DASHBOARD_URI)
 
         payload['project_name'] = self.project_name
-        
-        # validate payload
+                
+        # validate required fields
         Validate.check_for_missing_keys(
             payload, DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS
         )
-            
+        
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info['alltags']
+        
+        Validate.validate_tags(payload['base_line_tag'], all_tags)
+        Validate.validate_tags(payload['current_tag'], all_tags)
+        
+        Validate.validate_date_feature_val(
+            payload,
+            tags_info['alldatetimefeatures']
+        )
+
+        Validate.validate_features(
+            payload.get('features_to_use', []),
+            tags_info['alluniquefeatures']
+        )
+        
         if payload['stat_test_name'] not in DATA_DRIFT_STAT_TESTS:
             raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
-                            
+
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
             
         if not res["success"]:
@@ -511,37 +542,78 @@ class Project(BaseModel):
                     "current_true_label": ""
                 }
                 defaults to None
+                key values for payload:
+                    stat_test_name=
+                        chisquare (Chi-Square test):
+                        default for categorical features if the number of labels for feature > 2
+                        only for categorical features
+                        returns p_value
+                        default threshold 0.05
+                        drift detected when p_value < threshold
+                    jensenshannon (Jensen-Shannon distance):
+                        for numerical and categorical features
+                        returns distance
+                        default threshold 0.05
+                        drift detected when distance >= threshold
+                    kl_div (Kullback-Leibler divergence):
+                        for numerical and categorical features
+                        returns divergence
+                        default threshold 0.05
+                        drift detected when divergence >= threshold,
+                    psi (Population Stability Index):
+                        for numerical and categorical features
+                        returns psi_value
+                        default_threshold=0.1
+                        drift detected when psi_value >= threshold
+                    z (Ztest):
+                        default for categorical features if the number of labels for feature <= 2
+                        only for categorical features
+                        returns p_value
+                        default threshold 0.05
+                        drift detected when p_value < threshold    
         :raises Exception: _description_
         :raises Exception: _description_
         :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
-            try:
-                res = self.__api_client.post(
-                    TARGET_DRIFT_DASHBOARD_URI,
-                    {"project_name": self.project_name}
-                )
-
-                if not res["success"]:
-                    # take default config when not passed
-                    payload = res['config']
-            except:
-                pass
+            payload = self.get_default_dashboard_config(TARGET_DRIFT_DASHBOARD_URI)
 
         payload['project_name'] = self.project_name
-        
-        # validate payload
+                
+        # validate required fields
         Validate.check_for_missing_keys(
             payload, TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS
         )
         
-        if payload['model_type'] not in MODEL_TYPES:
-            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {MODEL_TYPES}.")
-            
-        if payload['stat_test_name'] not in TARGET_DRIFT_STAT_TESTS:
-            raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS}.")
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info['alltags']
         
+        Validate.validate_tags(payload['base_line_tag'], all_tags)
+        Validate.validate_tags(payload['current_tag'], all_tags)
+
+        Validate.validate_date_feature_val(
+            payload,
+            tags_info['alldatetimefeatures']
+        )
+        
+        if payload['model_type'] not in TARGET_DRIFT_MODEL_TYPES:
+            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}.")
+        
+        if payload['stat_test_name'] not in TARGET_DRIFT_STAT_TESTS:
+            raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
+
+        Validate.validate_features(
+            [payload['baseline_true_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            [payload['current_true_label']],
+            tags_info['alluniquefeatures']
+        )
+
         res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
 
         if not res["success"]:
@@ -578,27 +650,43 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            try:
-                res = self.__api_client.post(
-                    BIAS_MONITORING_DASHBOARD_URI,
-                    {"project_name": self.project_name}
-                )
-
-                if not res["success"]:
-                    # take default config when not passed
-                    payload = res['config']
-            except:
-                pass
+            payload = self.get_default_dashboard_config(BIAS_MONITORING_DASHBOARD_URI)
 
         payload['project_name'] = self.project_name
-            
+                
+        # validate required fields
         Validate.check_for_missing_keys(
             payload, BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS
         )
-                
-        # validate payload    
+        
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info['alltags']
+        
+        Validate.validate_tags(payload['base_line_tag'], all_tags)
+
+        Validate.validate_date_feature_val(
+            payload,
+            tags_info['alldatetimefeatures']
+        )
+        
         if payload['model_type'] not in MODEL_TYPES:
-            raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}.")
+            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}.")
+        
+        Validate.validate_features(
+            [payload['baseline_true_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            [payload['baseline_pred_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            payload.get('features_to_use', []),
+            tags_info['alluniquefeatures']
+        )
             
         res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
 
@@ -637,26 +725,49 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            try:
-                res = self.__api_client.post(
-                    MODEL_PERFORMANCE_DASHBOARD_URI,
-                    {"project_name": self.project_name}
-                )
-
-                if not res["success"]:
-                    # take default config when not passed
-                    payload = res['config']
-            except:
-                pass
+            payload = self.get_default_dashboard_config(MODEL_PERFORMANCE_DASHBOARD_URI)
 
         payload['project_name'] = self.project_name
-        
-        # validate payload
+                
+        # validate required fields
         Validate.check_for_missing_keys(
             payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS
         )
+        
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info['alltags']
+        
+        Validate.validate_tags(payload['base_line_tag'], all_tags)
+        Validate.validate_tags(payload['current_tag'], all_tags)
+
+        Validate.validate_date_feature_val(
+            payload,
+            tags_info['alldatetimefeatures']
+        )
+        
         if payload['model_type'] not in MODEL_TYPES:
-            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {MODEL_TYPES}.")
+            raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}.")
+        
+        Validate.validate_features(
+            [payload['baseline_true_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            [payload['baseline_pred_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            [payload['current_true_label']],
+            tags_info['alluniquefeatures']
+        )
+        
+        Validate.validate_features(
+            [payload['current_pred_label']],
+            tags_info['alluniquefeatures']
+        )
             
         res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
 

@@ -3,6 +3,10 @@ MODEL_TYPES = [
     'regression'
 ]
 
+TARGET_DRIFT_MODEL_TYPES = [
+    "classification"
+]
+
 
 DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS = [
     "base_line_tag",
