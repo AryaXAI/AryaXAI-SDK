@@ -26,6 +26,7 @@ from aryaxai.common.monitoring import (
 import pandas as pd
 
 from aryaxai.common.xai_uris import (
+    AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
@@ -168,6 +169,15 @@ class Project(BaseModel):
         )
 
         return res.get("details")
+
+    def available_tags(self) -> str:
+        """get available tags for the project
+
+        :return: response
+        """
+        res = self.__api_client.get(f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}")
+
+        return res
 
     def delete_file(self, path: str) -> str:
         """deletes file for the project
@@ -391,17 +401,57 @@ class Project(BaseModel):
         """get data drift dashboard
 
         :param payload: data drift payload
-                {
-                    "base_line_tag": "",
-                    "current_tag": "",
-                    "stat_test_name": "",
-                    "stat_test_threshold": "",
-                    "date_feature": "",
-                    "baseline_date": { "start_date": "", "end_date": ""},
-                    "current_date": { "start_date": "", "end_date": ""},
-                    "features_to_use": []
-                }
-                defaults to None
+            {
+                "base_line_tag": "",
+                "current_tag": "",
+                "stat_test_name": "",
+                "stat_test_threshold": "",
+                "date_feature": "",
+                "baseline_date": { "start_date": "", "end_date": ""},
+                "current_date": { "start_date": "", "end_date": ""},
+                "features_to_use": []
+            }
+            defaults to None
+            keys:
+                stat_test_name=
+                    chisquare (Chi-Square test):
+                        default for categorical features if the number of labels for feature > 2
+                        only for categorical features
+                        returns p_value
+                        default threshold 0.05
+                        drift detected when p_value < threshold
+                    jensenshannon (Jensen-Shannon distance):
+                        for numerical and categorical features
+                        returns distance
+                        default threshold 0.05
+                        drift detected when distance >= threshold
+                    ks (Kolmogorov–Smirnov (K-S) test):
+                        default for numerical features
+                        only for numerical features
+                        returns p_value
+                        default threshold 0.05
+                        drift detected when p_value < threshold
+                    kl_div (Kullback-Leibler divergence):
+                        for numerical and categorical features
+                        returns divergence
+                        default threshold 0.05
+                        drift detected when divergence >= threshold,
+                    psi (Population Stability Index):
+                        for numerical and categorical features
+                        returns psi_value
+                        default_threshold=0.1
+                        drift detected when psi_value >= threshold
+                    wasserstein (Wasserstein distance (normed)):
+                        only for numerical features
+                        returns distance
+                        default threshold 0.05
+                        drift detected when distance >= threshold
+                    z (Ztest):
+                        default for categorical features if the number of labels for feature <= 2
+                        only for categorical features
+                        returns p_value
+                        default threshold 0.05
+                        drift detected when p_value < threshold
         :raises Exception: _description_
         :raises Exception: _description_
         :return: Dashboard
