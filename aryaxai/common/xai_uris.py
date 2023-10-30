@@ -24,6 +24,7 @@ GET_DATA_SUMMARY_URI = f"{API_VERSION}/project/data_summary"
 GET_DATA_DIAGNOSIS_URI = f"{API_VERSION}/project/get_data_diagnosis"
 DATA_DRFIT_DIAGNOSIS_URI = f"{API_VERSION}/project/run_data_drift_diagnosis"
 GET_PROJECT_CONFIG = f"{API_VERSION}/users/get_xai_config"
+AVAILABLE_TAGS_URI = f"{API_VERSION}/project/get_all_available_tags_info"
 
 # Monitoring
 DATA_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/data_drift_dashboard"
