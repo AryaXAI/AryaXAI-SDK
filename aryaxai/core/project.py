@@ -17,7 +17,7 @@ from aryaxai.common.constants import (
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
     TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
     TARGET_DRIFT_STAT_TESTS_REGRESSION,
-    TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
+    TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import DataConfig, ProjectConfig
 from aryaxai.common.validation import Validate
@@ -45,8 +45,8 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODELS_URI,
     GET_PROJECT_CONFIG,
-    GET_TAGS_URI,
     MODEL_PARAMETERS_URI,
+    MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
@@ -67,6 +67,7 @@ import json
 import io
 
 from aryaxai.core.case import Case
+from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import Dashboard
 
@@ -530,7 +531,7 @@ class Project(BaseModel):
             raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
 
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
-            
+
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
@@ -538,11 +539,8 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
-                        
-        return Dashboard(
-            config=res['config'],
-            url=f"{dashboard_url}{query_params}"
-        )
+
+        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
 
     def get_target_drift_dashboard(self, payload: TargetDriftPayload = {}) -> Dashboard:
         """get target drift dashboard
@@ -642,14 +640,12 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
-        
-        return Dashboard(
-            config=res['config'],
-            url=f"{dashboard_url}{query_params}"
-        )
 
+        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
 
-    def get_bias_monitoring_dashboard(self, payload: BiasMonitoringPayload = {}) -> Dashboard:
+    def get_bias_monitoring_dashboard(
+        self, payload: BiasMonitoringPayload = {}
+    ) -> Dashboard:
         """get bias monitoring dashboard
 
         :param payload: bias monitoring payload
@@ -716,13 +712,12 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
-        
-        return Dashboard(
-            config=res['config'],
-            url=f"{dashboard_url}{query_params}"
-        )
 
-    def get_model_performance_dashboard(self, payload: ModelPerformancePayload = {}) -> Dashboard:
+        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+
+    def get_model_performance_dashboard(
+        self, payload: ModelPerformancePayload = {}
+    ) -> Dashboard:
         """get model performance dashboard
 
         :param payload: model performance payload
@@ -797,13 +792,9 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
-        
-        return Dashboard(
-            config=res['config'],
-            url=f"{dashboard_url}{query_params}"
-        )
 
-    
+        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+
     def monitoring_triggers(self) -> dict:
         """get monitoring triggers of project
 
@@ -818,13 +809,13 @@ class Project(BaseModel):
         monitoring_triggers = res.get("details", [])
 
         if not monitoring_triggers:
-            return 'No monitoring triggers found.'
-        
+            return "No monitoring triggers found."
+
         monitoring_triggers = pd.DataFrame(monitoring_triggers)
         monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
 
         return monitoring_triggers
-    
+
     def create_monitoring_trigger(self, type: str, payload: dict) -> str:
         """create monitoring trigger for project
 
@@ -871,7 +862,7 @@ class Project(BaseModel):
                     "current_date": { "start_date": "", "end_date": ""},
                     "base_line_tag": "",
                     "baseline_true_label": "",
-                    "baseline_pred_label": ""                   
+                    "baseline_pred_label": ""
                 }
                 defaults to None
         :raises Exception: _description_
@@ -977,15 +968,15 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "modify_req": {
                 "create_trigger": payload,
-			},
-		}
+            },
+        }
         res = self.__api_client.post(CREATE_TRIGGER_URI, payload)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to create trigger"))
 
-        return 'Trigger created successfully.'
-    
+        return "Trigger created successfully."
+
     def delete_monitoring_trigger(self, name: str) -> str:
         """delete monitoring trigger for project
 
@@ -1004,8 +995,8 @@ class Project(BaseModel):
         if not res["success"]:
             return Exception(res.get("details", "Failed to delete trigger"))
 
-        return 'Monitoring trigger deleted successfully.'
-    
+        return "Monitoring trigger deleted successfully."
+
     def alerts(self, page_num: int = 1) -> dict:
         """get monitoring alerts of project
 
@@ -1022,8 +1013,8 @@ class Project(BaseModel):
         monitoring_alerts = res.get("details", [])
 
         if not monitoring_alerts:
-            return 'No monitoring alerts found.'
-        
+            return "No monitoring alerts found."
+
         return pd.DataFrame(monitoring_alerts)
 
     def train_model(
@@ -1267,19 +1258,41 @@ class Project(BaseModel):
 
         return tag_data_df
 
+    def model_summary(self, model_name: Optional[str] = None) -> dict:
+        """Model Summary
+
+        :param model_name: name of the model, defaults to active model for project
+        :return: model summary
+        """
+        res = self.__api_client.get(
+            f"{MODEL_SUMMARY_URI}?project_name={self.project_name}"
+            + (f"&model_name={model_name}" if model_name else "")
+        )
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return ModelSummary(api_client=self.__api_client, **res.get("details"))
+
+    def available_tags(self) -> str:
+        """get available tags for the project
+
+        :return: response
+        """
+        res = self.__api_client.get(
+            f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}"
+        )
+
+        return res
+
     def tags(self) -> List[str]:
-        """Available Tags for Project
+        """Available User Tags for Project
 
         :return: list of tags
         """
-        res = self.__api_client.get(f"{GET_TAGS_URI}?project_name={self.project_name}")
+        available_tags = self.available_tags()
 
-        if not res["details"]["tags_details"]:
-            raise Exception("Upload files first")
-
-        tags = list(
-            map(lambda data: data["tag"], res["details"]["tags_details"]),
-        )
+        tags = available_tags.get("user_tags")
 
         return tags
 
@@ -1331,16 +1344,22 @@ class Project(BaseModel):
 
         return cases_df
 
-    def case_info(self, unique_identifer: str, tag: str):
-        """Info for case
+    def case_info(
+        self,
+        unique_identifer: str,
+        case_id: Optional[str] = None,
+        tag: Optional[str] = None,
+    ):
+        """Case Info
 
-        :param unique_identifer: _description_
-        :param tag: _description_
-        :raises Exception: _description_
-        :return: _description_
+        :param unique_identifer: unique identifer of case
+        :param case_id: case id, defaults to None
+        :param tag: case tag, defaults to None
+        :return: Case object with details
         """
         payload = {
             "project_name": self.project_name,
+            "case_id": case_id,
             "unique_identifier": unique_identifer,
             "tag": tag,
         }

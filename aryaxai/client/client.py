@@ -55,7 +55,7 @@ class APIClient(BaseModel):
         except jwt.exceptions.ExpiredSignatureError as e:
             response = self.base_request(
                 "POST", LOGIN_URI, {"access_token": self.access_token}
-            )
+            ).json()
             self.update_headers(response["access_token"])
 
     def base_request(self, method, uri, payload={}, files=None):
