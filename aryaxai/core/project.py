@@ -1274,17 +1274,6 @@ class Project(BaseModel):
 
         return ModelSummary(api_client=self.__api_client, **res.get("details"))
 
-    def available_tags(self) -> str:
-        """get available tags for the project
-
-        :return: response
-        """
-        res = self.__api_client.get(
-            f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}"
-        )
-
-        return res
-
     def tags(self) -> List[str]:
         """Available User Tags for Project
 
