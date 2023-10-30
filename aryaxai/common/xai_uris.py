@@ -32,6 +32,8 @@ TARGET_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/target_drift_dashboard"
 BIAS_MONITORING_DASHBOARD_URI = f"{API_VERSION}/dashboard/bias_monitoring_dashboard"
 MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_dashboard"
 
+GET_LABELS_URI = f"{API_VERSION}/triggers/get_label_classes"
+
 # Auto ML
 MODEL_PARAMETERS_URI = f"{API_VERSION}/users/get_xai_model_parameters"
 TRAIN_MODEL_URI = f"{API_VERSION}/users/xai_config_update"

@@ -4,6 +4,8 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
     DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
     MAIL_FREQUENCIES,
+    MODEL_PERF_METRICS_CLASSIFICATION,
+    MODEL_PERF_METRICS_REGRESSION,
     MODEL_PERF_TRIGGER_REQUIRED_FIELDS,
     MODEL_TYPES,
     DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
@@ -13,6 +15,8 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS,
     BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
+    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
+    TARGET_DRIFT_STAT_TESTS_REGRESSION,
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
 )
 from aryaxai.common.types import DataConfig, ProjectConfig
@@ -38,6 +42,7 @@ from aryaxai.common.xai_uris import (
     GET_CASES_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
+    GET_LABELS_URI,
     GET_MODELS_URI,
     GET_PROJECT_CONFIG,
     GET_TAGS_URI,
@@ -179,10 +184,24 @@ class Project(BaseModel):
         res = self.__api_client.get(f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}")
         
         if not res["success"]:
-            error_details = res.get("details", "Failed to get dashboard url")
+            error_details = res.get("details", "Failed to get available tags.")
             raise Exception(error_details)
 
         return res['details']
+    
+    def get_labels(self, feature_name: str) -> List[str]:
+        """get unique value of feature name
+
+        :param feature_name: feature name
+        :return: unique values of feature
+        """
+        res = self.__api_client.get(f"{GET_LABELS_URI}?project_name={self.project_name}&feature_name={feature_name}")
+        
+        if not res["success"]:
+            error_details = res.get("details", f"Failed to get labels for {feature_name}")
+            raise Exception(error_details)
+
+        return res['labels']
 
     def delete_file(self, path: str) -> str:
         """deletes file for the project
@@ -862,31 +881,98 @@ class Project(BaseModel):
         :return: _description_
         """
         payload['project_name'] = self.project_name
+        payload['trigger_type'] = type
+        
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info['alltags']
             
         if type == "Data Drift":
             Validate.check_for_missing_keys(
                 payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS
+            )
+        
+            Validate.validate_tags(payload['base_line_tag'], all_tags)
+            Validate.validate_tags(payload['current_tag'], all_tags)
+
+            if payload['stat_test_name'] not in DATA_DRIFT_STAT_TESTS:
+                raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
+        
+            Validate.validate_features(
+                payload.get('features_to_use', []),
+                tags_info['alluniquefeatures']
             )
         elif type == "Target Drift":
             Validate.check_for_missing_keys(
                 payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
             )
             
+            Validate.validate_tags(payload['base_line_tag'], all_tags)
+            Validate.validate_tags(payload['current_tag'], all_tags)
+            
             if payload['model_type'] not in MODEL_TYPES:
-                raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}")
+                raise Exception(f"{payload['model_type']} is not a valid model_type. Pick a valid type from {MODEL_TYPES}")
+            
+            if payload['model_type'] == "classification" and payload['stat_test_name'] not in TARGET_DRIFT_STAT_TESTS_CLASSIFICATION:
+                raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS_CLASSIFICATION}.")
+            
+            if payload["model_type"] == "regression" and payload['stat_test_name'] not in TARGET_DRIFT_STAT_TESTS_REGRESSION:
+                raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS_REGRESSION}.")
+            
+            Validate.validate_features(
+                [payload['baseline_true_label']],
+                tags_info['alluniquefeatures']
+            )
+            
+            Validate.validate_features(
+                [payload['current_true_label']],
+                tags_info['alluniquefeatures']
+            )
         elif type == "Model Performance":
             Validate.check_for_missing_keys(
                 payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS
             )
             
+            Validate.validate_tags(payload['base_line_tag'], all_tags) 
+            
             if payload['model_type'] not in MODEL_TYPES:
                 raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}")
+            
+            Validate.validate_features(
+                [payload['baseline_true_label']],
+                tags_info['alluniquefeatures']
+            )
+            
+            Validate.validate_features(
+                [payload['baseline_pred_label']],
+                tags_info['alluniquefeatures']
+            )
+            
+            if payload['model_type'] == "classification":
+                if not payload['class_label']:
+                    raise Exception("class_label is required for classification model type.")
+                
+                all_class_label = self.get_labels(payload['baseline_true_label'])
+
+                if payload['class_label'] not in all_class_label:
+                    raise Exception(f"{payload['class_label']} is not a valid class_label. Pick a valid value from {all_class_label}.")   
+                
+                if payload['model_performance_metric'] not in MODEL_PERF_METRICS_CLASSIFICATION:
+                    raise Exception(f"{payload['model_performance_metric']} is not a valid model_performance_metric. Pick a valid value from {MODEL_PERF_METRICS_CLASSIFICATION}.")
+            
+            if payload["model_type"] == "regression" and payload['model_performance_metric'] not in MODEL_PERF_METRICS_REGRESSION:
+                raise Exception(f"{payload['model_performance_metric']} is not a valid model_performance_metric. Pick a valid value from {MODEL_PERF_METRICS_REGRESSION}.")         
         else:
             raise Exception('Invalid trigger type. Please use one of ["Data Drift", "Target Drift", "Model Performance"]')
         
         if payload['frequency'] not in MAIL_FREQUENCIES:
             raise Exception(f"Invalid frequency value. Please use one of {MAIL_FREQUENCIES}")
             
+        Validate.validate_date_feature_val(
+            payload,
+            tags_info['alldatetimefeatures']
+        )
+        
         payload = {
             "project_name": self.project_name,
             "modify_req": {
