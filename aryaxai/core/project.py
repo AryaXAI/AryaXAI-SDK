@@ -388,7 +388,7 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_data_drift_dashboard(self, payload: DataDriftPayload = None) -> Dashboard:
+    def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
         """get data drift dashboard
 
         :param payload: data drift payload
@@ -406,11 +406,20 @@ class Project(BaseModel):
         :raises Exception: _description_
         :raises Exception: _description_
         :return: Dashboard
-        """        
+        """
         if not payload:
-            # get default dashboard
-            pass
-        
+            try:
+                res = self.__api_client.post(
+                    DATA_DRIFT_DASHBOARD_URI,
+                    {"project_name": self.project_name}
+                )
+
+                if not res["success"]:
+                    # take default config when not passed
+                    payload = res['config']
+            except:
+                pass
+
         payload['project_name'] = self.project_name
         
         # validate payload
@@ -422,7 +431,7 @@ class Project(BaseModel):
             raise Exception(f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}.")
                             
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
-
+            
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
@@ -430,10 +439,13 @@ class Project(BaseModel):
         dashboard_url = res.get("hosted_path", None)
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
-                
-        return Dashboard(url=f"{dashboard_url}{query_params}")
+                        
+        return Dashboard(
+            config=res['config'],
+            url=f"{dashboard_url}{query_params}"
+        )
 
-    def get_target_drift_dashboard(self, payload: TargetDriftPayload = None) -> Dashboard:
+    def get_target_drift_dashboard(self, payload: TargetDriftPayload = {}) -> Dashboard:
         """get target drift dashboard
 
         :param payload: target drift payload
@@ -456,9 +468,18 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            # get default dashboard
-            pass
-        
+            try:
+                res = self.__api_client.post(
+                    TARGET_DRIFT_DASHBOARD_URI,
+                    {"project_name": self.project_name}
+                )
+
+                if not res["success"]:
+                    # take default config when not passed
+                    payload = res['config']
+            except:
+                pass
+
         payload['project_name'] = self.project_name
         
         # validate payload
@@ -482,10 +503,13 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
         
-        return Dashboard(url=f"{dashboard_url}{query_params}")
+        return Dashboard(
+            config=res['config'],
+            url=f"{dashboard_url}{query_params}"
+        )
 
 
-    def get_bias_monitoring_dashboard(self, payload: BiasMonitoringPayload = None) -> Dashboard:
+    def get_bias_monitoring_dashboard(self, payload: BiasMonitoringPayload = {}) -> Dashboard:
         """get bias monitoring dashboard
 
         :param payload: bias monitoring payload
@@ -504,12 +528,25 @@ class Project(BaseModel):
         :raises Exception: _description_
         :return: Dashboard
         """
+        if not payload:
+            try:
+                res = self.__api_client.post(
+                    BIAS_MONITORING_DASHBOARD_URI,
+                    {"project_name": self.project_name}
+                )
+
+                if not res["success"]:
+                    # take default config when not passed
+                    payload = res['config']
+            except:
+                pass
+
+        payload['project_name'] = self.project_name
+            
         Validate.check_for_missing_keys(
             payload, BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS
         )
-        
-        payload['project_name'] = self.project_name
-        
+                
         # validate payload    
         if payload['model_type'] not in MODEL_TYPES:
             raise Exception(f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}.")
@@ -524,9 +561,12 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
         
-        return Dashboard(url=f"{dashboard_url}{query_params}")
+        return Dashboard(
+            config=res['config'],
+            url=f"{dashboard_url}{query_params}"
+        )
 
-    def get_model_performance_dashboard(self, payload: ModelPerformancePayload = None) -> Dashboard:
+    def get_model_performance_dashboard(self, payload: ModelPerformancePayload = {}) -> Dashboard:
         """get model performance dashboard
 
         :param payload: model performance payload
@@ -548,9 +588,18 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            # get default dashboard
-            pass
-        
+            try:
+                res = self.__api_client.post(
+                    MODEL_PERFORMANCE_DASHBOARD_URI,
+                    {"project_name": self.project_name}
+                )
+
+                if not res["success"]:
+                    # take default config when not passed
+                    payload = res['config']
+            except:
+                pass
+
         payload['project_name'] = self.project_name
         
         # validate payload
@@ -570,7 +619,10 @@ class Project(BaseModel):
         auth_token = self.__api_client.get_auth_token()
         query_params = f"?id={auth_token}"
         
-        return Dashboard(url=f"{dashboard_url}{query_params}")
+        return Dashboard(
+            config=res['config'],
+            url=f"{dashboard_url}{query_params}"
+        )
 
     
     def monitoring_triggers(self) -> dict:
@@ -587,7 +639,7 @@ class Project(BaseModel):
         monitoring_triggers = res.get("details", [])
 
         if not monitoring_triggers:
-            return 'No triggers found.'
+            return 'No monitoring triggers found.'
         
         monitoring_triggers = pd.DataFrame(monitoring_triggers)
         monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
