@@ -19,6 +19,7 @@ from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
     DataDriftPayload,
+    ModelPerformancePayload,
     TargetDriftPayload,
 )
 
@@ -38,7 +39,6 @@ from aryaxai.common.xai_uris import (
     GET_DATA_SUMMARY_URI,
     GET_MODELS_URI,
     GET_PROJECT_CONFIG,
-    GET_TAGS_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
@@ -170,17 +170,6 @@ class Project(BaseModel):
         )
 
         return res.get("details")
-
-    def available_tags(self) -> str:
-        """get available tags for the project
-
-        :return: response
-        """
-        res = self.__api_client.get(
-            f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}"
-        )
-
-        return res
 
     def delete_file(self, path: str) -> str:
         """deletes file for the project
@@ -1083,19 +1072,25 @@ class Project(BaseModel):
 
         return ModelSummary(api_client=self.__api_client, **res.get("details"))
 
+    def available_tags(self) -> str:
+        """get available tags for the project
+
+        :return: response
+        """
+        res = self.__api_client.get(
+            f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}"
+        )
+
+        return res
+
     def tags(self) -> List[str]:
-        """Available Tags for Project
+        """Available User Tags for Project
 
         :return: list of tags
         """
-        res = self.__api_client.get(f"{GET_TAGS_URI}?project_name={self.project_name}")
+        available_tags = self.available_tags()
 
-        if not res["details"]["tags_details"]:
-            raise Exception("Upload files first")
-
-        tags = list(
-            map(lambda data: data["tag"], res["details"]["tags_details"]),
-        )
+        tags = available_tags.get("user_tags")
 
         return tags
 
