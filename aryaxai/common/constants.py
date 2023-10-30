@@ -3,6 +3,10 @@ MODEL_TYPES = [
     'regression'
 ]
 
+TARGET_DRIFT_MODEL_TYPES = [
+    "classification"
+]
+
 
 DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS = [
     "base_line_tag",
@@ -36,6 +40,21 @@ TARGET_DRIFT_STAT_TESTS = [
     'kl_div',
     'psi',
     'z'
+]
+
+TARGET_DRIFT_STAT_TESTS_CLASSIFICATION = [
+    'chisquare',
+    'jensenshannon',
+    'kl_div',
+    'psi',
+]
+
+TARGET_DRIFT_STAT_TESTS_REGRESSION = [
+    'jensenshannon',
+    'kl_div',
+    'ks',
+    'psi',
+    'wasserstein',
 ]
 
 
@@ -89,9 +108,33 @@ MODEL_PERF_TRIGGER_REQUIRED_FIELDS = [
     "model_type",
     "model_performance_metric",
     "model_performance_threshold",
-    "baseline_true_label"
-    "baseline_pred_label"   
-    "base_line_tag",
+    "baseline_true_label",
+    "baseline_pred_label",  
+    "base_line_tag"
 ]
 
-MAIL_FREQUENCIES = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']
+MODEL_PERF_METRICS_CLASSIFICATION = [
+    "accuracy",
+    "f1",
+    "false_negative_rate",
+    "false_positive_rate",
+    "precision",
+    "recall",
+    "true_negative_rate",
+    "true_positive_rate"
+]
+
+MODEL_PERF_METRICS_REGRESSION = [
+    "mean_abs_perc_error",
+    "mean_abs_perc_error",
+    "mean_squared_error",
+    "r2_score"
+]
+
+MAIL_FREQUENCIES = [
+    'daily',
+    'weekly',
+    'monthly',
+    'quarterly',
+    'yearly'
+]
