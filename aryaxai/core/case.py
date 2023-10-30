@@ -2,6 +2,7 @@ from typing import Dict, List
 from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 import pandas as pd
+from IPython.display import SVG, display
 
 
 class Case(BaseModel):
@@ -51,6 +52,11 @@ class Case(BaseModel):
         )
         fig.show(config={"displaylogo": False})
 
+    def explainability_prediction_path(self):
+        """Explainability Prediction Path"""
+        svg = SVG(self.case_prediction_svg)
+        display(svg)
+
     def explainability_raw_data(self) -> pd.DataFrame:
         """Explainability Raw Data
 
@@ -95,3 +101,11 @@ class Case(BaseModel):
         decision_df = pd.DataFrame([data])
 
         return decision_df
+
+    def explainability_similar_cases(self) -> pd.DataFrame:
+        """Similar Cases
+
+        :return: similar cases dataframe
+        """
+        similar_cases_df = pd.DataFrame(self.similar_cases_data)
+        return similar_cases_df
