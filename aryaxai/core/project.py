@@ -56,7 +56,6 @@ from aryaxai.common.xai_uris import (
     BIAS_MONITORING_DASHBOARD_URI,
     MODEL_PERFORMANCE_DASHBOARD_URI,
 )
-import pandas as pd
 import json
 import io
 
