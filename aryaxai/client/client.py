@@ -38,6 +38,14 @@ class APIClient(BaseModel):
         """
         self.access_token = access_token
 
+    def get_url(self, uri) -> str:
+        """get url by appending uri to base url
+
+        :param uri: uri of endpoint
+        :return: url
+        """
+        return f"{self.base_url}/{uri}"
+
     def update_headers(self, auth_token):
         """sets jwt auth token and updates headers for all requests"""
         self.set_auth_token(auth_token)
@@ -67,7 +75,6 @@ class APIClient(BaseModel):
         :return: JSON response
         """
         url = f"{self.base_url}/{uri}"
-
         try:
             response = requests.request(
                 method, url, headers=self.headers, json=payload, files=files

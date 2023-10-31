@@ -43,6 +43,7 @@ from aryaxai.common.xai_uris import (
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_LABELS_URI,
+    GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
     GET_PROJECT_CONFIG,
     MODEL_PARAMETERS_URI,
@@ -1016,6 +1017,21 @@ class Project(BaseModel):
             return "No monitoring alerts found."
 
         return pd.DataFrame(monitoring_alerts)
+
+    def get_model_performance(self, model_name: str = None) -> Dashboard:
+        """
+        get model performance dashboard
+        """
+        url = self.__api_client.get_url(GET_MODEL_PERFORMANCE_URI)
+
+        # append params
+        auth_token = self.__api_client.get_auth_token()
+        url = f"{url}/{self.project_name}?id={auth_token}"
+
+        if model_name:
+            url = f"{url}&model_name={model_name}"
+
+        return Dashboard(config={}, url=url)
 
     def train_model(
         self,
