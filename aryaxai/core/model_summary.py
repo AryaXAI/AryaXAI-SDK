@@ -41,7 +41,7 @@ class ModelSummary(BaseModel):
 
         return info
 
-    def global_feature(self):
+    def feature_importance(self):
         """Global features plot"""
         global_features = self.model_results.get("GFI")
         fig = go.Figure()
@@ -69,8 +69,8 @@ class ModelSummary(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
-    def feature_importance(self):
-        """Feature Importance plot"""
+    def predication_path(self):
+        """Predication path plot"""
         model_name = self.model_results.get("model_name")
         res = self.__api_client.get(
             f"{MODEL_SVG_URI}?project_name={self.project_name}&model_name={model_name}"
