@@ -31,6 +31,7 @@ from aryaxai.common.monitoring import (
 import pandas as pd
 
 from aryaxai.common.xai_uris import (
+    ALL_DATA_FILE_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CREATE_TRIGGER_URI,
@@ -212,17 +213,97 @@ class Project(BaseModel):
 
         return res["labels"]
 
-    def delete_file(self, path: str) -> str:
+    def files(self) -> pd.DataFrame:
+        """Lists all files uploaded by user
+
+        :return: user uploaded files dataframe
+        """
+        files = self.__api_client.get(
+            f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
+        )
+
+        if not files.get("details"):
+            raise Exception("Please upload files first")
+
+        files_df = (
+            pd.DataFrame(files["details"])
+            .drop(["metadata", "project_name", "version"], axis=1)
+            .rename(columns={"filepath": "file_name"})
+        )
+
+        files_df["file_name"] = files_df["file_name"].apply(
+            lambda file_path: file_path.split("/")[-1]
+        )
+
+        return files_df
+
+    def file_summary(self, file_name: str) -> pd.DataFrame:
+        """File Summary
+
+        :param file_name: user uploaded file name
+        :return: file summary dataframe
+        """
+        files = self.__api_client.get(
+            f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
+        )
+
+        if not files.get("details"):
+            raise Exception("Please upload files first")
+
+        file_data = next(
+            filter(
+                lambda file: file["filepath"].split("/")[-1] == file_name,
+                files["details"],
+            ),
+            None,
+        )
+
+        if not file_data:
+            raise Exception("File Not Found, please pass valid file name")
+
+        file_metadata = {
+            "file_size_mb": file_data["metadata"]["file_size_mb"],
+            "columns": file_data["metadata"]["columns"],
+            "rows": file_data["metadata"]["rows"],
+        }
+
+        print(file_metadata)
+
+        file_summary_df = pd.DataFrame(file_data["metadata"]["details"])
+
+        return file_summary_df
+
+    def delete_file(self, file_name: str) -> str:
         """deletes file for the project
 
-        :param path: uploaded file path
+        :param file_name: uploaded file name
         :return: response
         """
+        files = self.__api_client.get(
+            f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
+        )
+
+        if not files.get("details"):
+            raise Exception("Please upload files first")
+
+        file_data = next(
+            filter(
+                lambda file: file["filepath"] == file_name
+                or file["filepath"].split("/")[-1] == file_name,
+                files["details"],
+            ),
+            None,
+        )
+
+        if not file_data:
+            raise Exception("File Not Found, please pass valid file name")
+
         payload = {
             "project_name": self.project_name,
             "workspace_name": self.workspace_name,
-            "path": path,
+            "path": file_data["filepath"],
         }
+
         res = self.__api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
