@@ -27,7 +27,7 @@ def bump_patch_number(version_number: str) -> str:
     patch_version = patch[0]
     patch_type = patch[1]
     
-    return f"{major}.{minor}.{int(patch_version) + 1}-{patch_type}"
+    return f"{major}.{minor}.{int(patch_version) + 1}.{patch_type}"
 
 
 def create_new_patch_release():
@@ -36,7 +36,7 @@ def create_new_patch_release():
         last_version_number = get_last_version()
     except subprocess.CalledProcessError as err: 
         # The project doesn't have any releases yet.
-        new_version_number = "0.0.1-testing"
+        new_version_number = "0.0.1.testing"
     else:
         new_version_number = bump_patch_number(last_version_number)
 
