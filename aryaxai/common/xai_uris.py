@@ -50,6 +50,7 @@ GET_MODEL_PERFORMANCE_URI = f"{API_VERSION}/dashboard/model_performance"
 GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"
 SEARCH_CASE_URI = f"{API_VERSION}/ai-models/search_case"
 CASE_INFO_URI = f"{API_VERSION}/ai-models/get_case_info"
+DELETE_CASE_URI = f"{API_VERSION}/project/delete_data_with_filter"
 
 # Alerts
 GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
