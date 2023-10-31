@@ -1,5 +1,10 @@
-name: Publish to PyPI.org
-on: workflow_dispatch
+name: Publish to PyPI
+
+on:
+  workflow_run:
+    workflows: ["Create release"]
+    types:
+      - completed
 
 jobs:
   pypi:
@@ -9,8 +14,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - run: python3 -m pip install --upgrade build && python3 -m build
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Build package
+        run: python3 -m pip install --upgrade build && python3 -m build
+        env:
+          XAI_ENV: prod
+      - name: Publish package to PyPI
+        run: |
+          python -m twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}

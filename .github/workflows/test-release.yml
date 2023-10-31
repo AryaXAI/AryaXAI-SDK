@@ -1,0 +1,17 @@
+name: Create test release
+
+on:
+  push:
+    branches:
+      - testing
+
+jobs:
+  github:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Create new test release
+        run: .github/scripts/test-release.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

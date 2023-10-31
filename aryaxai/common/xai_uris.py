@@ -1,5 +1,7 @@
+import os
+
 # API version
-API_VERSION = "v1"
+API_VERSION = os.getenv("XAI_API_VERSION", "v1")
 
 # URIs of XAI base service starts here
 # Auth
