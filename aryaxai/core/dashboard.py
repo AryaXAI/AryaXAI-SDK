@@ -13,7 +13,7 @@ class Dashboard(BaseModel):
         self.print_config()
         self.plot()
 
-    def plot(self, width: int=1000, height: int=800):
+    def plot(self, width: int='100%', height: int=800):
         """plot the dashboard by remote url
 
         Args:
