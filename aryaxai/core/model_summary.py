@@ -69,8 +69,8 @@ class ModelSummary(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
-    def predication_path(self):
-        """Predication path plot"""
+    def prediction_path(self):
+        """Prediction path plot"""
         model_name = self.model_results.get("model_name")
         res = self.__api_client.get(
             f"{MODEL_SVG_URI}?project_name={self.project_name}&model_name={model_name}"
