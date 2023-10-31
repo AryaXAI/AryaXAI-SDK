@@ -1404,6 +1404,17 @@ class Project(BaseModel):
 
         return tags
 
+    def all_tags(self) -> List[str]:
+        """Available All Tags for Project
+
+        :return: list of tags
+        """
+        available_tags = self.available_tags()
+
+        tags = available_tags.get("alltags")
+
+        return tags
+
     def cases(
         self,
         unique_identifier: Optional[str] = None,
@@ -1488,7 +1499,7 @@ class Project(BaseModel):
         tag: Optional[str] = None,
     ):
         if tag:
-            all_tags = self.available_tags()["alltags"]
+            all_tags = self.all_tags()
             if tag not in all_tags:
                 raise Exception(
                     f"Invalid {tag} tag, select valid tag from \n{all_tags}"
