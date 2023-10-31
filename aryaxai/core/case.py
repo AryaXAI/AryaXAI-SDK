@@ -31,13 +31,23 @@ class Case(BaseModel):
     def explainability_feature_importance(self):
         """Plots Feature Importance chart"""
         fig = go.Figure()
-        for col in self.feature_importance.keys():
+
+        if isinstance(list(self.feature_importance.values())[0], dict):
+            for col in self.feature_importance.keys():
+                fig.add_trace(
+                    go.Bar(
+                        x=list(self.feature_importance[col].values()),
+                        y=list(self.feature_importance[col].keys()),
+                        orientation="h",
+                        name=col,
+                    )
+                )
+        else:
             fig.add_trace(
                 go.Bar(
-                    x=list(self.feature_importance[col].values()),
-                    y=list(self.feature_importance[col].keys()),
+                    x=list(self.feature_importance.values()),
+                    y=list(self.feature_importance.keys()),
                     orientation="h",
-                    name=col,
                 )
             )
         fig.update_layout(
