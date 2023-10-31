@@ -1018,7 +1018,7 @@ class Project(BaseModel):
 
         return pd.DataFrame(monitoring_alerts)
 
-    def get_model_performance(self):
+    def get_model_performance(self, model_name: str = None) -> Dashboard:
         """
         get model performance dashboard
         """
@@ -1027,6 +1027,9 @@ class Project(BaseModel):
         # append params
         auth_token = self.__api_client.get_auth_token()
         url = f"{url}/{self.project_name}?id={auth_token}"
+
+        if model_name:
+            url = f"{url}&model_name={model_name}"
 
         return Dashboard(config={}, url=url)
 
