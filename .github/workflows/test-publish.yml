@@ -1,0 +1,26 @@
+name: Publish to test PyPI
+
+on:
+  workflow_run:
+    workflows: ["Create test release"]
+    types:
+      - completed
+    
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build package
+        run: python3 -m pip install --upgrade build && python3 -m build
+        env:
+          XAI_ENV: testing
+      - name: Publish package to test PyPI
+        run: |
+          python -m twine upload --repository testpypi dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
