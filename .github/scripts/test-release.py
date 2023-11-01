@@ -8,7 +8,7 @@ def get_last_version() -> str:
     """Return the version number of the last release."""
     tag_info = (
         subprocess.run(
-            "gh release list | grep -E '^.+\\.dev0' | head -n 1",
+            "gh release list | grep -E '^\d+\.\d+\.\d+dev0' | head -n 1",
             shell=True,
             check=True,
             stdout=subprocess.PIPE,
