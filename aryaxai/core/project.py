@@ -1020,10 +1020,10 @@ class Project(BaseModel):
 
         return pd.DataFrame(monitoring_alerts)
     
-    def get_trigger_details(self, id: str) -> dict:
-        """get trigger details by id
+    def get_alert_details(self, id: str) -> dict:
+        """get alert details by id
 
-        :param id: alert id
+        :param id: alert or trigger id
         :return: DataFrame
         """
         payload = {
