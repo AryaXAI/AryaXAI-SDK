@@ -2,6 +2,7 @@
 import json
 import subprocess
 
+default_version = "0.0.dev1"
 
 def get_last_version() -> str:
     """Return the version number of the last release."""
@@ -9,7 +10,7 @@ def get_last_version() -> str:
     
     json_string = (
         subprocess.run(
-            "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1 | awk '{print $2}",
+            "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1",
             shell=True,
             check=True,
             stdout=subprocess.PIPE,
@@ -18,12 +19,16 @@ def get_last_version() -> str:
         .stdout.decode("utf8")
         .strip()
     )
+    print(json_string)
+    output_line = json_string.split('\t')
+    print(output_line)
+    tag = output_line[1] if len(output_line) > 1 else default_version
     
     print('checking test tag version')
-    print(json_string)
+    print(tag)
     print('checking test tag version')
 
-    return json.loads(json_string)["tagName"]
+    return tag
 
 
 def bump_patch_number(version_number: str) -> str:
@@ -41,7 +46,7 @@ def create_new_patch_release():
         last_version_number = get_last_version()
     except subprocess.CalledProcessError as err: 
         # The project doesn't have any releases yet.
-        new_version_number = "0.0.dev1"
+        new_version_number = default_version
         print('taking default version')
         print(err)
     else:
