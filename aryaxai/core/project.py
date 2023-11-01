@@ -42,6 +42,7 @@ from aryaxai.common.xai_uris import (
     GET_CASES_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
+    GET_EXECUTED_TRIGGER_INFO,
     GET_LABELS_URI,
     GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
@@ -66,6 +67,7 @@ from aryaxai.common.xai_uris import (
 )
 import json
 import io
+from aryaxai.core.alert import Alert
 
 from aryaxai.core.case import Case
 from aryaxai.core.model_summary import ModelSummary
@@ -1017,6 +1019,44 @@ class Project(BaseModel):
             return "No monitoring alerts found."
 
         return pd.DataFrame(monitoring_alerts)
+    
+    def get_trigger_details(self, id: str) -> dict:
+        """get trigger details by id
+
+        :param id: alert id
+        :return: DataFrame
+        """
+        payload = {
+            "project_name": self.project_name,
+            "id": id,
+        }
+        res = self.__api_client.post(GET_EXECUTED_TRIGGER_INFO, payload)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to get trigger details"))
+
+        trigger_info =  res['details'][0]        
+
+        if not trigger_info['successful']:
+            return Alert(
+                info={},
+                detailed_report=[],
+                not_used_features=[]
+            )
+
+        trigger_info = trigger_info['details']
+        
+        detailed_report = trigger_info['detailed_report']
+        not_used_features = trigger_info['Not_Used_Features']
+        
+        del trigger_info['detailed_report']
+        del trigger_info['Not_Used_Features']
+        
+        return Alert(
+            info=trigger_info,
+            detailed_report=detailed_report,
+            not_used_features=not_used_features
+        )
 
     def get_model_performance(self, model_name: str = None) -> Dashboard:
         """
