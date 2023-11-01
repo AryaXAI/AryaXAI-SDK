@@ -7,14 +7,19 @@ def get_last_version() -> str:
     """Return the version number of the last release."""
     json_string = (
         subprocess.run(
-            ["gh", "release", "view", "--json", "tagName"],
+            "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1",
+            shell=True,
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         .stdout.decode("utf8")
         .strip()
     )
+    
+    print('checking test tag version')
+    print(json_string)
+    print('checking test tag version')
 
     return json.loads(json_string)["tagName"]
 
@@ -37,6 +42,9 @@ def create_new_patch_release():
         new_version_number = "0.0.dev1"
     else:
         new_version_number = bump_patch_number(last_version_number)
+        
+    import sys
+    sys.exit(7)
 
     subprocess.run(
         ["gh", "release", "create", "--generate-notes", new_version_number],
