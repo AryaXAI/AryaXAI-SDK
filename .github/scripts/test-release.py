@@ -22,7 +22,7 @@ def get_last_version() -> str:
     print(json_string)
     output_line = json_string.split('\t')
     print(output_line)
-    tag = output_line[1] if len(output_line) > 1 else default_version
+    tag = output_line[2] if len(output_line) > 2 else default_version
     
     print('checking test tag version')
     print(tag)
