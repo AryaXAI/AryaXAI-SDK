@@ -41,6 +41,7 @@ def create_new_patch_release():
         # The project doesn't have any releases yet.
         new_version_number = "0.0.dev1"
         print('taking default version')
+        print(err)
     else:
         new_version_number = bump_patch_number(last_version_number)
         
