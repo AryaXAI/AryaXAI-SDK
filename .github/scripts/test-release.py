@@ -19,7 +19,7 @@ def get_last_version() -> str:
     )
     tag_fields = tag_info.split('\t')
     tag = tag_fields[2] if len(tag_fields) > 2 else default_version
-
+    print(tag)
     return tag
 
 def bump_patch_number(version_number: str) -> str:
