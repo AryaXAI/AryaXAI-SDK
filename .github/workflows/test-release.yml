@@ -1,6 +1,7 @@
 name: Create test release
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - testing
