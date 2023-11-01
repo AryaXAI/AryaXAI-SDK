@@ -5,6 +5,8 @@ import subprocess
 
 def get_last_version() -> str:
     """Return the version number of the last release."""
+    print('in get_last_version')
+    
     json_string = (
         subprocess.run(
             "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1 | awk '{print $2}",
