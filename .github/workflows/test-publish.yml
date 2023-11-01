@@ -3,8 +3,8 @@ name: Publish to test PyPI
 on:
   push:
     tags:
-      - '*.*.*.testing'
-    
+      - '*.*.dev*'
+
 jobs:
   pypi:
     runs-on: ubuntu-latest
