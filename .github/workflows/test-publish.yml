@@ -12,6 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
+          ref: testing
           fetch-depth: 0
       - name: Build package
         run: python3 -m pip install --upgrade build && python3 -m build
