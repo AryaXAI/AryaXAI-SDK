@@ -1,11 +1,10 @@
 name: Publish to test PyPI
 
 on:
-  workflow_run:
-    workflows: ["Create test release"]
-    types:
-      - completed
-    
+  push:
+    tags:
+      - '*.*.dev*'
+
 jobs:
   pypi:
     runs-on: ubuntu-latest
@@ -13,7 +12,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: testing
           fetch-depth: 0
       - name: Build package
         run: python3 -m pip install --upgrade build && python3 -m build
