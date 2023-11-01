@@ -10,7 +10,7 @@ def get_last_version() -> str:
     
     json_string = (
         subprocess.run(
-            "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1",
+            "gh release list | grep -E -v '^.+\\.dev\\d*' | head -n 1",
             shell=True,
             check=True,
             stdout=subprocess.PIPE,
