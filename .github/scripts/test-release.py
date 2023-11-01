@@ -2,32 +2,33 @@
 import json
 import subprocess
 
+default_version = "0.0.dev1"
 
 def get_last_version() -> str:
     """Return the version number of the last release."""
-    json_string = (
+    tag_info = (
         subprocess.run(
-            ["gh", "release", "view", "--json", "tagName"],
+            "gh release list | grep -E '^.+\\.dev\\d*' | head -n 1",
+            shell=True,
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         .stdout.decode("utf8")
         .strip()
     )
+    tag_fields = tag_info.split('\t')
+    tag = tag_fields[2] if len(tag_fields) > 2 else default_version
 
-    return json.loads(json_string)["tagName"]
-
+    return tag
 
 def bump_patch_number(version_number: str) -> str:
     """Return a copy of `version_number` with the patch number incremented."""
     major, minor, patch = version_number.split(".")
     
-    patch = patch.split("-")
-    patch_version = patch[0]
-    patch_type = patch[1]
-    
-    return f"{major}.{minor}.{int(patch_version) + 1}.{patch_type}"
+    new_patch_version = int(patch[3:]) + 1
+
+    return f"{major}.{minor}.dev{new_patch_version}"
 
 
 def create_new_patch_release():
@@ -36,7 +37,9 @@ def create_new_patch_release():
         last_version_number = get_last_version()
     except subprocess.CalledProcessError as err: 
         # The project doesn't have any releases yet.
-        new_version_number = "0.0.1.testing"
+        new_version_number = default_version
+        print(err)
+        print(f'taking default version: {new_version_number}')
     else:
         new_version_number = bump_patch_number(last_version_number)
 
