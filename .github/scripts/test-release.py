@@ -17,18 +17,21 @@ def get_last_version() -> str:
         .stdout.decode("utf8")
         .strip()
     )
+    print(tag_info)
     tag_fields = tag_info.split('\t')
     tag = tag_fields[2] if len(tag_fields) > 2 else default_version
     print(tag)
     return tag
 
 def bump_patch_number(version_number: str) -> str:
-    """Return a copy of `version_number` with the patch number incremented."""
-    major, minor, patch = version_number.split(".")
-    
-    new_patch_version = int(patch[3:]) + 1
+    """
+    Return a copy of `version_number` with the patch number incremented.
+    """
+    version_number = version_number.replace("dev", ".")
+    major, minor, patch, dev_patch = version_number.split(".")
+    new_patch_version = int(patch) + 1
 
-    return f"{major}.{minor}.dev{new_patch_version}"
+    return f"{major}.{minor}.{new_patch_version}dev{dev_patch}"
 
 
 def create_new_patch_release():
