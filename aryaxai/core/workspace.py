@@ -1,3 +1,4 @@
+import pandas as pd
 from pydantic import BaseModel
 from typing import List
 from aryaxai.client.client import APIClient
@@ -6,6 +7,8 @@ from aryaxai.common.xai_uris import (
     CREATE_PROJECT_URI,
     GET_WORKSPACES_URI,
     UPDATE_WORKSPACE_URI,
+    GET_NOTIFICATIONS_URI,
+    CLEAR_NOTIFICATIONS_URI
 )
 from aryaxai.core.project import Project
 
@@ -158,6 +161,35 @@ class Workspace(BaseModel):
         project = Project(api_client=self.__api_client, **res["details"])
 
         return project
+    
+    def get_notifications(self) -> pd.DataFrame:
+        """get user project notifications
+
+        :return: DataFrame
+        """
+        url = f"{GET_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
+        
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting project notifications.")
+
+        return pd.DataFrame(res["details"])
+
+    def clear_notifications(self) -> str:
+        """clear user project notifications
+
+        :raises Exception: _description_
+        :return: str
+        """
+        url = f"{CLEAR_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
+        
+        res = self.__api_client.post(url)
+
+        if not res['success']:
+            raise Exception('Error while clearing project notifications.')
+
+        return res['details']
 
     def __print__(self) -> str:
         return f"Workspace(user_workspace_name='{self.user_workspace_name}', created_by='{self.created_by}', created_at='{self.created_at}')"

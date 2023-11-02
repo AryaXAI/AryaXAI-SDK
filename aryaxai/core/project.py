@@ -34,6 +34,7 @@ from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
+    CLEAR_NOTIFICATIONS_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
@@ -48,6 +49,7 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
+    GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
@@ -1625,6 +1627,35 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res["details"]
+    
+    def get_notifications(self) -> pd.DataFrame:
+        """get user project notifications
+
+        :return: DataFrame
+        """
+        url = f"{GET_NOTIFICATIONS_URI}?project_name={self.project_name}"
+        
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting project notifications.")
+
+        return pd.DataFrame(res["details"])
+
+    def clear_notifications(self) -> str:
+        """clear user project notifications
+
+        :raises Exception: _description_
+        :return: str
+        """
+        url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
+        
+        res = self.__api_client.post(url)
+
+        if not res['success']:
+            raise Exception('Error while clearing project notifications.')
+
+        return res['details']
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"

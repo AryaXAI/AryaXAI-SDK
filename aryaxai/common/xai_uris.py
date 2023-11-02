@@ -8,6 +8,8 @@ LOGIN_URI = f"{API_VERSION}/access-token/authorize"
 # User
 GET_WORKSPACES_URI = f"{API_VERSION}/users/workspaces"
 CREATE_WORKSPACE_URI = f"{API_VERSION}/users/create_workspace"
+GET_NOTIFICATIONS_URI = f"{API_VERSION}/users/notifications"
+CLEAR_NOTIFICATIONS_URI = f"{API_VERSION}/users/clear-notifications"
 
 # Workspace
 UPDATE_WORKSPACE_URI = f"{API_VERSION}/users/workspace_config_update"
