@@ -118,14 +118,13 @@ class APIClient(BaseModel):
         response = self.base_request("POST", uri, payload)
         return response.json()
 
-    def file(self, uri, file_path: str):
+    def file(self, uri, files):
         """makes multipart request to send files
 
         :param uri: api uri
         :param file_path: file path
         :return: JSON response
         """
-        files = {"in_file": open(file_path, "rb")}
         self.refresh_bearer_token()
         response = self.base_request("POST", uri, files=files)
         return response.json()
