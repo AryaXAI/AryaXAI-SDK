@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
@@ -1627,14 +1628,14 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res["details"]
-    
+
     def get_notifications(self) -> pd.DataFrame:
         """get user project notifications
 
         :return: DataFrame
         """
         url = f"{GET_NOTIFICATIONS_URI}?project_name={self.project_name}"
-        
+
         res = self.__api_client.get(url)
 
         if not res["success"]:
@@ -1649,13 +1650,13 @@ class Project(BaseModel):
         :return: str
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
-        
+
         res = self.__api_client.post(url)
 
-        if not res['success']:
-            raise Exception('Error while clearing project notifications.')
+        if not res["success"]:
+            raise Exception("Error while clearing project notifications.")
 
-        return res['details']
+        return res["details"]
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
