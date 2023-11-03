@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel
 from typing import List, Optional
 from aryaxai.client.client import APIClient
@@ -34,6 +35,7 @@ from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
+    CLEAR_NOTIFICATIONS_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
@@ -48,6 +50,7 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
+    GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
@@ -75,6 +78,7 @@ from aryaxai.core.case import Case
 from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import Dashboard
+from datetime import datetime
 
 
 class Project(BaseModel):
@@ -309,11 +313,11 @@ class Project(BaseModel):
         res = self.__api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
-    def upload_file(
-        self, file_path: str, tag: str, config: Optional[ProjectConfig] = None
+    def upload_data(
+        self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
-        """Uploads file for the current project
-        :param file_path: file path to be uploaded
+        """Uploads data for the current project
+        :param file_path: file path | dataframe to be uploaded
         :param config: project config
                 {
                     "project_type": "",
@@ -326,15 +330,29 @@ class Project(BaseModel):
         :return: response
         """
 
+        def build_upload_data():
+            if isinstance(data, str):
+                file = open(data, "rb")
+                return file
+            elif isinstance(data, pd.DataFrame):
+                csv_buffer = io.BytesIO()
+                data.to_csv(csv_buffer, index=False, encoding="utf-8")
+                csv_buffer.seek(0)
+                file_name = f"{tag}_sdk_{datetime.now().replace(microsecond=0)}.csv"
+                file = (file_name, csv_buffer.getvalue())
+                return file
+            else:
+                raise Exception("Invalid Data Type")
+
         def upload_file_and_return_path() -> str:
+            files = {"in_file": build_upload_data()}
             res = self.__api_client.file(
                 f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
-                file_path,
+                files,
             )
 
             if not res["success"]:
                 raise Exception(res.get("details"))
-
             uploaded_path = res.get("metadata").get("filepath")
 
             return uploaded_path
@@ -439,6 +457,56 @@ class Project(BaseModel):
 
         return res.get("details")
 
+    def upload_data_description(self, data: str | pd.DataFrame):
+        """uploads data description for the project
+
+        :param data: response
+        """
+
+        def build_upload_data():
+            if isinstance(data, str):
+                file = open(data, "rb")
+                return file
+            elif isinstance(data, pd.DataFrame):
+                csv_buffer = io.BytesIO()
+                data.to_csv(csv_buffer, index=False, encoding="utf-8")
+                csv_buffer.seek(0)
+                file_name = (
+                    f"data_description_sdk_{datetime.now().replace(microsecond=0)}.csv"
+                )
+                file = (file_name, csv_buffer.getvalue())
+                return file
+            else:
+                raise Exception("Invalid Data Type")
+
+        def upload_file_and_return_path() -> str:
+            files = {"in_file": build_upload_data()}
+            res = self.__api_client.file(
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
+                files,
+            )
+
+            if not res["success"]:
+                raise Exception(res.get("details"))
+            uploaded_path = res.get("metadata").get("filepath")
+
+            return uploaded_path
+
+        uploaded_path = upload_file_and_return_path()
+
+        payload = {
+            "path": uploaded_path,
+            "type": "data_description",
+            "project_name": self.project_name,
+        }
+        res = self.__api_client.post(UPLOAD_DATA_URI, payload)
+
+        if not res["success"]:
+            self.delete_file(uploaded_path)
+            raise Exception(res.get("details"))
+
+        return res.get("details", "Data description upload successful")
+
     def data_summary(self, tag: str) -> pd.DataFrame:
         """Data Summary for the project
 
@@ -462,9 +530,7 @@ class Project(BaseModel):
         }
 
         print(data)
-        summary = pd.DataFrame(res["data"]["data"][tag]).drop(
-            ["data_description"], axis=1
-        )
+        summary = pd.DataFrame(res["data"]["data"][tag])
         return summary
 
     def data_diagnosis(self, tag: str) -> pd.DataFrame:
@@ -1122,7 +1188,7 @@ class Project(BaseModel):
             return "No monitoring alerts found."
 
         return pd.DataFrame(monitoring_alerts)
-    
+
     def get_alert_details(self, id: str) -> dict:
         """get alert details by id
 
@@ -1138,27 +1204,23 @@ class Project(BaseModel):
         if not res["success"]:
             return Exception(res.get("details", "Failed to get trigger details"))
 
-        trigger_info =  res['details'][0]        
+        trigger_info = res["details"][0]
 
-        if not trigger_info['successful']:
-            return Alert(
-                info={},
-                detailed_report=[],
-                not_used_features=[]
-            )
+        if not trigger_info["successful"]:
+            return Alert(info={}, detailed_report=[], not_used_features=[])
 
-        trigger_info = trigger_info['details']
-        
-        detailed_report = trigger_info['detailed_report']
-        not_used_features = trigger_info['Not_Used_Features']
-        
-        del trigger_info['detailed_report']
-        del trigger_info['Not_Used_Features']
-        
+        trigger_info = trigger_info["details"]
+
+        detailed_report = trigger_info["detailed_report"]
+        not_used_features = trigger_info["Not_Used_Features"]
+
+        del trigger_info["detailed_report"]
+        del trigger_info["Not_Used_Features"]
+
         return Alert(
             info=trigger_info,
             detailed_report=detailed_report,
-            not_used_features=not_used_features
+            not_used_features=not_used_features,
         )
 
     def get_model_performance(self, model_name: str = None) -> Dashboard:
@@ -1185,7 +1247,14 @@ class Project(BaseModel):
         """Train new model
 
         :param model_type: type of model
-        :param data_config: config for the data, defaults to None
+        :param data_config: config for the data
+                        {
+                            "tags": List[str]
+                            "feature_exclude": List[str]
+                            "feature_encodings": List[str]
+                            "drop_duplicate_uid": bool
+                        },
+                        defaults to None
         :param model_config: config with hyper parameters for the model, defaults to None
         :return: response
         """
@@ -1557,6 +1626,35 @@ class Project(BaseModel):
 
         if not res["success"]:
             raise Exception(res["details"])
+
+        return res["details"]
+
+    def get_notifications(self) -> pd.DataFrame:
+        """get user project notifications
+
+        :return: DataFrame
+        """
+        url = f"{GET_NOTIFICATIONS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting project notifications.")
+
+        return pd.DataFrame(res["details"])
+
+    def clear_notifications(self) -> str:
+        """clear user project notifications
+
+        :raises Exception: _description_
+        :return: str
+        """
+        url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.post(url)
+
+        if not res["success"]:
+            raise Exception("Error while clearing project notifications.")
 
         return res["details"]
 
