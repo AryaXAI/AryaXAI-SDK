@@ -163,7 +163,7 @@ class Workspace(BaseModel):
         return project
     
     def get_notifications(self) -> pd.DataFrame:
-        """get user project notifications
+        """get user workspace notifications
 
         :return: DataFrame
         """
@@ -172,12 +172,12 @@ class Workspace(BaseModel):
         res = self.__api_client.get(url)
 
         if not res["success"]:
-            raise Exception("Error while getting project notifications.")
+            raise Exception("Error while getting workspace notifications.")
 
         return pd.DataFrame(res["details"])
 
     def clear_notifications(self) -> str:
-        """clear user project notifications
+        """clear user workspace notifications
 
         :raises Exception: _description_
         :return: str
@@ -187,7 +187,7 @@ class Workspace(BaseModel):
         res = self.__api_client.post(url)
 
         if not res['success']:
-            raise Exception('Error while clearing project notifications.')
+            raise Exception('Error while clearing workspace notifications.')
 
         return res['details']
 
