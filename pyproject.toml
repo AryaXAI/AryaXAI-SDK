@@ -3,3 +3,6 @@ requires = ["setuptools>=60", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+write_to = "aryaxai/version.py"
