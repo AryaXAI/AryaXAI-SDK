@@ -21,6 +21,8 @@ class XAI(BaseModel):
 
         debug = self.__env.get_debug()
         base_url = self.__env.get_base_url()
+        
+        print(f'base url latest: {base_url}')
 
         self.__api_client = APIClient(
             debug=debug,

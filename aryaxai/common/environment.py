@@ -20,8 +20,12 @@ class Environment(BaseModel):
         """
         env_file = f'.env.{self.XAI_ENV}'
         
+        print(env_file)
+        
         BASEDIR = os.path.abspath(os.path.dirname(__file__))
         load_dotenv(os.path.join(BASEDIR, 'config', env_file))
+        
+        print(f'base url: {self.get_base_url()}')
    
         logger_on = self.get_debug()
 
