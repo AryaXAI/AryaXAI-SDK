@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 
 class Validate:
@@ -39,3 +39,13 @@ class Validate:
             for feature in features:
                 if feature not in all_features:
                     raise Exception(f"{feature} is not a valid feature. Pick a valid value from {all_features}.")
+
+
+def raise_invalid_value_exception(value: str, valid_values: Optional[List[str]] = None):
+    """raise invalid value exception and suggest valid values
+
+    :param value: invalid value
+    :param valid_values: list of valid values
+    :raises Exception: Given value is invalid among valid values
+    """
+    raise Exception(f"{value} is not a valid. Pick a valid value from {valid_values}.")

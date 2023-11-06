@@ -63,3 +63,8 @@ CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
 DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
 EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"
 GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION}/triggers/get_trigger_details"
+
+# Synthetic AI
+GET_SYNTHETICS_MODEL_PARAMS = f"{API_VERSION}/synthetics/get_synthetic_model_parameters"
+GET_SYNTHETICS_MODELS = f"{API_VERSION}/synthetics/get_synthetics_models"
+TRAIN_SYNTHETIC_MODEL = f"{API_VERSION}/synthetics/train_synthetic_model"

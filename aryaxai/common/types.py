@@ -15,3 +15,11 @@ class DataConfig(TypedDict):
     feature_exclude: List[str]
     feature_encodings: List[str]
     drop_duplicate_uid: bool
+
+class SyntheticDataConfig(TypedDict):
+    model_name: str
+    tags: List[str]
+    feature_exclude: List[str]
+    feature_include: List[str]
+    feature_actual_used: List[str]
+    drop_duplicate_uid: bool

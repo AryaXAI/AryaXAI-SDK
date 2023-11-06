@@ -20,8 +20,8 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS_REGRESSION,
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
-from aryaxai.common.types import DataConfig, ProjectConfig
-from aryaxai.common.validation import Validate
+from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig
+from aryaxai.common.validation import Validate, raise_invalid_value_exception
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
     DataDriftPayload,
@@ -52,12 +52,15 @@ from aryaxai.common.xai_uris import (
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
+    GET_SYNTHETICS_MODEL_PARAMS,
+    GET_SYNTHETICS_MODELS,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
     TRAIN_MODEL_URI,
+    TRAIN_SYNTHETIC_MODEL,
     UPDATE_ACTIVE_MODEL_URI,
     GET_TRIGGERS_URI,
     UPDATE_PROJECT_URI,
@@ -1657,6 +1660,152 @@ class Project(BaseModel):
             raise Exception("Error while clearing project notifications.")
 
         return res["details"]
+    
+    def get_synthetic_models(self) -> pd.DataFrame:
+        """get synthetic models for the project
+
+        :return: DataFrame
+        """
+        url = f"{GET_SYNTHETICS_MODELS}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics models.")
+
+        return pd.DataFrame(res["details"])
+    
+    def get_synthetic_model_params(self, model_type: str) -> dict:
+        """get synthetic model parameters for the project
+
+        :param model_type: synthetic model type ['GPT2', 'CTGAN']
+        :return: param dict
+        """
+        return self.__api_client.get(GET_SYNTHETICS_MODEL_PARAMS)
+    
+    def train_synthetic_model(
+        self,
+        model_name: str,
+        data_config: Optional[SyntheticDataConfig] = None,
+        model_config: Optional[dict] = None,
+    ) -> str:
+        """Train synthetic model
+
+        :param model_name: type of model
+        :param data_config: config for the data
+                        {
+                            "model_name": str
+                            "tags": List[str]
+                            "feature_exclude": List[str]
+                            "feature_include": List[str]
+                            "feature_actual_used": List[str]
+                            "drop_duplicate_uid": bool
+                        },
+                        defaults to None
+        :param model_config: config with hyper parameters for the model, defaults to None
+        :return: response
+        """
+        if project_config == "Not Found":
+            raise Exception("Upload files first")
+        
+        all_models_param = self.get_synthetic_model_params(model_name)
+        
+        try:
+            model_params = all_models_param[model_name]
+        except KeyError as e:
+            availabel_models = list(all_models_param.keys())
+            raise_invalid_value_exception(model_name, availabel_models)
+
+        project_config = self.config()
+
+        if data_config:
+            if data_config.get("feature_exclude"):
+                if not all(
+                    feature in project_config["metadata"]["feature_include"]
+                    for feature in data_config["feature_exclude"]
+                ):
+                    raise Exception(
+                        f"feature_exclude is not valid,\nalready excluded features : {project_config['metadata']['feature_exclude']} \nselect valid values from : {project_config['metadata']['feature_include'] }"
+                    )
+
+            if data_config.get("tags"):
+                available_tags = self.tags()
+                if not all(tag in available_tags for tag in data_config["tags"]):
+                    raise Exception(
+                        f"tags is not valid,select valid values from :\n{available_tags}"
+                    )
+
+        if model_config:
+            model_params = self.__api_client.get(MODEL_PARAMETERS_URI)
+            model_name = f"{model_name}_{project_config['project_type']}".lower()
+            model_parameters = model_params.get(model_name)
+
+            if model_parameters:
+                for model_config_param in model_config.keys():
+                    model_param = model_parameters.get(model_config_param)
+                    model_config_param_value = model_config[model_config_param]
+
+                    if not model_param:
+                        raise Exception(
+                            f"Invalid model config for {model_name} \n {json.dumps(model_parameters)}"
+                        )
+
+                    if model_param["type"] == "select":
+                        if model_config_param_value not in model_param["value"]:
+                            raise Exception(
+                                f"Invalid value for {model_config_param}, select from {model_param['value']}"
+                            )
+                    elif model_param["type"] == "input":
+                        if model_config_param_value > model_param["max"]:
+                            raise Exception(
+                                f"{model_config_param} value cannot be greater than {model_param['max']}"
+                            )
+                        if model_config_param_value < model_param["min"]:
+                            raise Exception(
+                                f"{model_config_param} value cannot be less than {model_param['min']}"
+                            )
+
+        data_conf = data_config or {}
+
+        feature_exclude = [
+            *project_config["metadata"]["feature_exclude"],
+            *data_conf.get("feature_exclude", []),
+        ]
+
+        feature_include = [
+            feature
+            for feature in project_config["metadata"]["feature_include"]
+            if feature not in feature_exclude
+        ]
+
+        feature_encodings = (
+            data_conf.get("feature_encodings")
+            or project_config["metadata"]["feature_encodings"]
+        )
+
+        drop_duplicate_uid = (
+            data_conf.get("drop_duplicate_uid")
+            or project_config["metadata"]["drop_duplicate_uid"]
+        )
+
+        tags = data_conf.get("tags") or project_config["metadata"]["tags"]
+
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+            "metadata": {
+                "model_name": model_name,
+                **data_config,
+                "model_parameters": model_config
+            },
+        }
+        
+        res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return "Model Trained Successfully."
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
