@@ -36,6 +36,8 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CLEAR_NOTIFICATIONS_URI,
+    CREATE_OBSERVATION_URI,
+    CREATE_POLICY_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
@@ -51,6 +53,10 @@ from aryaxai.common.xai_uris import (
     GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
+    GET_OBSERVATION_PARAMS_URI,
+    GET_OBSERVATIONS_URI,
+    GET_POLICIES_URI,
+    GET_POLICY_PARAMS_URI,
     GET_PROJECT_CONFIG,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
@@ -60,6 +66,8 @@ from aryaxai.common.xai_uris import (
     TRAIN_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
     GET_TRIGGERS_URI,
+    UPDATE_OBSERVATION_URI,
+    UPDATE_POLICY_URI,
     UPDATE_PROJECT_URI,
     UPLOAD_DATA_FILE_INFO_URI,
     UPLOAD_DATA_FILE_URI,
@@ -79,6 +87,7 @@ from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
+import re
 
 
 class Project(BaseModel):
@@ -1530,7 +1539,7 @@ class Project(BaseModel):
         tag: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ):
+    ) -> pd.DataFrame:
         """Cases for the Project
 
         :param unique_identifier: unique identifer of the case for filtering, defaults to None
@@ -1577,7 +1586,7 @@ class Project(BaseModel):
         unique_identifer: str,
         case_id: Optional[str] = None,
         tag: Optional[str] = None,
-    ):
+    ) -> Case:
         """Case Info
 
         :param unique_identifer: unique identifer of case
@@ -1606,7 +1615,15 @@ class Project(BaseModel):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         tag: Optional[str] = None,
-    ):
+    ) -> str:
+        """Delete Cases
+
+        :param unique_identifier: unique identifier of case, defaults to None
+        :param start_date: start date of case, defaults to None
+        :param end_date: end date of case, defaults to None
+        :param tag: tag of case, defaults to None
+        :return: response
+        """
         if tag:
             all_tags = self.all_tags()
             if tag not in all_tags:
@@ -1658,6 +1675,305 @@ class Project(BaseModel):
 
         return res["details"]
 
+    def observations(self) -> pd.DataFrame:
+        """Observations
+
+        :return: observation details dataframe
+        """
+        res = self.__api_client.get(
+            f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
+        )
+
+        if not res.get("details"):
+            raise Exception("No observations found")
+
+        observation_df = pd.DataFrame(res.get("details"))
+        observation_df["expression"] = observation_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
+        )
+        observation_df = observation_df.drop(
+            columns=[
+                "project_name",
+                "configuration",
+                "metadata",
+                "updated_by",
+                "created_by",
+            ]
+        )
+
+        observation_df.insert(5, "expression", observation_df.pop("expression"))
+
+        return observation_df
+
+    def create_observation(
+        self,
+        observation_name: str,
+        expression: str,
+        statement: Optional[str] = None,
+        linked_features: Optional[List[str]] = None,
+    ) -> str:
+        """Creates New Observation
+
+        :param observation_name: name of observation
+        :param expression: expression of observation
+        :param statement: statement of observation, defaults to None
+        :param linked_features: linked features of observation, defaults to None
+        :return: response
+        """
+        configuration, expression = build_expression(expression)
+
+        observation_params = self.__api_client.get(
+            f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
+        )
+
+        validate_configuration(configuration, observation_params["details"])
+
+        if linked_features:
+            for feature in linked_features:
+                if feature not in observation_params["eng_features"]:
+                    raise Exception(
+                        f"{feature} is not a valid feature, pick feature from \n{observation_params['eng_features']}"
+                    )
+
+        payload = {
+            "project_name": self.project_name,
+            "observation_name": observation_name,
+            "status": "active",
+            "configuration": configuration,
+            "metadata": {"expression": expression},
+            "statement": [statement],
+            "linked_features": linked_features,
+        }
+
+        res = self.__api_client.post(CREATE_OBSERVATION_URI, payload)
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Observation Created"
+
+    def update_observation(
+        self,
+        observation_id: str,
+        observation_name: str,
+        expression: Optional[str] = None,
+        statement: Optional[str] = None,
+        linked_features: Optional[List[str]] = None,
+    ) -> str:
+        """Updates Observation
+
+        :param observation_id: id of observation
+        :param observation_name: name of observation
+        :param expression: new expression for observaation, defaults to None
+        :param statement: new statement for observation, defaults to None
+        :param linked_features: new linked features for observation, defaults to None
+        :return: response
+        """
+        if not expression and not statement and not linked_features:
+            raise Exception("update parameters for observation not passed")
+
+        payload = {
+            "project_name": self.project_name,
+            "observation_id": observation_id,
+            "observation_name": observation_name,
+            "update_keys": {},
+        }
+
+        observation_params = self.__api_client.get(
+            f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
+        )
+
+        if expression:
+            configuration, expression = build_expression(expression)
+            validate_configuration(configuration, observation_params["details"])
+            payload["update_keys"]["configuration"] = configuration
+            payload["update_keys"]["metadata"]: {"expression": expression}
+
+        if linked_features:
+            for feature in linked_features:
+                if feature not in observation_params["eng_features"]:
+                    raise Exception(
+                        f"{feature} is not a valid feature, pick feature from \n{observation_params['eng_features']}"
+                    )
+            payload["update_keys"]["linked_features"] = linked_features
+
+        if statement:
+            payload["update_keys"]["statement"] = [statement]
+
+        res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Observation Updated"
+
+    def delete_observation(
+        self,
+        observation_id: str,
+        observation_name: str,
+    ) -> str:
+        """Deletes Observation
+
+        :param observation_id: id of observation
+        :param observation_name: name of observation
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "observation_id": observation_id,
+            "observation_name": observation_name,
+            "delete": True,
+            "update_keys": {},
+        }
+
+        res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Observation Deleted"
+
+    def policies(self) -> pd.DataFrame:
+        """Policies
+
+        :return: policy details dataframe
+        """
+        res = self.__api_client.get(
+            f"{GET_POLICIES_URI}?project_name={self.project_name}"
+        )
+
+        if not res.get("details"):
+            raise Exception("No policies found")
+
+        policy_df = pd.DataFrame(res.get("details"))
+        policy_df["expression"] = policy_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
+        )
+        policy_df = policy_df.drop(
+            columns=[
+                "project_name",
+                "configuration",
+                "metadata",
+                "linked_features",
+                "updated_by",
+                "created_by",
+            ]
+        )
+        policy_df.insert(5, "expression", policy_df.pop("expression"))
+
+        return policy_df
+
+    def create_policy(
+        self,
+        policy_name: str,
+        expression: str,
+        statement: Optional[str] = None,
+        decision: Optional[str] = None,
+    ) -> str:
+        """Creates New Policy
+
+        :param policy_name: name of policy
+        :param expression: expression of policy
+        :param statement: statement of policy, defaults to None
+        :param decision: decision of policy, defaults to None
+        :return: response
+        """
+        configuration, expression = build_expression(expression)
+
+        policy_params = self.__api_client.get(
+            f"{GET_POLICY_PARAMS_URI}?project_name={self.project_name}"
+        )
+
+        validate_configuration(configuration, policy_params["details"])
+
+        payload = {
+            "project_name": self.project_name,
+            "policy_name": policy_name,
+            "status": "active",
+            "configuration": configuration,
+            "metadata": {"expression": expression},
+            "statement": [statement],
+            "decision": decision,
+        }
+
+        res = self.__api_client.post(CREATE_POLICY_URI, payload)
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Policy Created"
+
+    def update_policy(
+        self,
+        policy_id: str,
+        policy_name: str,
+        expression: Optional[str] = None,
+        statement: Optional[str] = None,
+        decision: Optional[str] = None,
+    ) -> str:
+        """Updates Policy
+
+        :param policy_id: id of policy
+        :param policy_name: name of policy
+        :param expression: new expression for policy, defaults to None
+        :param statement: new statement for policy, defaults to None
+        :param decision: new decision for policy, defaults to None
+        :return: response
+        """
+        if not expression and not statement and not decision:
+            raise Exception("update parameters for policy not passed")
+
+        payload = {
+            "project_name": self.project_name,
+            "policy_id": policy_id,
+            "policy_name": policy_name,
+            "update_keys": {},
+        }
+
+        policy_params = self.__api_client.get(
+            f"{GET_POLICY_PARAMS_URI}?project_name={self.project_name}"
+        )
+
+        if expression:
+            configuration, expression = build_expression(expression)
+            validate_configuration(configuration, policy_params["details"])
+            payload["update_keys"]["configuration"] = configuration
+            payload["update_keys"]["metadata"]: {"expression": expression}
+
+        if statement:
+            payload["update_keys"]["statement"] = [statement]
+
+        res = self.__api_client.post(UPDATE_POLICY_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Policy Updated"
+
+    def delete_policy(
+        self,
+        policy_id: str,
+        policy_name: str,
+    ) -> str:
+        """Deletes Policy
+
+        :param policy_id: id of policy
+        :param policy_name: name of policy
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "policy_id": policy_id,
+            "policy_name": policy_name,
+            "delete": True,
+            "update_keys": {},
+        }
+
+        res = self.__api_client.post(UPDATE_POLICY_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Policy Deleted"
+
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
 
@@ -1666,3 +1982,96 @@ class Project(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
+
+
+def generate_expression(expression):
+    generated_expression = ""
+    for item in expression:
+        if isinstance(item, str):
+            generated_expression += " " + item
+        else:
+            generated_expression += (
+                f" {item['column']} {item['expression']} {item['value']}"
+            )
+    return generated_expression
+
+
+def build_expression(expression_string):
+    condition_operators = {
+        "!=": "_NOTEQ",
+        "==": "_ISEQ",
+        ">": "_GRT",
+        "<": "_LST",
+    }
+    logical_operator = {"and": "_AND", "or": "_OR"}
+
+    metadata_expression = []
+    configuration = []
+    pattern = re.compile(r"(\w+)\s*([!=<>]+)\s*(\w+)")
+    matches = pattern.findall(expression_string)
+    string_to_be_parsed = expression_string
+
+    for i, match in enumerate(matches):
+        column, expression, value = match
+        if expression not in condition_operators.keys():
+            raise Exception(f"Not a valid condition operator in {match}")
+        metadata_expression.append(
+            {
+                "column": column,
+                "value": value,
+                "expression": expression,
+            }
+        )
+        configuration.append(
+            {
+                "column": column,
+                "value": value,
+                "expression": condition_operators[expression],
+            }
+        )
+        if i < len(matches) - 1:
+            string_to_be_parsed = string_to_be_parsed.split(value, 1)[1]
+            operator = string_to_be_parsed.split(matches[i + 1][0], 1)[0]
+            operator_match = re.search(r"(|and|or|)", operator)
+            if not operator_match.group():
+                raise Exception(f"{operator} is not valid logical operator")
+            log_operator = operator_match.group()
+            if len(operator.split(log_operator)) > 1:
+                raise Exception(f"{operator} is not valid logical operator")
+            metadata_expression.append(log_operator)
+            configuration.append(logical_operator[log_operator])
+    return configuration, metadata_expression
+
+
+def validate_configuration(configuration, params):
+    for expression in configuration:
+        if isinstance(expression, str):
+            if expression not in params.get("logical_operators"):
+                raise Exception(f"{expression} not a valid logical operator")
+
+        if isinstance(expression, dict):
+            if expression.get("column") not in params.get("eng_features"):
+                raise Exception(
+                    f"{expression.get('column')} is not a valid feature, select valid features from\n{params.get('eng_features')}"
+                )
+            if expression.get("expression") not in params.get("condition_operators"):
+                raise Exception(
+                    f"{expression.get('expression')} is not a valid expression"
+                )
+            value_valid_values = params.get("features").get(expression.get("value"))
+            if isinstance(value_valid_values, str):
+                if (
+                    value_valid_values != "input"
+                    and expression.get("value") != value_valid_values
+                ):
+                    raise Exception(
+                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                    )
+            if isinstance(value_valid_values, list):
+                if (
+                    "input" not in value_valid_values
+                    and expression.get("value") not in value_valid_values
+                ):
+                    raise Exception(
+                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                    )

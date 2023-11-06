@@ -57,6 +57,18 @@ SEARCH_CASE_URI = f"{API_VERSION}/ai-models/search_case"
 CASE_INFO_URI = f"{API_VERSION}/ai-models/get_case_info"
 DELETE_CASE_URI = f"{API_VERSION}/project/delete_data_with_filter"
 
+# Observations
+GET_OBSERVATIONS_URI = f"{API_VERSION}/observations/get_observations"
+GET_OBSERVATION_PARAMS_URI = f"{API_VERSION}/observations/get_observation_params"
+CREATE_OBSERVATION_URI = f"{API_VERSION}/observations/create_observation"
+UPDATE_OBSERVATION_URI = f"{API_VERSION}/observations/observation_config_update"
+
+# Policies
+GET_POLICIES_URI = f"{API_VERSION}/policies/get_policies"
+GET_POLICY_PARAMS_URI = f"{API_VERSION}/policies/get_policy_params"
+CREATE_POLICY_URI = f"{API_VERSION}/policies/create_policy"
+UPDATE_POLICY_URI = f"{API_VERSION}/policies/policy_config_update"
+
 # Alerts
 GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
 CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
