@@ -1688,8 +1688,16 @@ class Project(BaseModel):
             raise Exception("No observations found")
 
         observation_df = pd.DataFrame(res.get("details"))
-        observation_df["expression"] = observation_df["metadata"].apply(
-            lambda metadata: generate_expression(metadata["expression"])
+        observation_df = observation_df[
+            observation_df["status"].isin(["active", "inactive"])
+        ]
+        observation_df.reset_index(inplace=True, drop=True)
+        observation_df.insert(
+            10,
+            "expression",
+            observation_df["metadata"].apply(
+                lambda metadata: generate_expression(metadata["expression"])
+            ),
         )
         observation_df = observation_df.drop(
             columns=[
@@ -1698,10 +1706,79 @@ class Project(BaseModel):
                 "metadata",
                 "updated_by",
                 "created_by",
+                "updated_keys",
             ]
         )
 
-        observation_df.insert(5, "expression", observation_df.pop("expression"))
+        return observation_df
+
+    def observation_trail(self) -> pd.DataFrame:
+        """Observation Trail
+
+        :return: observation trail details dataframe
+        """
+        res = self.__api_client.get(
+            f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
+        )
+
+        if not res.get("details"):
+            raise Exception("No observations found")
+
+        observation_df = pd.DataFrame(res.get("details"))
+        observation_df = observation_df[
+            observation_df["status"].isin(["updated", "deleted"])
+        ]
+        observation_df.reset_index(inplace=True, drop=True)
+        observation_df = observation_df.rename(
+            columns={
+                "statement": "old_statement",
+                "linked_features": "old_linked_features",
+            }
+        )
+        observation_df["updated_keys"].replace(float("nan"), None, inplace=True)
+        observation_df.insert(
+            9,
+            "updated_statement",
+            observation_df["updated_keys"].apply(
+                lambda data: data.get("statement") if data else None
+            ),
+        )
+        observation_df.insert(
+            11,
+            "updated_linked_features",
+            observation_df["updated_keys"].apply(
+                lambda data: data.get("linked_features") if data else None
+            ),
+        )
+        observation_df.insert(
+            12,
+            "old_expression",
+            observation_df["metadata"].apply(
+                lambda metadata: generate_expression(metadata["expression"])
+            ),
+        )
+        observation_df.insert(
+            13,
+            "updated_expression",
+            observation_df["updated_keys"].apply(
+                lambda data: generate_expression(
+                    data.get("metadata", {}).get("expression")
+                )
+                if data
+                else None
+            ),
+        )
+
+        observation_df = observation_df.drop(
+            columns=[
+                "project_name",
+                "configuration",
+                "metadata",
+                "updated_by",
+                "created_by",
+                "updated_keys",
+            ]
+        )
 
         return observation_df
 
@@ -1786,7 +1863,7 @@ class Project(BaseModel):
             configuration, expression = build_expression(expression)
             validate_configuration(configuration, observation_params["details"])
             payload["update_keys"]["configuration"] = configuration
-            payload["update_keys"]["metadata"]: {"expression": expression}
+            payload["update_keys"]["metadata"] = {"expression": expression}
 
         if linked_features:
             for feature in linked_features:
@@ -1845,8 +1922,14 @@ class Project(BaseModel):
             raise Exception("No policies found")
 
         policy_df = pd.DataFrame(res.get("details"))
-        policy_df["expression"] = policy_df["metadata"].apply(
-            lambda metadata: generate_expression(metadata["expression"])
+        policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
+        policy_df.reset_index(inplace=True, drop=True)
+        policy_df.insert(
+            11,
+            "expression",
+            policy_df["metadata"].apply(
+                lambda metadata: generate_expression(metadata["expression"])
+            ),
         )
         policy_df = policy_df.drop(
             columns=[
@@ -1856,9 +1939,79 @@ class Project(BaseModel):
                 "linked_features",
                 "updated_by",
                 "created_by",
+                "updated_keys",
             ]
         )
-        policy_df.insert(5, "expression", policy_df.pop("expression"))
+        return policy_df
+
+    def policy_trail(self) -> pd.DataFrame:
+        """Policy Trail
+
+        :return: observation details dataframe
+        """
+        res = self.__api_client.get(
+            f"{GET_POLICIES_URI}?project_name={self.project_name}"
+        )
+
+        if not res.get("details"):
+            raise Exception("No policies found")
+
+        policy_df = pd.DataFrame(res.get("details"))
+        policy_df = policy_df[policy_df["status"].isin(["updated", "deleted"])]
+        policy_df.reset_index(inplace=True, drop=True)
+        policy_df = policy_df.rename(
+            columns={
+                "statement": "old_statement",
+                "decision": "old_decision",
+            }
+        )
+
+        policy_df["updated_keys"].replace(float("nan"), None, inplace=True)
+
+        policy_df.insert(
+            9,
+            "updated_statement",
+            policy_df["updated_keys"].apply(
+                lambda data: data.get("statement") if data else None
+            ),
+        )
+        policy_df.insert(
+            12,
+            "updated_decision",
+            policy_df["updated_keys"].apply(
+                lambda data: data.get("decision") if data else None
+            ),
+        )
+        policy_df.insert(
+            13,
+            "old_expression",
+            policy_df["metadata"].apply(
+                lambda metadata: generate_expression(metadata["expression"])
+            ),
+        )
+        policy_df.insert(
+            14,
+            "updated_expression",
+            policy_df["updated_keys"].apply(
+                lambda data: generate_expression(
+                    data.get("metadata", {}).get("expression")
+                )
+                if data
+                else None
+            ),
+        )
+
+        policy_df = policy_df.drop(
+            columns=[
+                "project_name",
+                "configuration",
+                "metadata",
+                "updated_by",
+                "created_by",
+                "updated_keys",
+                "linked_features",
+            ]
+        )
 
         return policy_df
 
@@ -1936,7 +2089,7 @@ class Project(BaseModel):
             configuration, expression = build_expression(expression)
             validate_configuration(configuration, policy_params["details"])
             payload["update_keys"]["configuration"] = configuration
-            payload["update_keys"]["metadata"]: {"expression": expression}
+            payload["update_keys"]["metadata"] = {"expression": expression}
 
         if statement:
             payload["update_keys"]["statement"] = [statement]
@@ -1985,6 +2138,8 @@ class Project(BaseModel):
 
 
 def generate_expression(expression):
+    if not expression:
+        return None
     generated_expression = ""
     for item in expression:
         if isinstance(item, str):
@@ -1998,7 +2153,7 @@ def generate_expression(expression):
 
 def build_expression(expression_string):
     condition_operators = {
-        "!=": "_NOTEQ",
+        "!==": "_NOTEQ",
         "==": "_ISEQ",
         ">": "_GRT",
         "<": "_LST",
