@@ -1793,6 +1793,13 @@ class Project(BaseModel):
 
         :param observation_name: name of observation
         :param expression: expression of observation
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: statement of observation, defaults to None
         :param linked_features: linked features of observation, defaults to None
         :return: response
@@ -1840,7 +1847,14 @@ class Project(BaseModel):
 
         :param observation_id: id of observation
         :param observation_name: name of observation
-        :param expression: new expression for observaation, defaults to None
+        :param expression: new expression for observation, defaults to None
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: new statement for observation, defaults to None
         :param linked_features: new linked features for observation, defaults to None
         :return: response
@@ -2026,6 +2040,13 @@ class Project(BaseModel):
 
         :param policy_name: name of policy
         :param expression: expression of policy
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: statement of policy, defaults to None
         :param decision: decision of policy, defaults to None
         :return: response
@@ -2067,6 +2088,13 @@ class Project(BaseModel):
         :param policy_id: id of policy
         :param policy_name: name of policy
         :param expression: new expression for policy, defaults to None
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: new statement for policy, defaults to None
         :param decision: new decision for policy, defaults to None
         :return: response
