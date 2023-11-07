@@ -1858,6 +1858,7 @@ class Project(BaseModel):
         self,
         observation_id: str,
         observation_name: str,
+        status: Optional[str] = None,
         expression: Optional[str] = None,
         statement: Optional[str] = None,
         linked_features: Optional[List[str]] = None,
@@ -1866,6 +1867,7 @@ class Project(BaseModel):
 
         :param observation_id: id of observation
         :param observation_name: name of observation
+        :param status: status of observation ["active","inactive"]
         :param expression: new expression for observation, defaults to None
             Eg: BldgType !== Duplex and Neighborhood == OldTown
                 Ensure that the left side of the conditional operator corresponds to a feature name,
@@ -1880,7 +1882,7 @@ class Project(BaseModel):
         :param linked_features: new linked features for observation, defaults to None
         :return: response
         """
-        if not expression and not statement and not linked_features:
+        if not status and not expression and not statement and not linked_features:
             raise Exception("update parameters for observation not passed")
 
         payload = {
@@ -1911,7 +1913,17 @@ class Project(BaseModel):
         if statement:
             payload["update_keys"]["statement"] = [statement]
 
+        if status:
+            valid_status = ["active", "inactive"]
+            if status not in valid_status:
+                raise Exception(
+                    f"{status} is not a valid status, select from {valid_status}"
+                )
+            payload["update_keys"]["status"] = status
+
         res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
+
+        print(res)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2119,6 +2131,7 @@ class Project(BaseModel):
         self,
         policy_id: str,
         policy_name: str,
+        status: Optional[str] = None,
         expression: Optional[str] = None,
         statement: Optional[str] = None,
         decision: Optional[str] = None,
@@ -2127,6 +2140,7 @@ class Project(BaseModel):
 
         :param policy_id: id of policy
         :param policy_name: name of policy
+        :param status: status of policy ["active","inactive"]
         :param expression: new expression for policy, defaults to None
             Eg: BldgType !== Duplex and Neighborhood == OldTown
                 Ensure that the left side of the conditional operator corresponds to a feature name,
@@ -2141,7 +2155,7 @@ class Project(BaseModel):
         :param decision: new decision for policy, defaults to None
         :return: response
         """
-        if not expression and not statement and not decision:
+        if not status and not expression and not statement and not decision:
             raise Exception("update parameters for policy not passed")
 
         payload = {
@@ -2163,6 +2177,14 @@ class Project(BaseModel):
 
         if statement:
             payload["update_keys"]["statement"] = [statement]
+
+        if status:
+            valid_status = ["active", "inactive"]
+            if status not in valid_status:
+                raise Exception(
+                    f"{status} is not a valid status, select from {valid_status}"
+                )
+            payload["update_keys"]["status"] = status
 
         res = self.__api_client.post(UPDATE_POLICY_URI, payload)
 
