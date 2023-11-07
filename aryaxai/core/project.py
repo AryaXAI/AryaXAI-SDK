@@ -1658,12 +1658,10 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting project notifications.")
 
-        for notification in res["details"]:
-            if 'project_name' in notification:
-                del notification['project_name']
+        notifications = [notification for notification in res["details"] if notification.get('project_name', None)]
 
         return pd.DataFrame(
-            res["details"]
+            notifications
         ).reindex(columns=['message', 'time'])
 
     def clear_notifications(self) -> str:
