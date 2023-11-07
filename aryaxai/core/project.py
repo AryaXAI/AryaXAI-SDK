@@ -40,6 +40,7 @@ from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
+    DOWNLOAD_SYNTHETICS_DATA_BY_TAG,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
@@ -52,6 +53,7 @@ from aryaxai.common.xai_uris import (
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
+    GET_SYNTHETICS_DATA_TAGS,
     GET_SYNTHETICS_MODEL_PARAMS,
     GET_SYNTHETICS_MODELS,
     MODEL_PARAMETERS_URI,
@@ -1686,118 +1688,128 @@ class Project(BaseModel):
     def train_synthetic_model(
         self,
         model_name: str,
-        data_config: Optional[SyntheticDataConfig] = None,
-        model_config: Optional[dict] = None,
+        data_config: Optional[SyntheticDataConfig] = {},
+        model_config: Optional[dict] = {},
     ) -> str:
         """Train synthetic model
 
         :param model_name: type of model
         :param data_config: config for the data
-                        {
-                            "model_name": str
-                            "tags": List[str]
-                            "feature_exclude": List[str]
-                            "feature_include": List[str]
-                            "feature_actual_used": List[str]
-                            "drop_duplicate_uid": bool
-                        },
-                        defaults to None
-        :param model_config: config with hyper parameters for the model, defaults to None
+            {
+                "tags": List[str]
+                "feature_exclude": List[str]
+                "feature_include": List[str]
+                "drop_duplicate_uid": bool
+            },
+            defaults to {}
+        :param model_config: hyper parameters for the model. check param type and value range belowm
+            for GPT2 model
+            {
+                "batch_size": int [1, 500]
+                "early_stopping_patience": int [1, 100],
+                "early_stopping_threshold": float [0.1, 100],
+                "epochs": int [1, 150],
+                "model_type": "tabular",
+                "random_state": int [1, 150],
+                "tabular_config": "GPT2Config" or null,
+                "train_size": float [0, 0.9]
+            }
+            For CTGAN model
+            {
+                "epochs": int, [1, 150]
+                "test_ratio": float [0, 1]
+            }
+            defaults to {}
+
         :return: response
         """
-        if project_config == "Not Found":
-            raise Exception("Upload files first")
+        project_config = self.config()
+
+        if project_config == 'Not Found':
+            raise Exception('Upload files first')
         
+        project_config = project_config['metadata']
+
         all_models_param = self.get_synthetic_model_params(model_name)
         
         try:
             model_params = all_models_param[model_name]
         except KeyError as e:
             availabel_models = list(all_models_param.keys())
-            raise_invalid_value_exception(model_name, availabel_models)
+            Validate.raise_exception_on_invalid_value(
+                [model_name],
+                availabel_models,
+                field_name='model type'
+            )
 
-        project_config = self.config()
+        # validate and prepare data config
+        data_config['model_name'] = model_name
+        
+        available_tags = self.tags()
+        tags = data_config.get('tags', project_config['tags'])
+        
+        Validate.raise_exception_on_invalid_value(
+            tags,
+            available_tags,
+            field_name='tag'
+        )
 
-        if data_config:
-            if data_config.get("feature_exclude"):
-                if not all(
-                    feature in project_config["metadata"]["feature_include"]
-                    for feature in data_config["feature_exclude"]
-                ):
-                    raise Exception(
-                        f"feature_exclude is not valid,\nalready excluded features : {project_config['metadata']['feature_exclude']} \nselect valid values from : {project_config['metadata']['feature_include'] }"
-                    )
+        feature_exclude = data_config.get('feature_exclude', project_config['feature_exclude'])
 
-            if data_config.get("tags"):
-                available_tags = self.tags()
-                if not all(tag in available_tags for tag in data_config["tags"]):
-                    raise Exception(
-                        f"tags is not valid,select valid values from :\n{available_tags}"
-                    )
+        Validate.raise_exception_on_invalid_value(
+            feature_exclude,
+            project_config['avaialble_options']
+        )
+        
+        feature_include = data_config.get('feature_include', project_config['feature_include'])
+        
+        Validate.raise_exception_on_invalid_value(
+            feature_include,
+            project_config['avaialble_options'],
+        )
+  
+        drop_duplicate_uid = data_config.get(
+            'drop_duplicate_uid',
+            project_config['drop_duplicate_uid']
+        )
 
+        # validate model hyper parameters
         if model_config:
-            model_params = self.__api_client.get(MODEL_PARAMETERS_URI)
-            model_name = f"{model_name}_{project_config['project_type']}".lower()
-            model_parameters = model_params.get(model_name)
-
-            if model_parameters:
-                for model_config_param in model_config.keys():
-                    model_param = model_parameters.get(model_config_param)
-                    model_config_param_value = model_config[model_config_param]
-
-                    if not model_param:
-                        raise Exception(
-                            f"Invalid model config for {model_name} \n {json.dumps(model_parameters)}"
-                        )
-
-                    if model_param["type"] == "select":
-                        if model_config_param_value not in model_param["value"]:
+            for key, value in model_config.items():
+                model_param = model_params.get(key, None)
+                    
+                if model_param:
+                    if model_param['type'] == 'input':
+                        if value < model_param['min'] or value > model_param['max']:
                             raise Exception(
-                                f"Invalid value for {model_config_param}, select from {model_param['value']}"
-                            )
-                    elif model_param["type"] == "input":
-                        if model_config_param_value > model_param["max"]:
-                            raise Exception(
-                                f"{model_config_param} value cannot be greater than {model_param['max']}"
-                            )
-                        if model_config_param_value < model_param["min"]:
-                            raise Exception(
-                                f"{model_config_param} value cannot be less than {model_param['min']}"
+                                f'{key} value should be between {model_param['min']} and {model_param['max']}'
                             )
 
-        data_conf = data_config or {}
-
-        feature_exclude = [
-            *project_config["metadata"]["feature_exclude"],
-            *data_conf.get("feature_exclude", []),
-        ]
-
-        feature_include = [
-            feature
-            for feature in project_config["metadata"]["feature_include"]
-            if feature not in feature_exclude
-        ]
-
-        feature_encodings = (
-            data_conf.get("feature_encodings")
-            or project_config["metadata"]["feature_encodings"]
-        )
-
-        drop_duplicate_uid = (
-            data_conf.get("drop_duplicate_uid")
-            or project_config["metadata"]["drop_duplicate_uid"]
-        )
-
-        tags = data_conf.get("tags") or project_config["metadata"]["tags"]
+                        if model_param['value'] == 'int':
+                            if not isinstance(value, int):
+                                raise Exception(
+                                    f'{key} value should be integer'
+                                )
+                        elif model_param['value'] == 'float':
+                            if not isinstance(value, float):
+                                raise Exception(
+                                    f'{key} value should be float'
+                                )
+                    elif model_param['type'] == 'select':
+                        raise_invalid_value_exception([value], model_param['value'])
 
         payload = {
             "project_name": self.project_name,
             "model_name": model_name,
             "metadata": {
                 "model_name": model_name,
-                **data_config,
+                "tags": tags,
+                "feature_exclude": feature_exclude,
+                "feature_include": feature_include,
+                "feature_actual_used": [],
+                "drop_duplicate_uid": drop_duplicate_uid,
                 "model_parameters": model_config
-            },
+            }
         }
         
         res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL, payload)
@@ -1806,6 +1818,50 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return "Model Trained Successfully."
+
+    def get_synthetic_data_tags(self) -> dict:
+        url = f"{GET_SYNTHETICS_DATA_TAGS}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics models.")
+
+        return res
+
+    def get_synthetic_data_tags(self) -> dict:
+        """get synthetic data tags for the project
+
+        :raises Exception: _description_
+        :return: response
+        """
+        url = f"{GET_SYNTHETICS_DATA_TAGS}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics models.")
+
+        return res['details']
+
+    def download_synthetic_data(self, tag: str) -> dict:
+        """download synthetic data for the project by tag
+
+        :param tag: synthetic data tag
+        :raises Exception: _description_
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "tag": tag
+        }
+
+        res = self.__api_client.post(DOWNLOAD_SYNTHETICS_DATA_BY_TAG, payload)
+
+        if not res["success"]:
+            raise Exception("Error while downloading synthetics tag data.")
+
+        return res['details']
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"

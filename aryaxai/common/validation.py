@@ -40,12 +40,16 @@ class Validate:
                 if feature not in all_features:
                     raise Exception(f"{feature} is not a valid feature. Pick a valid value from {all_features}.")
 
+    @staticmethod
+    def raise_exception_on_invalid_value(values: List[str], valid_values: List[str], field_name: str = 'value'):
+        """raise exception if values are not among valid values
 
-def raise_invalid_value_exception(value: str, valid_values: Optional[List[str]] = None):
-    """raise invalid value exception and suggest valid values
-
-    :param value: invalid value
-    :param valid_values: list of valid values
-    :raises Exception: Given value is invalid among valid values
-    """
-    raise Exception(f"{value} is not a valid. Pick a valid value from {valid_values}.")
+        :param value: values to be validated
+        :param valid_values: list of valid values
+        :param field_name: field name to be added in exception message, defaults to 'value'
+        :raises Exception: Given value is invalid among valid values
+        """
+        if values and valid_values:
+            for value in values:
+                if value not in valid_values:
+                    raise Exception(f"{value} is not valid {field_name}. Pick a valid {field_name} from {valid_values}.")
