@@ -1,9 +1,10 @@
 import os
+import pandas as pd
 from pydantic import BaseModel
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
 
-from aryaxai.common.xai_uris import CREATE_WORKSPACE_URI, LOGIN_URI, GET_WORKSPACES_URI
+from aryaxai.common.xai_uris import CLEAR_NOTIFICATIONS_URI, CREATE_WORKSPACE_URI, GET_NOTIFICATIONS_URI, LOGIN_URI, GET_WORKSPACES_URI
 import getpass
 from typing import List
 
@@ -97,3 +98,28 @@ class XAI(BaseModel):
         workspace = Workspace(api_client=self.__api_client, **res["workspace_details"])
 
         return workspace
+
+    def get_notifications(self) -> pd.DataFrame:
+        """get user notifications
+
+        :return: DataFrame
+        """
+        res = self.__api_client.get(GET_NOTIFICATIONS_URI)
+
+        if not res["success"]:
+            raise Exception("Error while getting user notifications.")
+
+        return pd.DataFrame(res["details"])
+
+    def clear_notifications(self) -> str:
+        """clear user notifications
+
+        :raises Exception: _description_
+        :return: str
+        """
+        res = self.__api_client.post(CLEAR_NOTIFICATIONS_URI)
+
+        if not res['success']:
+            raise Exception('Error while clearing user notifications.')
+
+        return res['details']

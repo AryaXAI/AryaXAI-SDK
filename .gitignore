@@ -19,3 +19,6 @@ _templates
 
 # Venv
 *venv
+
+# package version file
+aryaxai/version.py

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import subprocess
 
 default_version = "0.0.1dev0"
