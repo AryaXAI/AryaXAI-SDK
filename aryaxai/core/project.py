@@ -21,7 +21,7 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig
-from aryaxai.common.validation import Validate, raise_invalid_value_exception
+from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
     DataDriftPayload,
@@ -40,7 +40,8 @@ from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
-    DOWNLOAD_SYNTHETICS_DATA_BY_TAG,
+    DELETE_SYNTHETIC_TAG_URI,
+    DOWNLOAD_SYNTHETICS_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
@@ -53,16 +54,16 @@ from aryaxai.common.xai_uris import (
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
-    GET_SYNTHETICS_DATA_TAGS,
-    GET_SYNTHETICS_MODEL_PARAMS,
-    GET_SYNTHETICS_MODELS,
+    GET_SYNTHETICS_DATA_TAGS_URI,
+    GET_SYNTHETICS_MODEL_PARAMS_URI,
+    GET_SYNTHETICS_MODELS_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
     TRAIN_MODEL_URI,
-    TRAIN_SYNTHETIC_MODEL,
+    TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
     GET_TRIGGERS_URI,
     UPDATE_PROJECT_URI,
@@ -84,6 +85,8 @@ from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
+
+from aryaxai.core.synthetic import SyntheticDataTag
 
 
 class Project(BaseModel):
@@ -1662,28 +1665,14 @@ class Project(BaseModel):
             raise Exception("Error while clearing project notifications.")
 
         return res["details"]
-    
-    def get_synthetic_models(self) -> pd.DataFrame:
-        """get synthetic models for the project
 
-        :return: DataFrame
-        """
-        url = f"{GET_SYNTHETICS_MODELS}?project_name={self.project_name}"
-
-        res = self.__api_client.get(url)
-
-        if not res["success"]:
-            raise Exception("Error while getting synthetics models.")
-
-        return pd.DataFrame(res["details"])
-    
     def get_synthetic_model_params(self, model_type: str) -> dict:
         """get synthetic model parameters for the project
 
         :param model_type: synthetic model type ['GPT2', 'CTGAN']
         :return: param dict
         """
-        return self.__api_client.get(GET_SYNTHETICS_MODEL_PARAMS)
+        return self.__api_client.get(GET_SYNTHETICS_MODEL_PARAMS_URI)
     
     def train_synthetic_model(
         self,
@@ -1693,7 +1682,7 @@ class Project(BaseModel):
     ) -> str:
         """Train synthetic model
 
-        :param model_name: type of model
+        :param model_name: model name ['GPT2', 'CTGAN']
         :param data_config: config for the data
             {
                 "tags": List[str]
@@ -1702,8 +1691,8 @@ class Project(BaseModel):
                 "drop_duplicate_uid": bool
             },
             defaults to {}
-        :param model_config: hyper parameters for the model. check param type and value range belowm
-            for GPT2 model
+        :param model_config: hyper parameters for the model. check param type and value range below,
+            For GPT2 (Generative Pretrained Transformer) model - Works well on high dimensional tabular data,
             {
                 "batch_size": int [1, 500]
                 "early_stopping_patience": int [1, 100],
@@ -1714,7 +1703,7 @@ class Project(BaseModel):
                 "tabular_config": "GPT2Config" or null,
                 "train_size": float [0, 0.9]
             }
-            For CTGAN model
+            For CTGAN (Conditional Tabular GANs) model - Balances between training computation and dimensionality,
             {
                 "epochs": int, [1, 150]
                 "test_ratio": float [0, 1]
@@ -1739,14 +1728,14 @@ class Project(BaseModel):
             Validate.raise_exception_on_invalid_value(
                 [model_name],
                 availabel_models,
-                field_name='model type'
+                field_name='model'
             )
 
         # validate and prepare data config
         data_config['model_name'] = model_name
         
         available_tags = self.tags()
-        tags = data_config.get('tags', project_config['tags'])
+        tags = data_config.get('tags', project_config['avaialble_tags'])
         
         Validate.raise_exception_on_invalid_value(
             tags,
@@ -1780,11 +1769,6 @@ class Project(BaseModel):
                     
                 if model_param:
                     if model_param['type'] == 'input':
-                        if value < model_param['min'] or value > model_param['max']:
-                            raise Exception(
-                                f'{key} value should be between {model_param['min']} and {model_param['max']}'
-                            )
-
                         if model_param['value'] == 'int':
                             if not isinstance(value, int):
                                 raise Exception(
@@ -1795,8 +1779,13 @@ class Project(BaseModel):
                                 raise Exception(
                                     f'{key} value should be float'
                                 )
+
+                        if value < model_param['min'] or value > model_param['max']:
+                            raise Exception(
+                                f'{key} value should be between {model_param['min']} and {model_param['max']}'
+                            )   
                     elif model_param['type'] == 'select':
-                        raise_invalid_value_exception([value], model_param['value'])
+                        Validate.raise_exception_on_invalid_value([value], model_param['value'])
 
         payload = {
             "project_name": self.project_name,
@@ -1812,56 +1801,118 @@ class Project(BaseModel):
             }
         }
         
-        res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL, payload)
+        res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
-        return "Model Trained Successfully."
-
+        return res['details']
+    
     def get_synthetic_data_tags(self) -> dict:
-        url = f"{GET_SYNTHETICS_DATA_TAGS}?project_name={self.project_name}"
-
-        res = self.__api_client.get(url)
-
-        if not res["success"]:
-            raise Exception("Error while getting synthetics models.")
-
-        return res
-
-    def get_synthetic_data_tags(self) -> dict:
-        """get synthetic data tags for the project
+        """get synthetic data tags details for the project
 
         :raises Exception: _description_
-        :return: response
+        :return: _description_
         """
-        url = f"{GET_SYNTHETICS_DATA_TAGS}?project_name={self.project_name}"
+        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
 
         res = self.__api_client.get(url)
 
         if not res["success"]:
-            raise Exception("Error while getting synthetics models.")
+            raise Exception("Error while getting synthetics data tags.")
 
-        return res['details']
+        data_tags = res['details']
+        synthetic_data_tags = []
+        
+        for data_tag in data_tags:
+            metadata = data_tag['metadata']
+            plot_data = data_tag['plot_data']
+        
+            del data_tag['metadata']
+            del data_tag['plot_data']
+            
+            synthetic_data_tag = SyntheticDataTag(
+                    info=data_tag,
+                    metadata=metadata,
+                    plot_data=plot_data
+                )
+            
+            synthetic_data_tags.append(synthetic_data_tag)
+            
+        return synthetic_data_tags
 
-    def download_synthetic_data(self, tag: str) -> dict:
-        """download synthetic data for the project by tag
+    def get_synthetic_data(self, tag: str) -> dict:
+        """get synthetic data for the project by tag
 
         :param tag: synthetic data tag
         :raises Exception: _description_
         :return: response
         """
+        all_tags = self.all_tags()
+        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
+        
+        Validate.raise_exception_on_invalid_value(
+            [tag],
+            synthetic_tags,
+            field_name='tag'
+        )
+        
         payload = {
             "project_name": self.project_name,
             "tag": tag
         }
 
-        res = self.__api_client.post(DOWNLOAD_SYNTHETICS_DATA_BY_TAG, payload)
+        res = self.__api_client.request(
+            'POST',
+            DOWNLOAD_SYNTHETICS_DATA_URI,
+            payload
+        )
+        
+        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+        
+        return synthetic_data
+
+    def delete_synthetic_tag(self, tag: str):
+        """delete synthetic data tag for the project
+
+        :param tag: synthetic tag name
+        :raises Exception: _description_
+        :return: None
+        """
+        all_tags = self.all_tags()
+        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
+        
+        Validate.raise_exception_on_invalid_value(
+            [tag],
+            synthetic_tags,
+            field_name='tag'
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "tag": tag,
+        }
+
+        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
 
         if not res["success"]:
-            raise Exception("Error while downloading synthetics tag data.")
+            raise Exception(res["details"])
 
-        return res['details']
+        return res["details"]
+
+    def get_synthetic_models(self) -> pd.DataFrame:
+        """get synthetic models for the project
+
+        :return: DataFrame
+        """
+        url = f"{GET_SYNTHETICS_MODELS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics models.")
+
+        return pd.DataFrame(res["details"])
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"

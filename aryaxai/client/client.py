@@ -116,6 +116,7 @@ class APIClient(BaseModel):
 
         self.refresh_bearer_token()
         response = self.base_request("POST", uri, payload)
+
         return response.json()
 
     def file(self, uri, files):

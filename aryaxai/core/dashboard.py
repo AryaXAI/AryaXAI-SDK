@@ -17,7 +17,7 @@ class Dashboard(BaseModel):
         """plot the dashboard by remote url
 
         Args:
-            width (int, optional): _description_. Defaults to 800.
+            width (int, optional): _description_. Defaults to 100%.
             height (int, optional): _description_. Defaults to 650.
         """
         display(
