@@ -1660,6 +1660,9 @@ class Project(BaseModel):
 
         notifications = [notification for notification in res["details"] if notification.get('project_name', None)]
 
+        if not notifications:
+            return "No notifications found."
+
         return pd.DataFrame(
             notifications
         ).reindex(columns=['message', 'time'])

@@ -109,8 +109,13 @@ class XAI(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting user notifications.")
 
+        notifications = res["details"]
+
+        if not notifications:
+            return "No notifications found."
+
         return pd.DataFrame(
-            res["details"]
+            notifications
         ).reindex(columns=['project_name', 'message', 'time'])
 
     def clear_notifications(self) -> str:
