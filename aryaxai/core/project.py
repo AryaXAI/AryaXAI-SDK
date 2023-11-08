@@ -54,6 +54,7 @@ from aryaxai.common.xai_uris import (
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
     GET_PROJECT_CONFIG,
+    GET_SYNTHETIC_MODEL_DETAILS_URI,
     GET_SYNTHETICS_DATA_TAGS_URI,
     GET_SYNTHETICS_MODEL_PARAMS_URI,
     GET_SYNTHETICS_MODELS_URI,
@@ -86,7 +87,7 @@ from aryaxai.core.model_summary import ModelSummary
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
 
-from aryaxai.core.synthetic import SyntheticDataTag
+from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel
 
 
 class Project(BaseModel):
@@ -1832,7 +1833,8 @@ class Project(BaseModel):
             del data_tag['plot_data']
             
             synthetic_data_tag = SyntheticDataTag(
-                    info=data_tag,
+                    **data_tag,
+                    __api_client=self.__api_client,
                     metadata=metadata,
                     plot_data=plot_data
                 )
@@ -1840,6 +1842,20 @@ class Project(BaseModel):
             synthetic_data_tags.append(synthetic_data_tag)
             
         return synthetic_data_tags
+
+
+    def get_synthetic_data_tag(self, tag: str) -> dict:
+        """get synthetic data tag details
+
+        :param tag: synthetic data tag
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
+
+        data_tags = self.get_synthetic_data_tags()
+
+        return data_tags(lambda data_tag: data_tag['info']['tag'] == tag)[0]
 
     def get_synthetic_data(self, tag: str) -> dict:
         """get synthetic data for the project by tag
@@ -1900,10 +1916,10 @@ class Project(BaseModel):
 
         return res["details"]
 
-    def get_synthetic_models(self) -> pd.DataFrame:
+    def get_synthetic_models(self) -> List[SyntheticModel]:
         """get synthetic models for the project
 
-        :return: DataFrame
+        :return: list of synthetic models
         """
         url = f"{GET_SYNTHETICS_MODELS_URI}?project_name={self.project_name}"
 
@@ -1912,7 +1928,48 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics models.")
 
-        return pd.DataFrame(res["details"])
+        models = res['details']
+
+        synthetic_models = [SyntheticModel(
+                    **model,
+                    api_client=self.__api_client,
+                    project_name=self.project_name,
+                    project=self
+                ) for model in models]
+
+        return synthetic_models
+    
+    def get_synthetic_model(self, model_name: str) -> dict:
+        """get synthetic models details
+
+        :param model_name: model name
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETIC_MODEL_DETAILS_URI}?project_name={self.project_name}&model_name={model_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics model.")
+
+        model_details = res['details'][0]
+
+        metadata = model_details['metadata']
+        data_quality = model_details['results']
+
+        del model_details['metadata']
+        del model_details['results']
+
+        synthetic_model = SyntheticModel(
+                **model_details,
+                **data_quality,
+                metadata=metadata,
+                api_client=self.__api_client,
+                project=self
+        )
+
+        return synthetic_model
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
