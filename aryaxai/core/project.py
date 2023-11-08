@@ -1667,7 +1667,7 @@ class Project(BaseModel):
 
         return res["details"]
 
-    def get_synthetic_model_params(self, model_type: str) -> dict:
+    def get_synthetic_model_params(self) -> dict:
         """get synthetic model parameters for the project
 
         :param model_type: synthetic model type ['GPT2', 'CTGAN']
@@ -1808,113 +1808,6 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res['details']
-    
-    def get_synthetic_data_tags(self) -> dict:
-        """get synthetic data tags details for the project
-
-        :raises Exception: _description_
-        :return: _description_
-        """
-        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
-
-        res = self.__api_client.get(url)
-
-        if not res["success"]:
-            raise Exception("Error while getting synthetics data tags.")
-
-        data_tags = res['details']
-        synthetic_data_tags = []
-        
-        for data_tag in data_tags:
-            metadata = data_tag['metadata']
-            plot_data = data_tag['plot_data']
-        
-            del data_tag['metadata']
-            del data_tag['plot_data']
-            
-            synthetic_data_tag = SyntheticDataTag(
-                    **data_tag,
-                    __api_client=self.__api_client,
-                    metadata=metadata,
-                    plot_data=plot_data
-                )
-            
-            synthetic_data_tags.append(synthetic_data_tag)
-            
-        return synthetic_data_tags
-
-
-    def get_synthetic_data_tag(self, tag: str) -> dict:
-        """get synthetic data tag details
-
-        :param tag: synthetic data tag
-        :raises Exception: _description_
-        :return: _description_
-        """
-        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
-
-        data_tags = self.get_synthetic_data_tags()
-
-        return data_tags(lambda data_tag: data_tag['info']['tag'] == tag)[0]
-
-    def get_synthetic_data(self, tag: str) -> dict:
-        """get synthetic data for the project by tag
-
-        :param tag: synthetic data tag
-        :raises Exception: _description_
-        :return: response
-        """
-        all_tags = self.all_tags()
-        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
-        
-        Validate.raise_exception_on_invalid_value(
-            [tag],
-            synthetic_tags,
-            field_name='tag'
-        )
-        
-        payload = {
-            "project_name": self.project_name,
-            "tag": tag
-        }
-
-        res = self.__api_client.request(
-            'POST',
-            DOWNLOAD_SYNTHETICS_DATA_URI,
-            payload
-        )
-        
-        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
-        
-        return synthetic_data
-
-    def delete_synthetic_tag(self, tag: str):
-        """delete synthetic data tag for the project
-
-        :param tag: synthetic tag name
-        :raises Exception: _description_
-        :return: None
-        """
-        all_tags = self.all_tags()
-        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
-        
-        Validate.raise_exception_on_invalid_value(
-            [tag],
-            synthetic_tags,
-            field_name='tag'
-        )
-
-        payload = {
-            "project_name": self.project_name,
-            "tag": tag,
-        }
-
-        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
-
-        if not res["success"]:
-            raise Exception(res["details"])
-
-        return res["details"]
 
     def get_synthetic_models(self) -> List[SyntheticModel]:
         """get synthetic models for the project
@@ -1970,6 +1863,50 @@ class Project(BaseModel):
         )
 
         return synthetic_model
+
+    def get_synthetic_data_tags(self) -> List[SyntheticDataTag]:
+        """get synthetic data tags details for the project
+
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics data tags.")
+
+        data_tags = res['details']
+
+        synthetic_data_tags = [SyntheticDataTag(
+                    **data_tag,
+                    api_client=self.__api_client,
+                    project_name=self.project_name,
+                    project=self
+                ) for data_tag in data_tags]
+
+        return synthetic_data_tags
+
+    def get_synthetic_data_tag(self, tag: str) -> SyntheticDataTag:
+        """get synthetic data tag details
+
+        :param tag: synthetic data tag
+        :raises Exception: _description_
+        :return: _description_
+        """
+        data_tag = None
+        data_tags = self.get_synthetic_data_tags()
+
+        filtered_data_tags = [data_tag for data_tag in data_tags if data_tag.tag == tag]
+
+        if filtered_data_tags:
+            data_tag = filtered_data_tags[0]
+        else:
+            valid_tags = [data_tag.tag for data_tag in data_tags]
+            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
+
+        return data_tag
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
