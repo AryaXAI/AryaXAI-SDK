@@ -2354,7 +2354,7 @@ class Project(BaseModel):
 
                         if value < model_param['min'] or value > model_param['max']:
                             raise Exception(
-                                f'{key} value should be between {model_param['min']} and {model_param['max']}'
+                                f"{key} value should be between {model_param['min']} and {model_param['max']}"
                             )   
                     elif model_param['type'] == 'select':
                         Validate.raise_exception_on_invalid_value([value], model_param['value'])
