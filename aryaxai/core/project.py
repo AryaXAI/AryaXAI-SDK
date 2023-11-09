@@ -21,6 +21,7 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig
+from aryaxai.common.utils import parse_datetime, parse_float
 from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
@@ -2483,23 +2484,35 @@ class Project(BaseModel):
 
         return res['details']
     
-    def create_synthetic_prompt(self, prompt_name: str, prompt_config: List[dict]) -> str:
+    def create_synthetic_prompt(self, name: str, expression: str) -> str:
         """create synthetic prompt for the project
 
-        :param prompt_name: prompt name
-        :param prompt_config: expression config
+        :param name: prompt name
+        :param expression: expression of policy
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :raises Exception: _description_
-        :return: _description_
+        :return: response message
         """
-        prompt_params = self.get_observation_params()
+        name = name.strip()
 
-        # validate prompt_config and build expression
-        expression = []
+        if not name:
+            raise Exception('name is required')
+
+        configuration, expression = build_expression(expression)
+
+        prompt_params = self.get_observation_params()
+        validate_configuration(configuration, prompt_params)
 
         payload = {
-            "prompt_name": prompt_name,
+            "prompt_name": name,
             "project_name": self.project_name,
-            "configuration": prompt_config,
+            "configuration": configuration,
             "expression": expression
         }
 
@@ -2508,7 +2521,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        return res['details']
+        return "Synthetic prompt created successfully."
 
     def get_synthetic_prompts(self) -> List[SyntheticPrompt]:
         """get synthetic prompts for the project
@@ -2619,28 +2632,29 @@ def validate_configuration(configuration, params):
                 raise Exception(f"{expression} not a valid logical operator")
 
         if isinstance(expression, dict):
+            # validate column name
             if expression.get("column") not in params.get("eng_features"):
                 raise Exception(
                     f"{expression.get('column')} is not a valid feature, select valid features from\n{params.get('eng_features')}"
                 )
+
+            # validate operator
             if expression.get("expression") not in params.get("condition_operators"):
                 raise Exception(
                     f"{expression.get('expression')} is not a valid expression"
                 )
-            value_valid_values = params.get("features").get(expression.get("value"))
-            if isinstance(value_valid_values, str):
-                if (
-                    value_valid_values != "input"
-                    and expression.get("value") != value_valid_values
-                ):
+
+            # validate value(s)
+            expression_value = expression.get("value")
+            valid_feature_values = params.get("features").get(expression.get("column"))
+
+            if isinstance(valid_feature_values, str):
+                if valid_feature_values == "input" and not parse_float(expression_value):
                     raise Exception(
-                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
-            if isinstance(value_valid_values, list):
-                if (
-                    "input" not in value_valid_values
-                    and expression.get("value") not in value_valid_values
-                ):
+
+                if valid_feature_values == "datetime" and not parse_datetime(expression_value):
                     raise Exception(
-                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
