@@ -90,6 +90,7 @@ class SyntheticModel(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
+    '''
     def get_training_logs(self) -> str:
         """get model training logs
 
@@ -103,6 +104,7 @@ class SyntheticModel(BaseModel):
             raise Exception('Error while getting training logs.')
 
         return res['details']
+    '''
 
     def generate_datapoints(self, num_of_datapoints: int):
         """generate given number of synthetic datapoints
