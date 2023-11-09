@@ -1658,7 +1658,14 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting project notifications.")
 
-        return pd.DataFrame(res["details"])
+        notifications = [notification for notification in res["details"] if notification.get('project_name', None)]
+
+        if not notifications:
+            return "No notifications found."
+
+        return pd.DataFrame(
+            notifications
+        ).reindex(columns=['message', 'time'])
 
     def clear_notifications(self) -> str:
         """clear user project notifications
@@ -1691,14 +1698,12 @@ class Project(BaseModel):
         observation_df = observation_df[
             observation_df["status"].isin(["active", "inactive"])
         ]
-        observation_df.reset_index(inplace=True, drop=True)
-        observation_df.insert(
-            10,
-            "expression",
-            observation_df["metadata"].apply(
-                lambda metadata: generate_expression(metadata["expression"])
-            ),
+        if observation_df.empty:
+            raise Exception("No observations found")
+        observation_df["expression"] = observation_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
         )
+
         observation_df = observation_df.drop(
             columns=[
                 "project_name",
@@ -1707,9 +1712,23 @@ class Project(BaseModel):
                 "updated_by",
                 "created_by",
                 "updated_keys",
-            ]
+            ],
+            errors="ignore",
         )
-
+        observation_df = observation_df.reindex(
+            [
+                "observation_id",
+                "observation_name",
+                "status",
+                "statement",
+                "linked_features",
+                "expression",
+                "created_at",
+                "updated_at",
+            ],
+            axis=1,
+        )
+        observation_df.reset_index(inplace=True, drop=True)
         return observation_df
 
     def observation_trail(self) -> pd.DataFrame:
@@ -1728,7 +1747,8 @@ class Project(BaseModel):
         observation_df = observation_df[
             observation_df["status"].isin(["updated", "deleted"])
         ]
-        observation_df.reset_index(inplace=True, drop=True)
+        if observation_df.empty:
+            raise Exception("No observation trail found")
         observation_df = observation_df.rename(
             columns={
                 "statement": "old_statement",
@@ -1736,37 +1756,22 @@ class Project(BaseModel):
             }
         )
         observation_df["updated_keys"].replace(float("nan"), None, inplace=True)
-        observation_df.insert(
-            9,
-            "updated_statement",
-            observation_df["updated_keys"].apply(
-                lambda data: data.get("statement") if data else None
-            ),
+        observation_df["updated_statement"] = observation_df["updated_keys"].apply(
+            lambda data: data.get("statement") if data else None
         )
-        observation_df.insert(
-            11,
-            "updated_linked_features",
-            observation_df["updated_keys"].apply(
-                lambda data: data.get("linked_features") if data else None
-            ),
+
+        observation_df["updated_linked_features"] = observation_df[
+            "updated_keys"
+        ].apply(lambda data: data.get("linked_features") if data else None)
+
+        observation_df["old_expression"] = observation_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
         )
-        observation_df.insert(
-            12,
-            "old_expression",
-            observation_df["metadata"].apply(
-                lambda metadata: generate_expression(metadata["expression"])
-            ),
-        )
-        observation_df.insert(
-            13,
-            "updated_expression",
-            observation_df["updated_keys"].apply(
-                lambda data: generate_expression(
-                    data.get("metadata", {}).get("expression")
-                )
-                if data
-                else None
-            ),
+
+        observation_df["updated_expression"] = observation_df["updated_keys"].apply(
+            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
+            if data
+            else None
         )
 
         observation_df = observation_df.drop(
@@ -1777,9 +1782,28 @@ class Project(BaseModel):
                 "updated_by",
                 "created_by",
                 "updated_keys",
-            ]
+            ],
+            errors="ignore",
         )
 
+        observation_df = observation_df.reindex(
+            [
+                "observation_id",
+                "observation_name",
+                "status",
+                "old_statement",
+                "updated_statement",
+                "old_linked_features",
+                "updated_linked_features",
+                "old_expression",
+                "updated_expression",
+                "created_at",
+                "updated_at",
+            ],
+            axis=1,
+        )
+
+        observation_df.reset_index(inplace=True, drop=True)
         return observation_df
 
     def create_observation(
@@ -1793,7 +1817,16 @@ class Project(BaseModel):
 
         :param observation_name: name of observation
         :param expression: expression of observation
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: statement of observation, defaults to None
+            Eg: The building type is {BldgType}
+                the content inside the curly brackets represents the feature name
         :param linked_features: linked features of observation, defaults to None
         :return: response
         """
@@ -1832,6 +1865,7 @@ class Project(BaseModel):
         self,
         observation_id: str,
         observation_name: str,
+        status: Optional[str] = None,
         expression: Optional[str] = None,
         statement: Optional[str] = None,
         linked_features: Optional[List[str]] = None,
@@ -1840,12 +1874,22 @@ class Project(BaseModel):
 
         :param observation_id: id of observation
         :param observation_name: name of observation
-        :param expression: new expression for observaation, defaults to None
+        :param status: status of observation ["active","inactive"]
+        :param expression: new expression for observation, defaults to None
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: new statement for observation, defaults to None
+            Eg: The building type is {BldgType}
+                the content inside the curly brackets represents the feature name
         :param linked_features: new linked features for observation, defaults to None
         :return: response
         """
-        if not expression and not statement and not linked_features:
+        if not status and not expression and not statement and not linked_features:
             raise Exception("update parameters for observation not passed")
 
         payload = {
@@ -1876,7 +1920,17 @@ class Project(BaseModel):
         if statement:
             payload["update_keys"]["statement"] = [statement]
 
+        if status:
+            valid_status = ["active", "inactive"]
+            if status not in valid_status:
+                raise Exception(
+                    f"{status} is not a valid status, select from {valid_status}"
+                )
+            payload["update_keys"]["status"] = status
+
         res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
+
+        print(res)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -1923,14 +1977,12 @@ class Project(BaseModel):
 
         policy_df = pd.DataFrame(res.get("details"))
         policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
-        policy_df.reset_index(inplace=True, drop=True)
-        policy_df.insert(
-            11,
-            "expression",
-            policy_df["metadata"].apply(
-                lambda metadata: generate_expression(metadata["expression"])
-            ),
+        if policy_df.empty:
+            raise Exception("No policies found")
+        policy_df["expression"] = policy_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
         )
+
         policy_df = policy_df.drop(
             columns=[
                 "project_name",
@@ -1940,8 +1992,23 @@ class Project(BaseModel):
                 "updated_by",
                 "created_by",
                 "updated_keys",
-            ]
+            ],
+            errors="ignore",
         )
+        policy_df = policy_df.reindex(
+            [
+                "policy_id",
+                "policy_name",
+                "status",
+                "statement",
+                "decision",
+                "expression",
+                "created_at",
+                "updated_at",
+            ],
+            axis=1,
+        )
+        policy_df.reset_index(inplace=True, drop=True)
         return policy_df
 
     def policy_trail(self) -> pd.DataFrame:
@@ -1958,7 +2025,8 @@ class Project(BaseModel):
 
         policy_df = pd.DataFrame(res.get("details"))
         policy_df = policy_df[policy_df["status"].isin(["updated", "deleted"])]
-        policy_df.reset_index(inplace=True, drop=True)
+        if policy_df.empty:
+            raise Exception("No policy trail found")
         policy_df = policy_df.rename(
             columns={
                 "statement": "old_statement",
@@ -1968,37 +2036,22 @@ class Project(BaseModel):
 
         policy_df["updated_keys"].replace(float("nan"), None, inplace=True)
 
-        policy_df.insert(
-            9,
-            "updated_statement",
-            policy_df["updated_keys"].apply(
-                lambda data: data.get("statement") if data else None
-            ),
+        policy_df["updated_statement"] = policy_df["updated_keys"].apply(
+            lambda data: data.get("statement") if data else None
         )
-        policy_df.insert(
-            12,
-            "updated_decision",
-            policy_df["updated_keys"].apply(
-                lambda data: data.get("decision") if data else None
-            ),
+
+        policy_df["updated_decision"] = policy_df["updated_keys"].apply(
+            lambda data: data.get("decision") if data else None
         )
-        policy_df.insert(
-            13,
-            "old_expression",
-            policy_df["metadata"].apply(
-                lambda metadata: generate_expression(metadata["expression"])
-            ),
+
+        policy_df["old_expression"] = policy_df["metadata"].apply(
+            lambda metadata: generate_expression(metadata["expression"])
         )
-        policy_df.insert(
-            14,
-            "updated_expression",
-            policy_df["updated_keys"].apply(
-                lambda data: generate_expression(
-                    data.get("metadata", {}).get("expression")
-                )
-                if data
-                else None
-            ),
+
+        policy_df.insert["updated_expression"] = policy_df["updated_keys"].apply(
+            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
+            if data
+            else None
         )
 
         policy_df = policy_df.drop(
@@ -2010,8 +2063,26 @@ class Project(BaseModel):
                 "created_by",
                 "updated_keys",
                 "linked_features",
-            ]
+            ],
+            errors="ignore",
         )
+        policy_df = policy_df.reindex(
+            [
+                "policy_id",
+                "policy_name",
+                "status",
+                "old_statement",
+                "updated_statement",
+                "old_decision",
+                "updated_decision",
+                "old_expression",
+                "updated_expresion",
+                "created_at",
+                "updated_at",
+            ],
+            axis=1,
+        )
+        policy_df.reset_index(inplace=True, drop=True)
 
         return policy_df
 
@@ -2026,7 +2097,16 @@ class Project(BaseModel):
 
         :param policy_name: name of policy
         :param expression: expression of policy
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
         :param statement: statement of policy, defaults to None
+            Eg: The building type is {BldgType}
+                the content inside the curly brackets represents the feature name
         :param decision: decision of policy, defaults to None
         :return: response
         """
@@ -2058,6 +2138,7 @@ class Project(BaseModel):
         self,
         policy_id: str,
         policy_name: str,
+        status: Optional[str] = None,
         expression: Optional[str] = None,
         statement: Optional[str] = None,
         decision: Optional[str] = None,
@@ -2066,12 +2147,22 @@ class Project(BaseModel):
 
         :param policy_id: id of policy
         :param policy_name: name of policy
+        :param status: status of policy ["active","inactive"]
         :param expression: new expression for policy, defaults to None
-        :param statement: new statement for policy, defaults to None
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
+        :param statement: new statment for policy, defaults to None
+            Eg: The building type is {BldgType}
+                the content inside the curly brackets represents the feature name
         :param decision: new decision for policy, defaults to None
         :return: response
         """
-        if not expression and not statement and not decision:
+        if not status and not expression and not statement and not decision:
             raise Exception("update parameters for policy not passed")
 
         payload = {
@@ -2093,6 +2184,14 @@ class Project(BaseModel):
 
         if statement:
             payload["update_keys"]["statement"] = [statement]
+
+        if status:
+            valid_status = ["active", "inactive"]
+            if status not in valid_status:
+                raise Exception(
+                    f"{status} is not a valid status, select from {valid_status}"
+                )
+            payload["update_keys"]["status"] = status
 
         res = self.__api_client.post(UPDATE_POLICY_URI, payload)
 
