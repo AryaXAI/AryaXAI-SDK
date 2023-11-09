@@ -22,3 +22,19 @@ def parse_datetime(s, format='%Y-%m-%d %H:%M:%S'):
         return datetime.strptime(s, format)
     except ValueError:
         return None
+
+def pretty_date(date: str) -> str:
+    """return date in format dd-mm-YYYY HH:MM:SS
+
+    :param date: str datetime
+    :return: pretty datetime
+    """
+    try:
+        datetime_obj = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%f')
+    except ValueError:
+        try:
+            datetime_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            print("Date format invalid.")
+
+    return datetime_obj.strftime('%d-%m-%Y %H:%M:%S')

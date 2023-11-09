@@ -2239,10 +2239,9 @@ class Project(BaseModel):
         return "Policy Deleted"
 
     def get_synthetic_model_params(self) -> dict:
-        """get synthetic model parameters for the project
+        """get hyper parameters of synthetic models
 
-        :param model_type: synthetic model type ['GPT2', 'CTGAN']
-        :return: param dict
+        :return: hyper params
         """
         return self.__api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
     
@@ -2250,7 +2249,7 @@ class Project(BaseModel):
         self,
         model_name: str,
         data_config: Optional[SyntheticDataConfig] = {},
-        model_config: Optional[dict] = {},
+        hyper_params: Optional[dict] = {},
     ) -> str:
         """Train synthetic model
 
@@ -2263,7 +2262,7 @@ class Project(BaseModel):
                 "drop_duplicate_uid": bool
             },
             defaults to {}
-        :param model_config: hyper parameters for the model. check param type and value range below,
+        :param hyper_params: hyper parameters for the model. check param type and value range below,
             For GPT2 (Generative Pretrained Transformer) model - Works well on high dimensional tabular data,
             {
                 "batch_size": int [1, 500]
@@ -2291,7 +2290,7 @@ class Project(BaseModel):
         
         project_config = project_config['metadata']
 
-        all_models_param = self.get_synthetic_model_params(model_name)
+        all_models_param = self.get_synthetic_model_params()
         
         try:
             model_params = all_models_param[model_name]
@@ -2335,8 +2334,8 @@ class Project(BaseModel):
         )
 
         # validate model hyper parameters
-        if model_config:
-            for key, value in model_config.items():
+        if hyper_params:
+            for key, value in hyper_params.items():
                 model_param = model_params.get(key, None)
                     
                 if model_param:
@@ -2357,7 +2356,10 @@ class Project(BaseModel):
                                 f"{key} value should be between {model_param['min']} and {model_param['max']}"
                             )   
                     elif model_param['type'] == 'select':
-                        Validate.raise_exception_on_invalid_value([value], model_param['value'])
+                        Validate.raise_exception_on_invalid_value(
+                            [value],
+                            model_param['value']
+                        )
 
         payload = {
             "project_name": self.project_name,
@@ -2369,7 +2371,7 @@ class Project(BaseModel):
                 "feature_include": feature_include,
                 "feature_actual_used": [],
                 "drop_duplicate_uid": drop_duplicate_uid,
-                "model_parameters": model_config
+                "model_parameters": hyper_params
             }
         }
         
@@ -2435,47 +2437,6 @@ class Project(BaseModel):
 
         return synthetic_model
 
-    def get_synthetic_data_tags(self) -> List[SyntheticDataTag]:
-        """get synthetic data tags details for the project
-
-        :raises Exception: _description_
-        :return: _description_
-        """
-        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
-
-        res = self.__api_client.get(url)
-
-        if not res["success"]:
-            raise Exception("Error while getting synthetics data tags.")
-
-        data_tags = res['details']
-
-        synthetic_data_tags = [SyntheticDataTag(
-                    **data_tag,
-                    api_client=self.__api_client,
-                    project_name=self.project_name,
-                    project=self
-                ) for data_tag in data_tags]
-
-        return synthetic_data_tags
-
-    def get_synthetic_data_tag(self, tag: str) -> SyntheticDataTag:
-        """get synthetic data tag details
-
-        :param tag: synthetic data tag
-        :raises Exception: _description_
-        :return: _description_
-        """
-        data_tags = self.get_synthetic_data_tags()
-
-        data_tag = next((data_tag for data_tag in data_tags if data_tag.tag == tag), None)
-
-        if not data_tag:
-            valid_tags = [data_tag.tag for data_tag in data_tags]
-            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
-
-        return data_tag
-
     def get_observation_params(self) -> dict:
         """get observation parameters for the project (used in validating synthetic prompt)"""
         url = f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
@@ -2513,7 +2474,9 @@ class Project(BaseModel):
             "prompt_name": name,
             "project_name": self.project_name,
             "configuration": configuration,
-            "expression": expression
+            "metadata": {
+                "expression": expression
+            }
         }
 
         res = self.__api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)

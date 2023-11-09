@@ -1,13 +1,120 @@
-import io
 from typing import Any, List, Optional
 from pydantic import BaseModel, ConfigDict
-import pandas as pd
 
+import io
+import json
+import pandas as pd
 import plotly.graph_objects as go
 
 from aryaxai.client.client import APIClient
+from aryaxai.common.types import SyntheticDataConfig
+from aryaxai.common.utils import pretty_date
 from aryaxai.common.validation import Validate
-from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONIMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONIMITY_SCORE_URI, GET_SYNTHETIC_TRAINING_LOGS_URI, UPDATE_SYNTHETIC_PROMPT_URI
+from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI, GET_SYNTHETIC_DATA_TAGS_URI, GET_SYNTHETIC_TRAINING_LOGS_URI, UPDATE_SYNTHETIC_PROMPT_URI
+
+class SyntheticDataTag(BaseModel):
+    __api_client: APIClient
+    project_name: str
+    project: Any
+
+    model_name: str
+    tag: str
+    created_at: str
+
+    overall_quality_score: float
+    column_shapes:float
+    column_pair_trends: float
+
+    metadata: Optional[dict] = {}
+    plot_data: Optional[List[dict]] = []
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__api_client = kwargs.get("api_client")
+
+    def get_model_name(self) -> str:
+        """get model type
+
+        :return: model type
+        """
+        return self.model_name
+
+    def view_metadata(self) -> dict:
+        """print metadata"""
+
+        print(json.dumps(self.metadata, indent=4))
+
+    def get_metadata(self) -> dict:
+        """get metadata"""
+
+        return self.metadata
+
+    def get_datapoints(self) -> dict:
+        """get tag datapoints
+
+        :raises Exception: _description_
+        :return: datapoints
+        """
+        all_tags = self.project.all_tags()
+
+        Validate.raise_exception_on_invalid_value(
+            [self.tag],
+            all_tags,
+            field_name='tag'
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "tag": self.tag
+        }
+
+        res = self.__api_client.request(
+            'POST',
+            DOWNLOAD_SYNTHETIC_DATA_URI,
+            payload
+        )
+
+        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+
+        return synthetic_data
+
+    def delete(self):
+        """delete data tag
+
+        :raises Exception: _description_
+        :return: None
+        """
+        all_tags = self.project.all_tags()
+
+        Validate.raise_exception_on_invalid_value(
+            [self.tag],
+            all_tags,
+            field_name='tag'
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "tag": self.tag,
+        }
+
+        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res["details"]
+
+    def __print__(self) -> str:
+        created_at = pretty_date(self.created_at)
+        return f"SyntheticDataTag(model_name={self.model_name}, tag={self.tag}, created_at={created_at})"
+
+    def __str__(self) -> str:
+        return self.__print__()
+
+    def __repr__(self) -> str:
+        return self.__print__()
 
 class SyntheticModel(BaseModel):
     """Synthetic Model Class
@@ -20,12 +127,13 @@ class SyntheticModel(BaseModel):
     project: Any
 
     model_name: str
+    status: str
     created_at: str
     created_by: str
 
-    overall_quality_score: float
-    column_shapes:float
-    column_pair_trends: float
+    overall_quality_score: Optional[float] = None
+    column_shapes: Optional[float] = None
+    column_pair_trends: Optional[float] = None
 
     metadata: Optional[dict] = {}
     plot_data: Optional[List[dict]] = []
@@ -79,9 +187,9 @@ class SyntheticModel(BaseModel):
 
         fig.update_layout(
             barmode="relative",
-            xaxis_title="Column Names",
-            yaxis_title="Quality Score",
-            height=500,
+            # xaxis_title="Column Names",
+            # yaxis_title="Quality Score",
+            height=450,
             bargap=0.01,
             legend_orientation="h",
             legend_x=0.1,
@@ -126,8 +234,8 @@ class SyntheticModel(BaseModel):
 
         return res['details']
 
-    def generate_anonimity_score(self, aux_columns: List[str], control_tag: str):
-        """generate anonimity score
+    def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
+        """generate anonymity score
 
         :param aux_columns: list of features
         :param control_tag: tag
@@ -148,11 +256,9 @@ class SyntheticModel(BaseModel):
 
         all_tags = self.project.all_tags()
 
-        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
-
         Validate.raise_exception_on_invalid_value(
             [control_tag],
-            synthetic_tags,
+            all_tags,
             field_name='tag'
         )
 
@@ -163,15 +269,15 @@ class SyntheticModel(BaseModel):
             "project_name": self.project_name
         }
 
-        res = self.__api_client.post(GENERATE_ANONIMITY_SCORE_URI, payload)
+        res = self.__api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
 
         if not res['success']:
             raise Exception(res['details'])
 
         return res['details']
 
-    def get_anonimity_score(self):
-        """get anonimity score
+    def get_anonymity_score(self):
+        """get anonymity score
 
         :raises Exception: _description_
         :return: _description_
@@ -181,10 +287,11 @@ class SyntheticModel(BaseModel):
             "model_name": self.model_name,
         }
 
-        res = self.__api_client.post(GET_ANONIMITY_SCORE_URI, payload)
+        res = self.__api_client.post(GET_ANONYMITY_SCORE_URI, payload)
 
         if not res['success']:
-            raise Exception('Error while getting anonimity score.')
+            print(res['details'])
+            raise Exception('Error while getting anonymity score.')
 
         return res['details']['scores']
 
@@ -204,163 +311,55 @@ class SyntheticModel(BaseModel):
 
         return res['details']
 
-    def __print__(self) -> str:
-        return f"SyntheticModel(model_name={self.model_name}, created_at={self.created_at}, created_by={self.created_by})"
-
-    def __str__(self) -> str:
-        return self.__print__()
-
-    def __repr__(self) -> str:
-        return self.__print__()
-
-class SyntheticDataTag(BaseModel):
-    __api_client: APIClient
-    project_name: str
-    project: Any
-
-    model_name: str
-    tag: str
-    created_at: str
-
-    overall_quality_score: float
-    column_shapes:float
-    column_pair_trends: float
-
-    metadata: Optional[dict] = {}
-    plot_data: Optional[List[dict]] = []
-
-    model_config = ConfigDict(protected_namespaces=())
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.__api_client = kwargs.get("api_client")
-
-    def get_model_name(self) -> str:
-        """get model type
-
-        :return: model type
-        """
-        return self.model_name
-
-    def get_data_quality(self) -> pd.DataFrame:
-        """get data quality
-
-        :return: data quality metrics
-        """
-        quality = {
-            "overall_quality_score": self.overall_quality_score,
-            "column_shapes": self.column_shapes,
-            "column_pair_trends": self.column_pair_trends
-        }
-
-        df = pd.DataFrame(quality, index=[0])
-
-        return df
-
-    def plot_psi(self):
-        """plot psi chart"""
-        x_data = [item["Column"] for item in self.plot_data]
-        y_data = [item["Quality Score"] for item in self.plot_data]
-        metric_data = [item["Metric"] for item in self.plot_data]
-
-        traces = []
-        for metric in set(metric_data):
-            indices = [i for i, val in enumerate(metric_data) if val == metric]
-            traces.append(
-                go.Bar(
-                    x=[x_data[i] for i in indices],
-                    y=[y_data[i] for i in indices],
-                    name=metric
-                )
-            )
-
-        fig = go.Figure(data=traces)
-
-        fig.update_layout(
-            barmode="relative",
-            xaxis_title="Column",
-            yaxis_title="Quality Score",
-            height=500,
-            bargap=0.01,
-            legend_orientation="h",
-            legend_x=0.1,
-            legend_y=1.1,
-        )
-
-        fig.show(config={"displaylogo": False})
-
-    def get_metadata(self) -> pd.DataFrame:
-        """view metadata of synthetic tag"""
-        df = pd.DataFrame(self.metadata, index=[0])
-
-        return df
-
-    def get_datapoints(self) -> dict:
-        """get synthetic datapoints
-
+    def get_tags(self) -> List[SyntheticDataTag]:
+        """get synthetic data tags of the model
         :raises Exception: _description_
-        :return: datapoints
+        :return: list of tags
         """
-        all_tags = self.project.all_tags()
-        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
+        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
 
-        Validate.raise_exception_on_invalid_value(
-            [self.tag],
-            synthetic_tags,
-            field_name='tag'
-        )
-
-        payload = {
-            "project_name": self.project_name,
-            "tag": self.tag
-        }
-
-        res = self.__api_client.request(
-            'POST',
-            DOWNLOAD_SYNTHETIC_DATA_URI,
-            payload
-        )
-
-        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
-
-        return synthetic_data
-
-    def delete(self):
-        """delete data tag
-
-        :raises Exception: _description_
-        :return: None
-        """
-        all_tags = self.project.all_tags()
-        synthetic_tags = [tag for tag in all_tags if tag.endswith("SyntheticData")]
-
-        Validate.raise_exception_on_invalid_value(
-            [self.tag],
-            synthetic_tags,
-            field_name='tag'
-        )
-
-        payload = {
-            "project_name": self.project_name,
-            "tag": self.tag,
-        }
-
-        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
+        res = self.__api_client.get(url)
 
         if not res["success"]:
-            raise Exception(res["details"])
+            raise Exception("Error while getting synthetics data tags.")
 
-        return res["details"]
+        data_tags = res['details']
+
+        synthetic_data_tags = [SyntheticDataTag(
+                    **data_tag,
+                    api_client=self.__api_client,
+                    project_name=self.project_name,
+                    project=self.project
+                ) for data_tag in data_tags]
+
+        return synthetic_data_tags
+
+    def get_tag(self, tag: str) -> SyntheticDataTag:
+        """get synthetic data tag by tag name
+        :param tag: tag name
+        :raises Exception: _description_
+        :return: tag
+        """
+        data_tags = self.get_tags()
+
+        data_tag = next((data_tag for data_tag in data_tags if data_tag.tag == tag), None)
+
+        if not data_tag:
+            valid_tags = [data_tag.tag for data_tag in data_tags]
+            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
+
+        return data_tag
 
     def __print__(self) -> str:
-        return f"SyntheticDataTag(model_name={self.model_name}, tag={self.tag}, created_at={self.created_at})"
+        created_at = pretty_date(self.created_at)
+
+        return f"SyntheticModel(model_name={self.model_name}, status={self.status}, created_by={self.created_by}, created_at={created_at})"
 
     def __str__(self) -> str:
         return self.__print__()
 
     def __repr__(self) -> str:
         return self.__print__()
-
 
 class SyntheticPrompt(BaseModel):
     __api_client: APIClient
@@ -480,7 +479,10 @@ class SyntheticPrompt(BaseModel):
     '''
 
     def __print__(self) -> str:
-        return f"SyntheticPrompt(prompt_id={self.prompt_id}, prompt_name={self.prompt_name}, status={self.status}, created_by={self.created_by}, created_at={self.created_at}, updated_at={self.updated_at})"
+        created_at = pretty_date(self.created_at)
+        updated_at = pretty_date(self.updated_at)
+
+        return f"SyntheticPrompt(prompt_name={self.prompt_name}, prompt_id={self.prompt_id}, status={self.status}, created_by={self.created_by}, created_at={created_at}, updated_at={updated_at})"
 
     def __str__(self) -> str:
         return self.__print__()
