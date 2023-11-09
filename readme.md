@@ -13,9 +13,6 @@ xai.login()
 
 # list of workspaces
 workspaces = xai.get_workspaces()
-
-# projects from first workspace
-projects = workspaces[0].get_projects()
 ```
 
 ### Example Notebook
