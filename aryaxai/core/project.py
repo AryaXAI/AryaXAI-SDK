@@ -1898,26 +1898,23 @@ class Project(BaseModel):
         :raises Exception: _description_
         :return: _description_
         """
-        data_tag = None
         data_tags = self.get_synthetic_data_tags()
 
-        filtered_data_tags = [data_tag for data_tag in data_tags if data_tag.tag == tag]
+        data_tag = next((data_tag for data_tag in data_tags if data_tag.tag == tag), None)
 
-        if filtered_data_tags:
-            data_tag = filtered_data_tags[0]
-        else:
+        if not data_tag:
             valid_tags = [data_tag.tag for data_tag in data_tags]
             raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
 
         return data_tag
-    
+
     def get_observation_params(self) -> dict:
-        """get observation parameters for the project"""
+        """get observation parameters for the project (used in validating synthetic prompt)"""
         url = f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
 
         res = self.__api_client.get(url)
 
-        return res
+        return res['details']
     
     def create_synthetic_prompt(self, prompt_name: str, prompt_config: List[dict]) -> str:
         """create synthetic prompt for the project
@@ -1966,6 +1963,16 @@ class Project(BaseModel):
             api_client=self.__api_client,
             project=self
         ) for prompt in prompts]
+
+    def get_synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
+        """get synthetic prompt by prompt name
+
+        :raises Exception: _description_
+        :return: _description_
+        """
+        prompts = self.get_synthetic_prompts()
+
+        return next((prompt for prompt in prompts if prompt.prompt_id == prompt_id), None)
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"

@@ -386,6 +386,9 @@ class SyntheticPrompt(BaseModel):
         """
         expression_list = []
 
+        if not self.metadata:
+            raise Exception('Expression not found.')
+
         for item in self.metadata['expression']:
             if isinstance(item, dict):
                 expression_list.append(f"{item['column']} {item['expression']} {item['value']}")
@@ -425,7 +428,9 @@ class SyntheticPrompt(BaseModel):
         if not res['success']:
             raise Exception(res['details'])
 
-        return res['details']
+        self.status = res['details'][0]['status']
+
+        return 'Prompt activated successfully.'
         
     def deactivate(self) -> str:
         """deactive prompt
@@ -451,7 +456,9 @@ class SyntheticPrompt(BaseModel):
         if not res['success']:
             raise Exception(res['details'])
 
-        return res['details']
+        self.status = res['details'][0]['status']
+
+        return 'Prompt deactivated successfully.'
 
     '''
     def delete(self) -> str:
@@ -471,7 +478,7 @@ class SyntheticPrompt(BaseModel):
     '''
 
     def __print__(self) -> str:
-        return f"SyntheticPrompt(prompt_id={self.prompt_id}, prompt_name={self.prompt_name}, status={self.status}, created_by={self.created_by}, created_at={self.created_at}, updated_by={self.updated_by}, updated_at={self.updated_at})"
+        return f"SyntheticPrompt(prompt_id={self.prompt_id}, prompt_name={self.prompt_name}, status={self.status}, created_by={self.created_by}, created_at={self.created_at}, updated_at={self.updated_at})"
 
     def __str__(self) -> str:
         return self.__print__()
