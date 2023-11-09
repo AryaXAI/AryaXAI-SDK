@@ -7,7 +7,7 @@ class Environment(BaseModel):
     Environment class to load current environment
     """
     debug: bool = False
-    XAI_ENV: str = os.getenv("XAI_ENV", 'prod')
+    XAI_ENV: str = 'testing'
     
     def __init__(self):
         super().__init__()
@@ -34,11 +34,11 @@ class Environment(BaseModel):
 
         :return: base url
         """
-        return os.getenv("XAI_API_URL", "https://api-m.aryaxai.com")
+        return os.getenv("XAI_API_URL", "http://3.108.15.217:30010")
 
     def get_debug(self) -> bool:
         """get debug flag
 
         :return: debug flag
         """
-        return bool(os.getenv("DEBUG", False))
+        return bool(os.getenv("DEBUG", True))
