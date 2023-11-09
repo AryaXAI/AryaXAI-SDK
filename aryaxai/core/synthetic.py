@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 
 from aryaxai.client.client import APIClient
 from aryaxai.common.validation import Validate
-from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETICS_DATA_URI, GENERATE_ANONIMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONIMITY_SCORE_URI, GET_SYNTHETIC_TRAINING_LOGS_URI
+from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONIMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONIMITY_SCORE_URI, GET_SYNTHETIC_TRAINING_LOGS_URI, UPDATE_SYNTHETIC_PROMPT_URI
 
 class SyntheticModel(BaseModel):
     """Synthetic Model Class
@@ -315,7 +315,7 @@ class SyntheticDataTag(BaseModel):
 
         res = self.__api_client.request(
             'POST',
-            DOWNLOAD_SYNTHETICS_DATA_URI,
+            DOWNLOAD_SYNTHETIC_DATA_URI,
             payload
         )
 
@@ -352,6 +352,126 @@ class SyntheticDataTag(BaseModel):
 
     def __print__(self) -> str:
         return f"SyntheticDataTag(model_name={self.model_name}, tag={self.tag}, created_at={self.created_at})"
+
+    def __str__(self) -> str:
+        return self.__print__()
+
+    def __repr__(self) -> str:
+        return self.__print__()
+
+
+class SyntheticPrompt(BaseModel):
+    __api_client: APIClient
+    project: Any
+
+    prompt_name: str
+    prompt_id: str
+    project_name: str
+    status: str
+    configuration: List[dict]
+    metadata: dict
+    created_by: str
+    updated_by: str
+    created_at: str
+    updated_at: str
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__api_client = kwargs.get("api_client")
+
+    def get_expression(self) -> str:
+        """construct prompt expression
+
+        :return: prompt expression
+        """
+        expression_list = []
+
+        for item in self.metadata['expression']:
+            if isinstance(item, dict):
+                expression_list.append(f"{item['column']} {item['expression']} {item['value']}")
+            else:
+                expression_list.append(item)
+
+        return ' '.join(expression_list)
+    
+    def get_config(self) -> List[dict]:
+        """get prompt configuration
+
+        :return: prompt configuration
+        """
+        return self.configuration
+    
+    def activate(self) -> str:
+        """activate prompt
+
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: response message
+        """
+        if self.status == 'active':
+            raise Exception('Prompt is already active.')
+
+        payload = {
+            "delete": False,
+            "project_name": self.project_name,
+            "prompt_id": self.prompt_id,
+            "update_keys": {
+                "status": "active"
+            }
+        }
+
+        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        return res['details']
+        
+    def deactivate(self) -> str:
+        """deactive prompt
+
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: response message
+        """
+        if self.status == 'inactive':
+            raise Exception('Prompt is already inactive.')
+
+        payload = {
+            "delete": False,
+            "project_name": self.project_name,
+            "prompt_id": self.prompt_id,
+            "update_keys": {
+                "status": "inactive"
+            }
+        }
+
+        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        return res['details']
+
+    '''
+    def delete(self) -> str:
+        payload = {
+            "delete": True,
+            "project_name": self.project_name,
+            "prompt_id": self.prompt_id,
+            "update_keys": {}
+        }
+
+        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res['success']:
+            raise Exception(res['details'])
+        
+        return res['details']
+    '''
+
+    def __print__(self) -> str:
+        return f"SyntheticPrompt(prompt_id={self.prompt_id}, prompt_name={self.prompt_name}, status={self.status}, created_by={self.created_by}, created_at={self.created_at}, updated_by={self.updated_by}, updated_at={self.updated_at})"
 
     def __str__(self) -> str:
         return self.__print__()

@@ -36,12 +36,13 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CLEAR_NOTIFICATIONS_URI,
+    CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
     DELETE_SYNTHETIC_TAG_URI,
-    DOWNLOAD_SYNTHETICS_DATA_URI,
+    DOWNLOAD_SYNTHETIC_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
@@ -53,11 +54,13 @@ from aryaxai.common.xai_uris import (
     GET_MODEL_PERFORMANCE_URI,
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
+    GET_OBSERVATION_PARAMS_URI,
     GET_PROJECT_CONFIG,
     GET_SYNTHETIC_MODEL_DETAILS_URI,
-    GET_SYNTHETICS_DATA_TAGS_URI,
-    GET_SYNTHETICS_MODEL_PARAMS_URI,
-    GET_SYNTHETICS_MODELS_URI,
+    GET_SYNTHETIC_DATA_TAGS_URI,
+    GET_SYNTHETIC_MODEL_PARAMS_URI,
+    GET_SYNTHETIC_MODELS_URI,
+    GET_SYNTHETIC_PROMPT_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
@@ -87,7 +90,7 @@ from aryaxai.core.model_summary import ModelSummary
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
 
-from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel
+from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPrompt
 
 
 class Project(BaseModel):
@@ -1673,7 +1676,7 @@ class Project(BaseModel):
         :param model_type: synthetic model type ['GPT2', 'CTGAN']
         :return: param dict
         """
-        return self.__api_client.get(GET_SYNTHETICS_MODEL_PARAMS_URI)
+        return self.__api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
     
     def train_synthetic_model(
         self,
@@ -1814,7 +1817,7 @@ class Project(BaseModel):
 
         :return: list of synthetic models
         """
-        url = f"{GET_SYNTHETICS_MODELS_URI}?project_name={self.project_name}"
+        url = f"{GET_SYNTHETIC_MODELS_URI}?project_name={self.project_name}"
 
         res = self.__api_client.get(url)
 
@@ -1870,7 +1873,7 @@ class Project(BaseModel):
         :raises Exception: _description_
         :return: _description_
         """
-        url = f"{GET_SYNTHETICS_DATA_TAGS_URI}?project_name={self.project_name}"
+        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
 
         res = self.__api_client.get(url)
 
@@ -1907,6 +1910,62 @@ class Project(BaseModel):
             raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
 
         return data_tag
+    
+    def get_observation_params(self) -> dict:
+        """get observation parameters for the project"""
+        url = f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        return res
+    
+    def create_synthetic_prompt(self, prompt_name: str, prompt_config: List[dict]) -> str:
+        """create synthetic prompt for the project
+
+        :param prompt_name: prompt name
+        :param prompt_config: expression config
+        :raises Exception: _description_
+        :return: _description_
+        """
+        prompt_params = self.get_observation_params()
+
+        # validate prompt_config and build expression
+        expression = []
+
+        payload = {
+            "prompt_name": prompt_name,
+            "project_name": self.project_name,
+            "configuration": prompt_config,
+            "expression": expression
+        }
+
+        res = self.__api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res['details']
+
+    def get_synthetic_prompts(self) -> List[SyntheticPrompt]:
+        """get synthetic prompts for the project
+
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        prompts = res['details']
+
+        return [SyntheticPrompt(
+            **prompt,
+            api_client=self.__api_client,
+            project=self
+        ) for prompt in prompts]
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
