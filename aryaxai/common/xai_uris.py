@@ -92,7 +92,6 @@ GET_SYNTHETIC_DATA_TAGS_URI = f"{API_VERSION}/synthetics/get_synthetic_data_tags
 DOWNLOAD_SYNTHETIC_DATA_URI = f"{API_VERSION}/synthetics/download_synthetic_data"
 DELETE_SYNTHETIC_TAG_URI = f"{API_VERSION}/project/delete_data_with_filter"
 
-GET_OBSERVATION_PARAMS_URI = f"{API_VERSION}/observations/get_observation_params"
 CREATE_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/create_synthetic_prompts"
 UPDATE_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/synthetic_prompts_update"
 GET_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/get_synthetics_promts"
