@@ -20,7 +20,8 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS_REGRESSION,
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
-from aryaxai.common.types import DataConfig, ProjectConfig
+from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig
+from aryaxai.common.utils import parse_datetime, parse_float
 from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
@@ -38,10 +39,13 @@ from aryaxai.common.xai_uris import (
     CLEAR_NOTIFICATIONS_URI,
     CREATE_OBSERVATION_URI,
     CREATE_POLICY_URI,
+    CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
+    DELETE_SYNTHETIC_TAG_URI,
+    DOWNLOAD_SYNTHETIC_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
@@ -58,12 +62,18 @@ from aryaxai.common.xai_uris import (
     GET_POLICIES_URI,
     GET_POLICY_PARAMS_URI,
     GET_PROJECT_CONFIG,
+    GET_SYNTHETIC_MODEL_DETAILS_URI,
+    GET_SYNTHETIC_DATA_TAGS_URI,
+    GET_SYNTHETIC_MODEL_PARAMS_URI,
+    GET_SYNTHETIC_MODELS_URI,
+    GET_SYNTHETIC_PROMPT_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
     TRAIN_MODEL_URI,
+    TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
     GET_TRIGGERS_URI,
     UPDATE_OBSERVATION_URI,
@@ -88,6 +98,8 @@ from aryaxai.core.model_summary import ModelSummary
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
 import re
+
+from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPrompt
 
 
 class Project(BaseModel):
@@ -2226,6 +2238,285 @@ class Project(BaseModel):
 
         return "Policy Deleted"
 
+    def get_synthetic_model_params(self) -> dict:
+        """get hyper parameters of synthetic models
+
+        :return: hyper params
+        """
+        return self.__api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
+    
+    def train_synthetic_model(
+        self,
+        model_name: str,
+        data_config: Optional[SyntheticDataConfig] = {},
+        hyper_params: Optional[dict] = {},
+    ) -> str:
+        """Train synthetic model
+
+        :param model_name: model name ['GPT2', 'CTGAN']
+        :param data_config: config for the data
+            {
+                "tags": List[str]
+                "feature_exclude": List[str]
+                "feature_include": List[str]
+                "drop_duplicate_uid": bool
+            },
+            defaults to {}
+        :param hyper_params: hyper parameters for the model. check param type and value range below,
+            For GPT2 (Generative Pretrained Transformer) model - Works well on high dimensional tabular data,
+            {
+                "batch_size": int [1, 500]
+                "early_stopping_patience": int [1, 100],
+                "early_stopping_threshold": float [0.1, 100],
+                "epochs": int [1, 150],
+                "model_type": "tabular",
+                "random_state": int [1, 150],
+                "tabular_config": "GPT2Config" or null,
+                "train_size": float [0, 0.9]
+            }
+            For CTGAN (Conditional Tabular GANs) model - Balances between training computation and dimensionality,
+            {
+                "epochs": int, [1, 150]
+                "test_ratio": float [0, 1]
+            }
+            defaults to {}
+
+        :return: response
+        """
+        project_config = self.config()
+
+        if project_config == 'Not Found':
+            raise Exception('Upload files first')
+        
+        project_config = project_config['metadata']
+
+        all_models_param = self.get_synthetic_model_params()
+        
+        try:
+            model_params = all_models_param[model_name]
+        except KeyError as e:
+            availabel_models = list(all_models_param.keys())
+            Validate.raise_exception_on_invalid_value(
+                [model_name],
+                availabel_models,
+                field_name='model'
+            )
+
+        # validate and prepare data config
+        data_config['model_name'] = model_name
+        
+        available_tags = self.tags()
+        tags = data_config.get('tags', project_config['avaialble_tags'])
+        
+        Validate.raise_exception_on_invalid_value(
+            tags,
+            available_tags,
+            field_name='tag'
+        )
+
+        feature_exclude = data_config.get('feature_exclude', project_config['feature_exclude'])
+
+        Validate.raise_exception_on_invalid_value(
+            feature_exclude,
+            project_config['avaialble_options']
+        )
+        
+        feature_include = data_config.get('feature_include', project_config['feature_include'])
+        
+        Validate.raise_exception_on_invalid_value(
+            feature_include,
+            project_config['avaialble_options'],
+        )
+  
+        drop_duplicate_uid = data_config.get(
+            'drop_duplicate_uid',
+            project_config['drop_duplicate_uid']
+        )
+
+        # validate model hyper parameters
+        if hyper_params:
+            for key, value in hyper_params.items():
+                model_param = model_params.get(key, None)
+                    
+                if model_param:
+                    if model_param['type'] == 'input':
+                        if model_param['value'] == 'int':
+                            if not isinstance(value, int):
+                                raise Exception(
+                                    f'{key} value should be integer'
+                                )
+                        elif model_param['value'] == 'float':
+                            if not isinstance(value, float):
+                                raise Exception(
+                                    f'{key} value should be float'
+                                )
+
+                        if value < model_param['min'] or value > model_param['max']:
+                            raise Exception(
+                                f"{key} value should be between {model_param['min']} and {model_param['max']}"
+                            )   
+                    elif model_param['type'] == 'select':
+                        Validate.raise_exception_on_invalid_value(
+                            [value],
+                            model_param['value']
+                        )
+
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+            "metadata": {
+                "model_name": model_name,
+                "tags": tags,
+                "feature_exclude": feature_exclude,
+                "feature_include": feature_include,
+                "feature_actual_used": [],
+                "drop_duplicate_uid": drop_duplicate_uid,
+                "model_parameters": hyper_params
+            }
+        }
+        
+        res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res['details']
+
+    def get_synthetic_models(self) -> List[SyntheticModel]:
+        """get synthetic models for the project
+
+        :return: list of synthetic models
+        """
+        url = f"{GET_SYNTHETIC_MODELS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics models.")
+
+        models = res['details']
+
+        synthetic_models = [SyntheticModel(
+                    **model,
+                    api_client=self.__api_client,
+                    project_name=self.project_name,
+                    project=self
+                ) for model in models]
+
+        return synthetic_models
+    
+    def get_synthetic_model(self, model_name: str) -> dict:
+        """get synthetic models details
+
+        :param model_name: model name
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETIC_MODEL_DETAILS_URI}?project_name={self.project_name}&model_name={model_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics model.")
+
+        model_details = res['details'][0]
+
+        metadata = model_details['metadata']
+        data_quality = model_details['results']
+
+        del model_details['metadata']
+        del model_details['results']
+
+        synthetic_model = SyntheticModel(
+                **model_details,
+                **data_quality,
+                metadata=metadata,
+                api_client=self.__api_client,
+                project=self
+        )
+
+        return synthetic_model
+
+    def get_observation_params(self) -> dict:
+        """get observation parameters for the project (used in validating synthetic prompt)"""
+        url = f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        return res['details']
+    
+    def create_synthetic_prompt(self, name: str, expression: str) -> str:
+        """create synthetic prompt for the project
+
+        :param name: prompt name
+        :param expression: expression of policy
+            Eg: BldgType !== Duplex and Neighborhood == OldTown
+                Ensure that the left side of the conditional operator corresponds to a feature name,
+                and the right side represents the comparison value for the feature.
+                Valid conditional operators include "!==," "==," ">,", and "<."
+                You can perform comparisons between two or more features using
+                logical operators such as "and" or "or."
+                Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
+        :raises Exception: _description_
+        :return: response message
+        """
+        name = name.strip()
+
+        if not name:
+            raise Exception('name is required')
+
+        configuration, expression = build_expression(expression)
+
+        prompt_params = self.get_observation_params()
+        validate_configuration(configuration, prompt_params)
+
+        payload = {
+            "prompt_name": name,
+            "project_name": self.project_name,
+            "configuration": configuration,
+            "metadata": {
+                "expression": expression
+            }
+        }
+
+        res = self.__api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return "Synthetic prompt created successfully."
+
+    def get_synthetic_prompts(self) -> List[SyntheticPrompt]:
+        """get synthetic prompts for the project
+
+        :raises Exception: _description_
+        :return: _description_
+        """
+        url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        prompts = res['details']
+
+        return [SyntheticPrompt(
+            **prompt,
+            api_client=self.__api_client,
+            project=self
+        ) for prompt in prompts]
+
+    def get_synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
+        """get synthetic prompt by prompt name
+
+        :raises Exception: _description_
+        :return: _description_
+        """
+        prompts = self.get_synthetic_prompts()
+
+        return next((prompt for prompt in prompts if prompt.prompt_id == prompt_id), None)
+
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
 
@@ -2304,28 +2595,29 @@ def validate_configuration(configuration, params):
                 raise Exception(f"{expression} not a valid logical operator")
 
         if isinstance(expression, dict):
+            # validate column name
             if expression.get("column") not in params.get("eng_features"):
                 raise Exception(
                     f"{expression.get('column')} is not a valid feature, select valid features from\n{params.get('eng_features')}"
                 )
+
+            # validate operator
             if expression.get("expression") not in params.get("condition_operators"):
                 raise Exception(
                     f"{expression.get('expression')} is not a valid expression"
                 )
-            value_valid_values = params.get("features").get(expression.get("value"))
-            if isinstance(value_valid_values, str):
-                if (
-                    value_valid_values != "input"
-                    and expression.get("value") != value_valid_values
-                ):
+
+            # validate value(s)
+            expression_value = expression.get("value")
+            valid_feature_values = params.get("features").get(expression.get("column"))
+
+            if isinstance(valid_feature_values, str):
+                if valid_feature_values == "input" and not parse_float(expression_value):
                     raise Exception(
-                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
-            if isinstance(value_valid_values, list):
-                if (
-                    "input" not in value_valid_values
-                    and expression.get("value") not in value_valid_values
-                ):
+
+                if valid_feature_values == "datetime" and not parse_datetime(expression_value):
                     raise Exception(
-                        f"Invalid value comparision with {expression.get('value')} for {expression.get('column')}"
+                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
