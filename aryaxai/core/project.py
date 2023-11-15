@@ -69,6 +69,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_PROMPT_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
+    POLL_EVENTS,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
@@ -459,6 +460,8 @@ class Project(BaseModel):
             if not res["success"]:
                 self.delete_file(uploaded_path)
                 raise Exception(res.get("details"))
+
+            poll_events(self.__api_client, self.project_name, res["event_id"])
 
             return res.get("details")
 
@@ -1383,6 +1386,8 @@ class Project(BaseModel):
 
         if not res["success"]:
             raise Exception(res["details"])
+
+        poll_events(self.__api_client, self.project_name, res["event_id"])
 
         return "Model Trained Successfully"
 
@@ -2525,6 +2530,32 @@ class Project(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
+
+
+def poll_events(api_client: APIClient, project_name: str, event_id: str):
+    last_message = ""
+    for event in api_client.stream(
+        f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
+    ):
+        details = event.get("details")
+        if not event.get("success"):
+            raise Exception(details)
+
+        if details.get("status") == "failed":
+            raise Exception(details.get("message"))
+
+        if details.get("message") != last_message:
+            if details.get("logs"):
+                print(details.get("logs")[last_message:])
+                last_message = len(details.get("logs"))
+            else:
+                last_message = details.get("message")
+                print(
+                    {
+                        "status": details.get("status"),
+                        "message": details.get("message"),
+                    }
+                )
 
 
 def generate_expression(expression):

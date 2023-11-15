@@ -2,6 +2,7 @@ import requests
 from aryaxai.common.xai_uris import LOGIN_URI
 import jwt
 from pydantic import BaseModel
+import json
 
 
 class APIClient(BaseModel):
@@ -66,7 +67,7 @@ class APIClient(BaseModel):
             ).json()
             self.update_headers(response["access_token"])
 
-    def base_request(self, method, uri, payload={}, files=None):
+    def base_request(self, method, uri, payload={}, files=None, stream=False):
         """makes request to xai base service
 
         :param uri: api uri
@@ -77,7 +78,12 @@ class APIClient(BaseModel):
         url = f"{self.base_url}/{uri}"
         try:
             response = requests.request(
-                method, url, headers=self.headers, json=payload, files=files
+                method,
+                url,
+                headers=self.headers,
+                json=payload,
+                files=files,
+                stream=stream,
             )
             if 400 <= response.status_code < 500:
                 raise Exception(response.json())
@@ -118,6 +124,20 @@ class APIClient(BaseModel):
         response = self.base_request("POST", uri, payload)
 
         return response.json()
+
+    def stream(self, uri):
+        """makes streaming request to xai base service
+
+        :param uri: api uri
+        :param payload: api payload, defaults to {}
+        :raises Exception: Request exception
+        :return: JSON response
+        """
+
+        self.refresh_bearer_token()
+        response = self.base_request("GET", uri, stream=True)
+        for res in response.iter_lines():
+            yield json.loads(res.decode("utf-8"))
 
     def file(self, uri, files):
         """makes multipart request to send files
