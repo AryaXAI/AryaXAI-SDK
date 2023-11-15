@@ -1675,14 +1675,16 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting project notifications.")
 
-        notifications = [notification for notification in res["details"] if notification.get('project_name', None)]
+        notifications = [
+            notification
+            for notification in res["details"]
+            if notification.get("project_name", None)
+        ]
 
         if not notifications:
             return "No notifications found."
 
-        return pd.DataFrame(
-            notifications
-        ).reindex(columns=['message', 'time'])
+        return pd.DataFrame(notifications).reindex(columns=["message", "time"])
 
     def clear_notifications(self) -> str:
         """clear user project notifications
@@ -2249,7 +2251,7 @@ class Project(BaseModel):
         :return: hyper params
         """
         return self.__api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
-    
+
     def train_synthetic_model(
         self,
         model_name: str,
@@ -2290,80 +2292,73 @@ class Project(BaseModel):
         """
         project_config = self.config()
 
-        if project_config == 'Not Found':
-            raise Exception('Upload files first')
-        
-        project_config = project_config['metadata']
+        if project_config == "Not Found":
+            raise Exception("Upload files first")
+
+        project_config = project_config["metadata"]
 
         all_models_param = self.get_synthetic_model_params()
-        
+
         try:
             model_params = all_models_param[model_name]
         except KeyError as e:
             availabel_models = list(all_models_param.keys())
             Validate.raise_exception_on_invalid_value(
-                [model_name],
-                availabel_models,
-                field_name='model'
+                [model_name], availabel_models, field_name="model"
             )
 
         # validate and prepare data config
-        data_config['model_name'] = model_name
-        
+        data_config["model_name"] = model_name
+
         available_tags = self.tags()
-        tags = data_config.get('tags', project_config['avaialble_tags'])
-        
-        Validate.raise_exception_on_invalid_value(
-            tags,
-            available_tags,
-            field_name='tag'
-        )
-
-        feature_exclude = data_config.get('feature_exclude', project_config['feature_exclude'])
+        tags = data_config.get("tags", project_config["avaialble_tags"])
 
         Validate.raise_exception_on_invalid_value(
-            feature_exclude,
-            project_config['avaialble_options']
+            tags, available_tags, field_name="tag"
         )
-        
-        feature_include = data_config.get('feature_include', project_config['feature_include'])
-        
+
+        feature_exclude = data_config.get(
+            "feature_exclude", project_config["feature_exclude"]
+        )
+
+        Validate.raise_exception_on_invalid_value(
+            feature_exclude, project_config["avaialble_options"]
+        )
+
+        feature_include = data_config.get(
+            "feature_include", project_config["feature_include"]
+        )
+
         Validate.raise_exception_on_invalid_value(
             feature_include,
-            project_config['avaialble_options'],
+            project_config["avaialble_options"],
         )
-  
+
         drop_duplicate_uid = data_config.get(
-            'drop_duplicate_uid',
-            project_config['drop_duplicate_uid']
+            "drop_duplicate_uid", project_config["drop_duplicate_uid"]
         )
 
         # validate model hyper parameters
         if hyper_params:
             for key, value in hyper_params.items():
                 model_param = model_params.get(key, None)
-                    
-                if model_param:
-                    if model_param['type'] == 'input':
-                        if model_param['value'] == 'int':
-                            if not isinstance(value, int):
-                                raise Exception(
-                                    f'{key} value should be integer'
-                                )
-                        elif model_param['value'] == 'float':
-                            if not isinstance(value, float):
-                                raise Exception(
-                                    f'{key} value should be float'
-                                )
 
-                        if value < model_param['min'] or value > model_param['max']:
+                if model_param:
+                    if model_param["type"] == "input":
+                        if model_param["value"] == "int":
+                            if not isinstance(value, int):
+                                raise Exception(f"{key} value should be integer")
+                        elif model_param["value"] == "float":
+                            if not isinstance(value, float):
+                                raise Exception(f"{key} value should be float")
+
+                        if value < model_param["min"] or value > model_param["max"]:
                             raise Exception(
                                 f"{key} value should be between {model_param['min']} and {model_param['max']}"
-                            )   
-                    elif model_param['type'] == 'select':
+                            )
+                    elif model_param["type"] == "select":
                         Validate.raise_exception_on_invalid_value(
-                            [value],
-                            model_param['value']
+                            [value], model_param["value"]
                         )
 
         payload = {
@@ -2376,16 +2371,16 @@ class Project(BaseModel):
                 "feature_include": feature_include,
                 "feature_actual_used": [],
                 "drop_duplicate_uid": drop_duplicate_uid,
-                "model_parameters": hyper_params
-            }
+                "model_parameters": hyper_params,
+            },
         }
-        
+
         res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
-        return res['details']
+        return res["details"]
 
     def get_synthetic_models(self) -> List[SyntheticModel]:
         """get synthetic models for the project
@@ -2399,17 +2394,20 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics models.")
 
-        models = res['details']
+        models = res["details"]
 
-        synthetic_models = [SyntheticModel(
-                    **model,
-                    api_client=self.__api_client,
-                    project_name=self.project_name,
-                    project=self
-                ) for model in models]
+        synthetic_models = [
+            SyntheticModel(
+                **model,
+                api_client=self.__api_client,
+                project_name=self.project_name,
+                project=self,
+            )
+            for model in models
+        ]
 
         return synthetic_models
-    
+
     def get_synthetic_model(self, model_name: str) -> dict:
         """get synthetic models details
 
@@ -2424,20 +2422,20 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics model.")
 
-        model_details = res['details'][0]
+        model_details = res["details"][0]
 
-        metadata = model_details['metadata']
-        data_quality = model_details['results']
+        metadata = model_details["metadata"]
+        data_quality = model_details["results"]
 
-        del model_details['metadata']
-        del model_details['results']
+        del model_details["metadata"]
+        del model_details["results"]
 
         synthetic_model = SyntheticModel(
-                **model_details,
-                **data_quality,
-                metadata=metadata,
-                api_client=self.__api_client,
-                project=self
+            **model_details,
+            **data_quality,
+            metadata=metadata,
+            api_client=self.__api_client,
+            project=self,
         )
 
         return synthetic_model
@@ -2448,8 +2446,8 @@ class Project(BaseModel):
 
         res = self.__api_client.get(url)
 
-        return res['details']
-    
+        return res["details"]
+
     def create_synthetic_prompt(self, name: str, expression: str) -> str:
         """create synthetic prompt for the project
 
@@ -2468,7 +2466,7 @@ class Project(BaseModel):
         name = name.strip()
 
         if not name:
-            raise Exception('name is required')
+            raise Exception("name is required")
 
         configuration, expression = build_expression(expression)
 
@@ -2479,9 +2477,7 @@ class Project(BaseModel):
             "prompt_name": name,
             "project_name": self.project_name,
             "configuration": configuration,
-            "metadata": {
-                "expression": expression
-            }
+            "metadata": {"expression": expression},
         }
 
         res = self.__api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)
@@ -2501,16 +2497,15 @@ class Project(BaseModel):
 
         res = self.__api_client.get(url)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        prompts = res['details']
+        prompts = res["details"]
 
-        return [SyntheticPrompt(
-            **prompt,
-            api_client=self.__api_client,
-            project=self
-        ) for prompt in prompts]
+        return [
+            SyntheticPrompt(**prompt, api_client=self.__api_client, project=self)
+            for prompt in prompts
+        ]
 
     def get_synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
         """get synthetic prompt by prompt name
@@ -2520,7 +2515,9 @@ class Project(BaseModel):
         """
         prompts = self.get_synthetic_prompts()
 
-        return next((prompt for prompt in prompts if prompt.prompt_id == prompt_id), None)
+        return next(
+            (prompt for prompt in prompts if prompt.prompt_id == prompt_id), None
+        )
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
@@ -2544,11 +2541,11 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
         if details.get("status") == "failed":
             raise Exception(details.get("message"))
 
-        if details.get("message") != last_message:
-            if details.get("logs"):
-                print(details.get("logs")[last_message:])
-                last_message = len(details.get("logs"))
-            else:
+        if details.get("logs"):
+            print(details.get("logs")[last_message:])
+            last_message = len(details.get("logs"))
+
+        if details.get("message") != last_message and not details.get("logs"):
                 last_message = details.get("message")
                 print(
                     {
@@ -2643,12 +2640,16 @@ def validate_configuration(configuration, params):
             valid_feature_values = params.get("features").get(expression.get("column"))
 
             if isinstance(valid_feature_values, str):
-                if valid_feature_values == "input" and not parse_float(expression_value):
+                if valid_feature_values == "input" and not parse_float(
+                    expression_value
+                ):
                     raise Exception(
                         f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
 
-                if valid_feature_values == "datetime" and not parse_datetime(expression_value):
+                if valid_feature_values == "datetime" and not parse_datetime(
+                    expression_value
+                ):
                     raise Exception(
                         f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
