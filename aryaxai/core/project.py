@@ -55,6 +55,7 @@ from aryaxai.common.xai_uris import (
     GET_EXECUTED_TRIGGER_INFO,
     GET_LABELS_URI,
     GET_MODEL_PERFORMANCE_URI,
+    GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
     GET_OBSERVATION_PARAMS_URI,
@@ -88,6 +89,7 @@ from aryaxai.common.xai_uris import (
     TARGET_DRIFT_DASHBOARD_URI,
     BIAS_MONITORING_DASHBOARD_URI,
     MODEL_PERFORMANCE_DASHBOARD_URI,
+    UPLOAD_MODEL_URI,
 )
 import json
 import io
@@ -530,6 +532,58 @@ class Project(BaseModel):
             raise Exception(res.get("details"))
 
         return res.get("details", "Data description upload successful")
+
+    def upload_model(
+        self,
+        model_path: str,
+        model_architecture: str,
+        model_type: str,
+        model_name: str,
+        model_data_tags: List[str],
+    ) -> str:
+        def upload_file_and_return_path() -> str:
+            files = {"in_file": open(model_path, "rb")}
+            res = self.__api_client.file(
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
+                files,
+            )
+
+            if not res["success"]:
+                raise Exception(res.get("details"))
+            uploaded_path = res.get("metadata").get("filepath")
+
+            return uploaded_path
+
+        model_types = self.__api_client.get(GET_MODEL_TYPES_URI)
+        valid_model_architecture = model_types.get("model_architecture").keys()
+        if model_architecture not in valid_model_architecture:
+            raise Exception(
+                f"{model_architecture} is not valid, select from {valid_model_architecture}"
+            )
+
+        valid_model_types = model_types.get("model_architecture")[model_architecture]
+        if model_type not in valid_model_types:
+            raise Exception(
+                f"{model_type} is not valid, select from {valid_model_types}"
+            )
+
+        uploaded_path = upload_file_and_return_path()
+
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+            "model_architecture": model_architecture,
+            "model_type": model_type,
+            "model_path": uploaded_path,
+            "model_data_tags": model_data_tags,
+        }
+
+        res = self.__api_client.post(UPLOAD_MODEL_URI, payload)
+
+        if not res.get("success"):
+            raise Exception(res.get("details"))
+
+        return res.get("details")
 
     def data_summary(self, tag: str) -> pd.DataFrame:
         """Data Summary for the project
@@ -1383,7 +1437,7 @@ class Project(BaseModel):
         }
 
         res = self.__api_client.post(TRAIN_MODEL_URI, payload)
-        
+
         print(res)
 
         if not res["success"]:
@@ -2383,6 +2437,8 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         poll_events(self.__api_client, self.project_name, res["event_id"])
+
+        return res["details"]
 
     def get_synthetic_models(self) -> List[SyntheticModel]:
         """get synthetic models for the project
