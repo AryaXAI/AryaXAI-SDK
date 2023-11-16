@@ -77,12 +77,15 @@ EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"
 GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION}/triggers/get_trigger_details"
 
 # Synthetic AI
-GET_SYNTHETIC_MODEL_PARAMS_URI = f"{API_VERSION}/synthetics/get_synthetic_model_parameters"
+GET_SYNTHETIC_MODEL_PARAMS_URI = (
+    f"{API_VERSION}/synthetics/get_synthetic_model_parameters"
+)
 TRAIN_SYNTHETIC_MODEL_URI = f"{API_VERSION}/synthetics/train_synthetic_model"
-
 GET_SYNTHETIC_MODELS_URI = f"{API_VERSION}/synthetics/get_synthetics_models"
 DELETE_SYNTHETIC_MODEL_URI = f"{API_VERSION}/synthetics/delete_synthetic_model"
-GET_SYNTHETIC_MODEL_DETAILS_URI = f"{API_VERSION}/synthetics/get_synthetic_model_details"
+GET_SYNTHETIC_MODEL_DETAILS_URI = (
+    f"{API_VERSION}/synthetics/get_synthetic_model_details"
+)
 GET_SYNTHETIC_TRAINING_LOGS_URI = f"{API_VERSION}/synthetics/get_training_logs"
 GENERATE_SYNTHETIC_DATA_URI = f"{API_VERSION}/synthetics/generate_synthetic_data"
 GENERATE_ANONYMITY_SCORE_URI = f"{API_VERSION}/synthetics/generate_anonimity_score"
@@ -95,3 +98,6 @@ DELETE_SYNTHETIC_TAG_URI = f"{API_VERSION}/project/delete_data_with_filter"
 CREATE_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/create_synthetic_prompts"
 UPDATE_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/synthetic_prompts_update"
 GET_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/get_synthetics_promts"
+
+# Events
+POLL_EVENTS = f"{API_VERSION}/events/poll"
