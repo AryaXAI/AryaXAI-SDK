@@ -1383,6 +1383,8 @@ class Project(BaseModel):
         }
 
         res = self.__api_client.post(TRAIN_MODEL_URI, payload)
+        
+        print(res)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2377,10 +2379,14 @@ class Project(BaseModel):
 
         res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
+        print(res)
+
         if not res["success"]:
             raise Exception(res["details"])
 
-        return res["details"]
+        poll_events(self.__api_client, self.project_name, res["event_id"])
+
+        return 'Model Trained Successfully'
 
     def get_synthetic_models(self) -> List[SyntheticModel]:
         """get synthetic models for the project
