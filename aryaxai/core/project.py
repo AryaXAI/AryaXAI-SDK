@@ -2531,21 +2531,21 @@ class Project(BaseModel):
 
 def poll_events(api_client: APIClient, project_name: str, event_id: str):
     last_message = ""
+    log_length = 0
     for event in api_client.stream(
         f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
     ):
         details = event.get("details")
         if not event.get("success"):
             raise Exception(details)
-
         if details.get("status") == "failed":
             raise Exception(details.get("message"))
-
-        if details.get("logs"):
-            print(details.get("logs")[last_message:])
-            last_message = len(details.get("logs"))
-
-        if details.get("message") != last_message and not details.get("logs"):
+        if details.get("message") != last_message:
+            if details.get("logs"):
+                print(details.get("logs")[log_length:])
+                log_length = len(details.get("logs"))
+                last_message = details.get("logs")[log_length:]
+            else:
                 last_message = details.get("message")
                 print(
                     {
@@ -2553,7 +2553,6 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
                         "message": details.get("message"),
                     }
                 )
-
 
 def generate_expression(expression):
     if not expression:
