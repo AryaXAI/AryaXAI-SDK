@@ -2546,19 +2546,18 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
             raise Exception(details)
         if details.get("status") == "failed":
             raise Exception(details.get("message"))
+        if details.get("logs"):
+            print(details.get("logs")[log_length:])
+            log_length = len(details.get("logs"))
         if details.get("message") != last_message:
-            if details.get("logs"):
-                print(details.get("logs")[log_length:])
-                log_length = len(details.get("logs"))
-                last_message = details.get("logs")[log_length:]
-            else:
-                last_message = details.get("message")
-                print(
-                    {
-                        "status": details.get("status"),
-                        "message": details.get("message"),
-                    }
-                )
+            last_message = details.get("message")
+            print(
+                {
+                    "status": details.get("status"),
+                    "message": details.get("message"),
+                }
+            )
+
 
 def generate_expression(expression):
     if not expression:
