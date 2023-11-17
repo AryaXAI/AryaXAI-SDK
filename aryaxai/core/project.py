@@ -11,6 +11,7 @@ from aryaxai.common.constants import (
     MODEL_TYPES,
     DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
     DATA_DRIFT_STAT_TESTS,
+    SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS,
     TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS,
     TARGET_DRIFT_MODEL_TYPES,
     TARGET_DRIFT_STAT_TESTS,
@@ -2342,28 +2343,33 @@ class Project(BaseModel):
             "drop_duplicate_uid", project_config["drop_duplicate_uid"]
         )
 
+        SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS[model_name].update(hyper_params)
+        hyper_params = SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS[model_name]
+
         # validate model hyper parameters
-        if hyper_params:
-            for key, value in hyper_params.items():
-                model_param = model_params.get(key, None)
+        for key, value in hyper_params.items():
+            model_param = model_params.get(key, None)
 
-                if model_param:
-                    if model_param["type"] == "input":
-                        if model_param["value"] == "int":
-                            if not isinstance(value, int):
-                                raise Exception(f"{key} value should be integer")
-                        elif model_param["value"] == "float":
-                            if not isinstance(value, float):
-                                raise Exception(f"{key} value should be float")
+            if model_param:
+                if model_param["type"] == "input":
+                    if model_param["value"] == "int":
+                        if not isinstance(value, int):
+                            raise Exception(f"{key} value should be integer")
+                    elif model_param["value"] == "float":
+                        if not isinstance(value, float):
+                            raise Exception(f"{key} value should be float")
 
-                        if value < model_param["min"] or value > model_param["max"]:
-                            raise Exception(
-                                f"{key} value should be between {model_param['min']} and {model_param['max']}"
-                            )
-                    elif model_param["type"] == "select":
-                        Validate.raise_exception_on_invalid_value(
-                            [value], model_param["value"]
+                    if value < model_param["min"] or value > model_param["max"]:
+                        raise Exception(
+                            f"{key} value should be between {model_param['min']} and {model_param['max']}"
                         )
+                elif model_param["type"] == "select":
+                    Validate.raise_exception_on_invalid_value(
+                        [value], model_param["value"]
+                    )
+
+        print(f"Using data config: {json.dumps(data_config, indent=4)}")
+        print(f"Using hyper params: {json.dumps(hyper_params, indent=4)}")
 
         payload = {
             "project_name": self.project_name,
@@ -2378,9 +2384,6 @@ class Project(BaseModel):
                 "model_parameters": hyper_params,
             },
         }
-
-        print(f"Using data config: {json.dumps(data_config, indent=4)}")
-        print(f"Using hyperparams: {json.dumps(hyper_params, indent=4)}")
 
         res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
@@ -2651,8 +2654,6 @@ class Project(BaseModel):
         if not res['success']:
             raise Exception(res['details'])
 
-        self.status = res['details'][0]['status']
-
         return 'Synthetic prompt updated successfully.'
 
     def synthetic_prompts(self) -> pd.DataFrame:
@@ -2729,7 +2730,7 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
             log_length = len(details.get("logs"))
         if details.get("message") != last_message:
             last_message = details.get("message")
-            print(f"status: {details.get("status")}\nmessage: {details.get("message")}")
+            print(f"message: {details.get("message")}")
 
 def generate_expression(expression):
     if not expression:

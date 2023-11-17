@@ -1,8 +1,5 @@
 from typing import List, Optional, TypedDict
 
-from pydantic import BaseModel, ConfigDict
-
-
 class ProjectConfig(TypedDict):
     project_type: str
     unique_identifier: str
@@ -26,19 +23,17 @@ class SyntheticDataConfig(TypedDict):
     feature_actual_used: List[str]
     drop_duplicate_uid: bool
 
-class SyntheticModelHyperParams(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-
+class SyntheticModelHyperParams(TypedDict):
     # GPT2 hyper params
-    batch_size: Optional[int] = 250,
-    early_stopping_patience: Optional[int] = 10
-    early_stopping_threshold: Optional[float] = 0.0001
-    epochs: Optional[int] = 100,
-    model_type: Optional[str] = "tabular",
-    random_state: Optional[int] = 1,
-    tabular_config: Optional[str] = "GPT2Config",
-    train_size: Optional[float] = 0.8
+    batch_size: Optional[int]
+    early_stopping_patience: Optional[int]
+    early_stopping_threshold: Optional[float]
+    epochs: Optional[int]
+    model_type: Optional[str]
+    random_state: Optional[int]
+    tabular_config: Optional[str]
+    train_size: Optional[float]
 
     #CTGAN hyper params
-    epochs: Optional[int] = 100
-    test_ratio: Optional[float] = 0.2
+    epochs: Optional[int]
+    test_ratio: Optional[float]
