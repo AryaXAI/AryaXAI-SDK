@@ -20,7 +20,7 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS_REGRESSION,
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
-from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig
+from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig, SyntheticModelHyperParams
 from aryaxai.common.utils import parse_datetime, parse_float
 from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
@@ -44,6 +44,7 @@ from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
+    DELETE_SYNTHETIC_MODEL_URI,
     DELETE_SYNTHETIC_TAG_URI,
     DOWNLOAD_SYNTHETIC_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
@@ -80,6 +81,7 @@ from aryaxai.common.xai_uris import (
     UPDATE_OBSERVATION_URI,
     UPDATE_POLICY_URI,
     UPDATE_PROJECT_URI,
+    UPDATE_SYNTHETIC_PROMPT_URI,
     UPLOAD_DATA_FILE_INFO_URI,
     UPLOAD_DATA_FILE_URI,
     UPLOAD_DATA_URI,
@@ -2258,7 +2260,7 @@ class Project(BaseModel):
         self,
         model_name: str,
         data_config: Optional[SyntheticDataConfig] = {},
-        hyper_params: Optional[dict] = {},
+        hyper_params: Optional[SyntheticModelHyperParams] = {},
     ):
         """Train synthetic model
 
@@ -2274,19 +2276,19 @@ class Project(BaseModel):
         :param hyper_params: hyper parameters for the model. check param type and value range below,
             For GPT2 (Generative Pretrained Transformer) model - Works well on high dimensional tabular data,
             {
-                "batch_size": int [1, 500]
-                "early_stopping_patience": int [1, 100],
-                "early_stopping_threshold": float [0.1, 100],
-                "epochs": int [1, 150],
+                "batch_size": int [1, 500] defaults to 100
+                "early_stopping_patience": int [1, 100], defaults to 10
+                "early_stopping_threshold": float [0.1, 100], defaults to 0.0001
+                "epochs": int [1, 150], defaults to 100
                 "model_type": "tabular",
-                "random_state": int [1, 150],
-                "tabular_config": "GPT2Config" or null,
-                "train_size": float [0, 0.9]
+                "random_state": int [1, 150], defaults to 1
+                "tabular_config": "GPT2Config",
+                "train_size": float [0, 0.9] defaults to 0.8
             }
             For CTGAN (Conditional Tabular GANs) model - Balances between training computation and dimensionality,
             {
-                "epochs": int, [1, 150]
-                "test_ratio": float [0, 1]
+                "epochs": int, [1, 150] defaults to 100
+                "test_ratio": float [0, 1] defaults to 0.2
             }
             defaults to {}
 
@@ -2377,17 +2379,47 @@ class Project(BaseModel):
             },
         }
 
+        print(f"Using data config: {json.dumps(data_config, indent=4)}")
+        print(f"Using hyperparams: {json.dumps(hyper_params, indent=4)}")
+
         res = self.__api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
+        print('Training initiated...')
         poll_events(self.__api_client, self.project_name, res["event_id"])
 
-    def get_synthetic_models(self) -> List[SyntheticModel]:
+    def remove_synthetic_model(self, model_name: str) -> str:
+        """deletes synthetic model
+
+        :param model_name: model name
+        :raises ValueError: _description_
+        :raises Exception: _description_
+        :return: response message
+        """
+        models_df = self.synthetic_models()
+        valid_models = models_df['model_name'].tolist()
+
+        if model_name not in valid_models:
+            raise ValueError(f"{model_name} is not valid. Pick a valid value from {valid_models}")
+        
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name
+        }
+
+        res = self.__api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        return f"{model_name} deleted successfully."
+
+    def synthetic_models(self) -> pd.DataFrame:
         """get synthetic models for the project
 
-        :return: list of synthetic models
+        :return: synthetic models
         """
         url = f"{GET_SYNTHETIC_MODELS_URI}?project_name={self.project_name}"
 
@@ -2398,31 +2430,29 @@ class Project(BaseModel):
 
         models = res["details"]
 
-        synthetic_models = [
-            SyntheticModel(
-                **model,
-                api_client=self.__api_client,
-                project_name=self.project_name,
-                project=self,
-            )
-            for model in models
-        ]
+        models_df = pd.DataFrame(models)
 
-        return synthetic_models
+        return models_df
 
-    def get_synthetic_model(self, model_name: str) -> dict:
-        """get synthetic models details
+    def synthetic_model(self, model_name: str) -> dict:
+        """get synthetic model details
 
         :param model_name: model name
         :raises Exception: _description_
         :return: _description_
         """
+        models_df = self.synthetic_models()
+        valid_models = models_df['model_name'].tolist()
+
+        if model_name not in valid_models:
+            raise ValueError(f"{model_name} is not valid. Pick a valid value from {valid_models}")
+
         url = f"{GET_SYNTHETIC_MODEL_DETAILS_URI}?project_name={self.project_name}&model_name={model_name}"
 
         res = self.__api_client.get(url)
 
         if not res["success"]:
-            raise Exception("Error while getting synthetics model.")
+            raise Exception(res["details"])
 
         model_details = res["details"][0]
 
@@ -2441,6 +2471,112 @@ class Project(BaseModel):
         )
 
         return synthetic_model
+
+    def synthetic_tags(self) -> pd.DataFrame:
+        """get synthetic data tags of the model
+        :raises Exception: _description_
+        :return: list of tags
+        """
+        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics data tags.")
+
+        data_tags = res['details']
+
+        for data_tag in data_tags:
+            del data_tag["metadata"]
+            del data_tag["plot_data"]
+
+        return pd.DataFrame(data_tags)
+
+    def synthetic_tag(self, tag: str) -> SyntheticDataTag:
+        """get synthetic data tag by tag name
+        :param tag: tag name
+        :raises Exception: _description_
+        :return: tag
+        """
+        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
+
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception("Error while getting synthetics data tags.")
+
+        data_tags = res['details']
+
+        syn_data_tags = [SyntheticDataTag(
+                    **data_tag,
+                    api_client=self.__api_client,
+                    project_name=self.project_name,
+                    project=self
+                ) for data_tag in data_tags]
+
+        data_tag = next((syn_data_tag for syn_data_tag in syn_data_tags if syn_data_tag.tag == tag), None)
+
+        if not data_tag:
+            valid_tags = [syn_data_tag.tag for syn_data_tag in syn_data_tags]
+            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
+
+        return data_tag
+
+    def synthetic_tag_datapoints(self, tag: str) -> pd.DataFrame:
+        """get synthetic tag datapoints
+
+        :param tag: tag name
+        :raises Exception: _description_
+        :return: datapoints
+        """
+        all_tags = self.all_tags()
+
+        Validate.raise_exception_on_invalid_value(
+            [tag],
+            all_tags,
+            field_name='tag'
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "tag": tag
+        }
+
+        res = self.__api_client.request(
+            "POST",
+            DOWNLOAD_SYNTHETIC_DATA_URI,
+            payload
+        )
+
+        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+
+        return synthetic_data
+
+    def remove_synthetic_tag(self, tag: str) -> str:
+        """delete synthetic data tag
+
+        :raises Exception: _description_
+        :return: response messsage
+        """
+        all_tags = self.all_tags()
+
+        Validate.raise_exception_on_invalid_value(
+            [tag],
+            all_tags,
+            field_name='tag'
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "tag": tag,
+        }
+
+        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return f"{tag} deleted successfully."
 
     def get_observation_params(self) -> dict:
         """get observation parameters for the project (used in validating synthetic prompt)"""
@@ -2489,7 +2625,37 @@ class Project(BaseModel):
 
         return "Synthetic prompt created successfully."
 
-    def get_synthetic_prompts(self) -> List[SyntheticPrompt]:
+    def update_synthetic_prompt(self, prompt_id: str, status: str) -> str:
+        """update synthetic prompt
+
+        :param prompt_id: prompt id
+        :param activate: True or False
+        :raises Exception: _description_
+        :raises Exception: _description_
+        :return: response message
+        """
+        if status not in ["active", "inactive"]:
+            raise Exception("Invalid status value. Pick a valid value from ['active', 'inactive'].")
+
+        payload = {
+            "delete": False,
+            "project_name": self.project_name,
+            "prompt_id": prompt_id,
+            "update_keys": {
+                "status": status
+            }
+        }
+
+        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+
+        if not res['success']:
+            raise Exception(res['details'])
+
+        self.status = res['details'][0]['status']
+
+        return 'Synthetic prompt updated successfully.'
+
+    def synthetic_prompts(self) -> pd.DataFrame:
         """get synthetic prompts for the project
 
         :raises Exception: _description_
@@ -2504,21 +2670,35 @@ class Project(BaseModel):
 
         prompts = res["details"]
 
-        return [
-            SyntheticPrompt(**prompt, api_client=self.__api_client, project=self)
-            for prompt in prompts
-        ]
+        return pd.DataFrame(prompts).reindex(columns=["prompt_id", "prompt_name", "status", "created_at", "updated_at"])
 
-    def get_synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
-        """get synthetic prompt by prompt name
+    def synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
+        """get synthetic prompt by prompt id
 
         :raises Exception: _description_
         :return: _description_
         """
-        prompts = self.get_synthetic_prompts()
+        url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
 
-        return next(
-            (prompt for prompt in prompts if prompt.prompt_id == prompt_id), None
+        res = self.__api_client.get(url)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        prompts = res["details"]
+
+        curr_prompt = next(
+            (prompt for prompt in prompts if prompt['prompt_id'] == prompt_id),
+            None
+        )
+
+        if not curr_prompt:
+            raise Exception(f"Invalid prompt_id")
+
+        return SyntheticPrompt(
+            **curr_prompt,
+            api_client=self.__api_client,
+            project=self
         )
 
     def __print__(self) -> str:
@@ -2534,10 +2714,12 @@ class Project(BaseModel):
 def poll_events(api_client: APIClient, project_name: str, event_id: str):
     last_message = ""
     log_length = 0
+
     for event in api_client.stream(
         f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
     ):
         details = event.get("details")
+
         if not event.get("success"):
             raise Exception(details)
         if details.get("status") == "failed":
@@ -2547,13 +2729,7 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
             log_length = len(details.get("logs"))
         if details.get("message") != last_message:
             last_message = details.get("message")
-            print(
-                {
-                    "status": details.get("status"),
-                    "message": details.get("message"),
-                }
-            )
-
+            print(f"status: {details.get("status")}\nmessage: {details.get("message")}")
 
 def generate_expression(expression):
     if not expression:

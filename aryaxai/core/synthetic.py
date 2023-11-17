@@ -7,10 +7,9 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from aryaxai.client.client import APIClient
-from aryaxai.common.types import SyntheticDataConfig
 from aryaxai.common.utils import pretty_date
 from aryaxai.common.validation import Validate
-from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI, GET_SYNTHETIC_DATA_TAGS_URI, GET_SYNTHETIC_TRAINING_LOGS_URI, UPDATE_SYNTHETIC_PROMPT_URI
+from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI
 
 class SyntheticDataTag(BaseModel):
     __api_client: APIClient
@@ -50,61 +49,6 @@ class SyntheticDataTag(BaseModel):
         """get metadata"""
 
         return self.metadata
-
-    def get_datapoints(self) -> dict:
-        """get tag datapoints
-
-        :raises Exception: _description_
-        :return: datapoints
-        """
-        all_tags = self.project.all_tags()
-
-        Validate.raise_exception_on_invalid_value(
-            [self.tag],
-            all_tags,
-            field_name='tag'
-        )
-
-        payload = {
-            "project_name": self.project_name,
-            "tag": self.tag
-        }
-
-        res = self.__api_client.request(
-            'POST',
-            DOWNLOAD_SYNTHETIC_DATA_URI,
-            payload
-        )
-
-        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
-
-        return synthetic_data
-
-    def delete(self):
-        """delete data tag
-
-        :raises Exception: _description_
-        :return: None
-        """
-        all_tags = self.project.all_tags()
-
-        Validate.raise_exception_on_invalid_value(
-            [self.tag],
-            all_tags,
-            field_name='tag'
-        )
-
-        payload = {
-            "project_name": self.project_name,
-            "tag": self.tag,
-        }
-
-        res = self.__api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
-
-        if not res["success"]:
-            raise Exception(res["details"])
-
-        return res["details"]
 
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)
@@ -214,7 +158,7 @@ class SyntheticModel(BaseModel):
         return res['details']
     '''
 
-    def generate_datapoints(self, num_of_datapoints: int):
+    def generate_synthetic_datapoints(self, num_of_datapoints: int):
         """generate given number of synthetic datapoints
 
         :param num_of_datapoints: total datapoints to generate
@@ -295,61 +239,6 @@ class SyntheticModel(BaseModel):
 
         return res['details']['scores']
 
-    def delete(self):
-        """
-        deletes current model
-        """
-        payload = {
-            "project_name": self.project_name,
-            "model_name": self.model_name
-        }
-
-        res = self.__api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
-
-        if not res['success']:
-            raise Exception(res['details'])
-
-        return res['details']
-
-    def get_tags(self) -> List[SyntheticDataTag]:
-        """get synthetic data tags of the model
-        :raises Exception: _description_
-        :return: list of tags
-        """
-        url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
-
-        res = self.__api_client.get(url)
-
-        if not res["success"]:
-            raise Exception("Error while getting synthetics data tags.")
-
-        data_tags = res['details']
-
-        synthetic_data_tags = [SyntheticDataTag(
-                    **data_tag,
-                    api_client=self.__api_client,
-                    project_name=self.project_name,
-                    project=self.project
-                ) for data_tag in data_tags]
-
-        return synthetic_data_tags
-
-    def get_tag(self, tag: str) -> SyntheticDataTag:
-        """get synthetic data tag by tag name
-        :param tag: tag name
-        :raises Exception: _description_
-        :return: tag
-        """
-        data_tags = self.get_tags()
-
-        data_tag = next((data_tag for data_tag in data_tags if data_tag.tag == tag), None)
-
-        if not data_tag:
-            valid_tags = [data_tag.tag for data_tag in data_tags]
-            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
-
-        return data_tag
-
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)
 
@@ -404,62 +293,6 @@ class SyntheticPrompt(BaseModel):
         :return: prompt configuration
         """
         return self.configuration
-    
-    def activate(self) -> str:
-        """activate prompt
-
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :return: response message
-        """
-        if self.status == 'active':
-            raise Exception('Prompt is already active.')
-
-        payload = {
-            "delete": False,
-            "project_name": self.project_name,
-            "prompt_id": self.prompt_id,
-            "update_keys": {
-                "status": "active"
-            }
-        }
-
-        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
-
-        if not res['success']:
-            raise Exception(res['details'])
-
-        self.status = res['details'][0]['status']
-
-        return 'Prompt activated successfully.'
-        
-    def deactivate(self) -> str:
-        """deactive prompt
-
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :return: response message
-        """
-        if self.status == 'inactive':
-            raise Exception('Prompt is already inactive.')
-
-        payload = {
-            "delete": False,
-            "project_name": self.project_name,
-            "prompt_id": self.prompt_id,
-            "update_keys": {
-                "status": "inactive"
-            }
-        }
-
-        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
-
-        if not res['success']:
-            raise Exception(res['details'])
-
-        self.status = res['details'][0]['status']
-
-        return 'Prompt deactivated successfully.'
 
     '''
     def delete(self) -> str:
