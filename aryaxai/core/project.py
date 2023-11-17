@@ -540,7 +540,7 @@ class Project(BaseModel):
         model_type: str,
         model_name: str,
         model_data_tags: List[str],
-    ) -> str:
+    ):
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
             res = self.__api_client.file(
@@ -583,7 +583,12 @@ class Project(BaseModel):
         if not res.get("success"):
             raise Exception(res.get("details"))
 
-        return res.get("details")
+        poll_events(
+            self.__api_client,
+            self.project_name,
+            res["event_id"],
+            lambda: self.delete_file(uploaded_path),
+        )
 
     def data_summary(self, tag: str) -> pd.DataFrame:
         """Data Summary for the project
@@ -1438,8 +1443,6 @@ class Project(BaseModel):
 
         res = self.__api_client.post(TRAIN_MODEL_URI, payload)
 
-        print(res)
-
         if not res["success"]:
             raise Exception(res["details"])
 
@@ -2004,8 +2007,6 @@ class Project(BaseModel):
             payload["update_keys"]["status"] = status
 
         res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
-
-        print(res)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2587,7 +2588,12 @@ class Project(BaseModel):
         return self.__print__()
 
 
-def poll_events(api_client: APIClient, project_name: str, event_id: str):
+def poll_events(
+    api_client: APIClient,
+    project_name: str,
+    event_id: str,
+    handle_failed_event: Optional[function] = None,
+):
     last_message = ""
     log_length = 0
     for event in api_client.stream(
@@ -2596,8 +2602,6 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
         details = event.get("details")
         if not event.get("success"):
             raise Exception(details)
-        if details.get("status") == "failed":
-            raise Exception(details.get("message"))
         if details.get("logs"):
             print(details.get("logs")[log_length:])
             log_length = len(details.get("logs"))
@@ -2609,6 +2613,10 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
                     "message": details.get("message"),
                 }
             )
+        if details.get("status") == "failed":
+            if handle_failed_event:
+                handle_failed_event()
+            raise Exception(details.get("message"))
 
 
 def generate_expression(expression):
