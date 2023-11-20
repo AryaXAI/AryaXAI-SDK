@@ -10,6 +10,7 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.utils import pretty_date
 from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI
+from aryaxai.core.project import poll_events
 
 class SyntheticDataTag(BaseModel):
     __api_client: APIClient
@@ -176,7 +177,8 @@ class SyntheticModel(BaseModel):
         if not res['success']:
             raise Exception(res['details'])
 
-        return res['details']
+        print('Generating synthetic datapoints...')
+        poll_events(self.__api_client, self.project_name, res["event_id"])
 
     def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
         """generate anonymity score
@@ -218,7 +220,8 @@ class SyntheticModel(BaseModel):
         if not res['success']:
             raise Exception(res['details'])
 
-        return res['details']
+        print('Calculating anonymity score...')
+        poll_events(self.__api_client, self.project_name, res["event_id"])
 
     def get_anonymity_score(self):
         """get anonymity score
