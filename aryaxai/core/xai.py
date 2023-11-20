@@ -3,16 +3,20 @@ import pandas as pd
 from pydantic import BaseModel
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
-
-from aryaxai.common.xai_uris import CLEAR_NOTIFICATIONS_URI, CREATE_WORKSPACE_URI, GET_NOTIFICATIONS_URI, LOGIN_URI, GET_WORKSPACES_URI
-import getpass
-from typing import List
-
 from aryaxai.core.workspace import Workspace
+from aryaxai.common.xai_uris import (
+    CLEAR_NOTIFICATIONS_URI,
+    CREATE_WORKSPACE_URI,
+    GET_NOTIFICATIONS_URI,
+    LOGIN_URI,
+    GET_WORKSPACES_URI,
+)
+import getpass
 
 
 class XAI(BaseModel):
     """Base class to connect with AryaXAI platform"""
+
     __env: Environment = Environment()
     __api_client: APIClient
 
@@ -22,11 +26,7 @@ class XAI(BaseModel):
         debug = self.__env.get_debug()
         base_url = self.__env.get_base_url()
 
-        self.__api_client = APIClient(
-            debug=debug,
-            base_url=base_url
-        )
-
+        self.__api_client = APIClient(debug=debug, base_url=base_url)
 
     def login(self):
         """login to AryaXAI platform
@@ -46,20 +46,25 @@ class XAI(BaseModel):
 
         print("Authenticated successfully.")
 
-    def workspaces(self) -> List[Workspace]:
+    def workspaces(self) -> pd.DataFrame:
         """get user workspaces
 
-        :return: list of workspace
+        :return: workspace details dataframe
         """
-        user_workspaces = []
-
         workspaces = self.__api_client.get(GET_WORKSPACES_URI)
-        user_workspaces = [ 
-            Workspace(api_client=self.__api_client, **workspace)
-            for workspace in workspaces["details"]
-        ]
 
-        return user_workspaces
+        workspace_df = pd.DataFrame(
+            workspaces["details"],
+            columns=[
+                "user_workspace_name",
+                "access_type",
+                "created_by",
+                "created_at",
+                "updated_at",
+            ],
+        )
+
+        return workspace_df
 
     def workspace(self, workspace_name) -> Workspace:
         """select specific workspace
@@ -67,12 +72,16 @@ class XAI(BaseModel):
         :param workspace_name: Name of the workspace to be used
         :return: Workspace
         """
-        workspaces = self.workspaces()
+        workspaces = self.__api_client.get(GET_WORKSPACES_URI)
+        user_workspaces = [
+            Workspace(api_client=self.__api_client, **workspace)
+            for workspace in workspaces["details"]
+        ]
 
         workspace = next(
             filter(
                 lambda workspace: workspace.user_workspace_name == workspace_name,
-                workspaces,
+                user_workspaces,
             ),
             None,
         )
@@ -114,9 +123,9 @@ class XAI(BaseModel):
         if not notifications:
             return "No notifications found."
 
-        return pd.DataFrame(
-            notifications
-        ).reindex(columns=['project_name', 'message', 'time'])
+        return pd.DataFrame(notifications).reindex(
+            columns=["project_name", "message", "time"]
+        )
 
     def clear_notifications(self) -> str:
         """clear user notifications
@@ -126,7 +135,7 @@ class XAI(BaseModel):
         """
         res = self.__api_client.post(CLEAR_NOTIFICATIONS_URI)
 
-        if not res['success']:
-            raise Exception('Error while clearing user notifications.')
+        if not res["success"]:
+            raise Exception("Error while clearing user notifications.")
 
-        return res['details']
+        return res["details"]

@@ -1888,8 +1888,8 @@ class Project(BaseModel):
         self,
         observation_name: str,
         expression: str,
-        statement: Optional[str] = None,
-        linked_features: Optional[List[str]] = None,
+        statement: str,
+        linked_features: List[str],
     ) -> str:
         """Creates New Observation
 
@@ -1902,26 +1902,28 @@ class Project(BaseModel):
                 You can perform comparisons between two or more features using
                 logical operators such as "and" or "or."
                 Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
-        :param statement: statement of observation, defaults to None
+        :param statement: statement of observation
             Eg: The building type is {BldgType}
                 the content inside the curly brackets represents the feature name
-        :param linked_features: linked features of observation, defaults to None
+        :param linked_features: linked features of observation
         :return: response
         """
-        configuration, expression = build_expression(expression)
-
         observation_params = self.__api_client.get(
             f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
         )
 
-        validate_configuration(configuration, observation_params["details"])
+        Validate.string("expression", expression)
 
-        if linked_features:
-            for feature in linked_features:
-                if feature not in observation_params["eng_features"]:
-                    raise Exception(
-                        f"{feature} is not a valid feature, pick feature from \n{observation_params['eng_features']}"
-                    )
+        Validate.string("statement", statement)
+
+        Validate.list_against_list(
+            "linked_feature",
+            linked_features,
+            observation_params["details"]["eng_features"],
+        )
+        configuration, expression = build_expression(expression)
+
+        validate_configuration(configuration, observation_params["details"])
 
         payload = {
             "project_name": self.project_name,
@@ -1982,28 +1984,26 @@ class Project(BaseModel):
         )
 
         if expression:
+            Validate.string("expression", expression)
             configuration, expression = build_expression(expression)
             validate_configuration(configuration, observation_params["details"])
             payload["update_keys"]["configuration"] = configuration
             payload["update_keys"]["metadata"] = {"expression": expression}
 
         if linked_features:
-            for feature in linked_features:
-                if feature not in observation_params["eng_features"]:
-                    raise Exception(
-                        f"{feature} is not a valid feature, pick feature from \n{observation_params['eng_features']}"
-                    )
+            Validate.list_against_list(
+                "linked_feature",
+                linked_features,
+                observation_params["details"]["eng_features"],
+            )
             payload["update_keys"]["linked_features"] = linked_features
 
         if statement:
+            Validate.string("statement", statement)
             payload["update_keys"]["statement"] = [statement]
 
         if status:
-            valid_status = ["active", "inactive"]
-            if status not in valid_status:
-                raise Exception(
-                    f"{status} is not a valid status, select from {valid_status}"
-                )
+            Validate.value_against_list("status", status, ["active", "inactive"])
             payload["update_keys"]["status"] = status
 
         res = self.__api_client.post(UPDATE_OBSERVATION_URI, payload)
@@ -2166,8 +2166,9 @@ class Project(BaseModel):
         self,
         policy_name: str,
         expression: str,
-        statement: Optional[str] = None,
-        decision: Optional[str] = None,
+        statement: str,
+        decision: str,
+        input: Optional[str] = None,
     ) -> str:
         """Creates New Policy
 
@@ -2180,10 +2181,11 @@ class Project(BaseModel):
                 You can perform comparisons between two or more features using
                 logical operators such as "and" or "or."
                 Additionally, you have the option to use parentheses () to group and prioritize certain conditions.
-        :param statement: statement of policy, defaults to None
+        :param statement: statement of policy
             Eg: The building type is {BldgType}
                 the content inside the curly brackets represents the feature name
-        :param decision: decision of policy, defaults to None
+        :param decision: decision of policy
+        :param input: custom input for the decision if input selected for decision of policy
         :return: response
         """
         configuration, expression = build_expression(expression)
@@ -2194,6 +2196,13 @@ class Project(BaseModel):
 
         validate_configuration(configuration, policy_params["details"])
 
+        Validate.value_against_list(
+            "decision", decision, list(policy_params["details"]["decision"].values())[0]
+        )
+
+        if decision == "input":
+            Validate.string("Decision input", input)
+
         payload = {
             "project_name": self.project_name,
             "policy_name": policy_name,
@@ -2201,7 +2210,7 @@ class Project(BaseModel):
             "configuration": configuration,
             "metadata": {"expression": expression},
             "statement": [statement],
-            "decision": decision,
+            "decision": input if decision == "input" else decision,
         }
 
         res = self.__api_client.post(CREATE_POLICY_URI, payload)
@@ -2218,6 +2227,7 @@ class Project(BaseModel):
         expression: Optional[str] = None,
         statement: Optional[str] = None,
         decision: Optional[str] = None,
+        input: Optional[str] = None,
     ) -> str:
         """Updates Policy
 
@@ -2236,6 +2246,7 @@ class Project(BaseModel):
             Eg: The building type is {BldgType}
                 the content inside the curly brackets represents the feature name
         :param decision: new decision for policy, defaults to None
+        :param input: custom input for the decision if input selected for decision of policy
         :return: response
         """
         if not status and not expression and not statement and not decision:
@@ -2253,21 +2264,31 @@ class Project(BaseModel):
         )
 
         if expression:
+            Validate.string("expression", expression)
             configuration, expression = build_expression(expression)
             validate_configuration(configuration, policy_params["details"])
             payload["update_keys"]["configuration"] = configuration
             payload["update_keys"]["metadata"] = {"expression": expression}
 
         if statement:
+            Validate.string("statement", statement)
             payload["update_keys"]["statement"] = [statement]
 
         if status:
-            valid_status = ["active", "inactive"]
-            if status not in valid_status:
-                raise Exception(
-                    f"{status} is not a valid status, select from {valid_status}"
-                )
+            Validate.value_against_list("status", status, ["active", "inactive"])
             payload["update_keys"]["status"] = status
+
+        if decision:
+            Validate.value_against_list(
+                "decision",
+                decision,
+                list(policy_params["details"]["decision"].values())[0],
+            )
+            if decision == "input":
+                Validate.string("Decision input", input)
+            payload["update_keys"]["decision"] = (
+                input if decision == "input" else decision
+            )
 
         res = self.__api_client.post(UPDATE_POLICY_URI, payload)
 
@@ -2640,18 +2661,30 @@ def build_expression(expression_string):
         ">": "_GRT",
         "<": "_LST",
     }
-    logical_operator = {"and": "_AND", "or": "_OR"}
+    logical_operators = {"and": "_AND", "or": "_OR"}
 
     metadata_expression = []
     configuration = []
-    pattern = re.compile(r"(\w+)\s*([!=<>]+)\s*(\w+)")
-    matches = pattern.findall(expression_string)
     string_to_be_parsed = expression_string
+
+    matches = re.findall(r"(\w+)\s*([!=<>]+)\s*(\w+)", expression_string)
+
+    total_opening_parentheses = re.findall(r"\(", expression_string)
+    total_closing_parentheses = re.findall(r"\)", expression_string)
+
+    if len(total_opening_parentheses) != len(total_closing_parentheses):
+        raise Exception("Invalid expression, check parentheses")
 
     for i, match in enumerate(matches):
         column, expression, value = match
         if expression not in condition_operators.keys():
             raise Exception(f"Not a valid condition operator in {match}")
+
+        opening_parentheses = re.findall(r"\(", string_to_be_parsed.split(column, 1)[0])
+        if opening_parentheses:
+            metadata_expression.extend(opening_parentheses)
+            configuration.extend(opening_parentheses)
+
         metadata_expression.append(
             {
                 "column": column,
@@ -2666,17 +2699,37 @@ def build_expression(expression_string):
                 "expression": condition_operators[expression],
             }
         )
+
+        string_to_be_parsed = string_to_be_parsed.split(value, 1)[1]
+        between_conditions_split = string_to_be_parsed.split(
+            matches[i + 1][0] if i < len(matches) - 1 else None, 1
+        )
+        closing_parentheses = re.findall(
+            r"\)",
+            between_conditions_split[0] if len(between_conditions_split) > 0 else "",
+        )
+        if closing_parentheses:
+            metadata_expression.extend(closing_parentheses)
+            configuration.extend(closing_parentheses)
+
         if i < len(matches) - 1:
-            string_to_be_parsed = string_to_be_parsed.split(value, 1)[1]
-            operator = string_to_be_parsed.split(matches[i + 1][0], 1)[0]
-            operator_match = re.search(r"(|and|or|)", operator)
-            if not operator_match.group():
-                raise Exception(f"{operator} is not valid logical operator")
-            log_operator = operator_match.group()
-            if len(operator.split(log_operator)) > 1:
-                raise Exception(f"{operator} is not valid logical operator")
+            between_conditions = between_conditions_split[0].strip()
+            between_conditions = between_conditions.replace(")", "").replace("(", "")
+            logical_operator = re.search(r"and|or", between_conditions)
+            if not logical_operator:
+                raise Exception(f"{between_conditions} is not valid logical operator")
+            log_operator = logical_operator.group()
+            log_operator_split = list(
+                filter(
+                    lambda op: op != "" and op != " ",
+                    between_conditions.split(log_operator, 1),
+                )
+            )
+            if len(log_operator_split) > 0:
+                raise Exception(f"{between_conditions} is not valid logical operator")
             metadata_expression.append(log_operator)
-            configuration.append(logical_operator[log_operator])
+            configuration.append(logical_operators[log_operator])
+
     return configuration, metadata_expression
 
 
