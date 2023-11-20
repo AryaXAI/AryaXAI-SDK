@@ -21,4 +21,4 @@ _templates
 *venv
 
 # package version file
-aryaxai/version.py
+version.py
