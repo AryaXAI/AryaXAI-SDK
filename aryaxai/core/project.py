@@ -756,11 +756,12 @@ class Project(BaseModel):
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        Validate.value_against_list(
-            "features_to_use",
-            payload.get("features_to_use", []),
-            tags_info["alluniquefeatures"],
-        )
+        if payload.get("features_to_use"):
+            Validate.value_against_list(
+                "features_to_use",
+                payload.get("features_to_use", []),
+                tags_info["alluniquefeatures"],
+            )
 
         Validate.value_against_list(
             "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
@@ -931,11 +932,12 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        Validate.value_against_list(
-            "features_to_use",
-            payload.get("features_to_use", []),
-            tags_info["alluniquefeatures"],
-        )
+        if payload.get("features_to_use"):
+            Validate.value_against_list(
+                "features_to_use",
+                payload.get("features_to_use", []),
+                tags_info["alluniquefeatures"],
+            )
 
         res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
 
@@ -1121,12 +1123,12 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
             )
-
-            Validate.value_against_list(
-                "features_to_use",
-                payload.get("features_to_use", []),
-                tags_info["alluniquefeatures"],
-            )
+            if payload.get("features_to_use"):
+                Validate.value_against_list(
+                    "features_to_use",
+                    payload.get("features_to_use", []),
+                    tags_info["alluniquefeatures"],
+                )
         elif type == "Target Drift":
             Validate.check_for_missing_keys(
                 payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
