@@ -138,3 +138,20 @@ MAIL_FREQUENCIES = [
     'quarterly',
     'yearly'
 ]
+
+SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS = {
+    "GPT2": {
+        "batch_size": 250,
+        "early_stopping_patience": 10,
+        "early_stopping_threshold": 0.11,
+        "epochs": 100,
+        "model_type": "tabular",
+        "random_state": 1,
+        "tabular_config": "GPT2Config",
+        "train_size": 0.8
+    },
+    "CTGAN": {
+        "epochs": 100,
+        "test_ratio": 0.2
+    }
+}
