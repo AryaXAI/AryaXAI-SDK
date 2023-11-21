@@ -61,7 +61,8 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
             log_length = len(details.get("logs"))
         if details.get("message") != last_message:
             last_message = details.get("message")
-            print(f"message: {details.get('message')}")
+            print(f"{details.get('message')}")
         if details.get("progress"):
             progress = details.get("progress")
-            display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))
+            print(f"progress: {progress}%")
+            # display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))

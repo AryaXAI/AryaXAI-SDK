@@ -221,8 +221,10 @@ class SyntheticModel(BaseModel):
 
         print('Calculating anonymity score...')
         poll_events(self.__api_client, self.project_name, res["event_id"])
+        print('Anonymity score calculated successfully.\n')
+        return self.get_anonymity_score()
 
-    def get_anonymity_score(self):
+    def anonymity_score(self):
         """get anonymity score
 
         :raises Exception: _description_
@@ -239,7 +241,11 @@ class SyntheticModel(BaseModel):
             print(res['details'])
             raise Exception('Error while getting anonymity score.')
 
-        return res['details']['scores']
+        print('metadata:')
+        print(res['details']['metadata'])
+        print('\n')
+
+        return pd.DataFrame(res['details']['scores'], index=[0])
 
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)
