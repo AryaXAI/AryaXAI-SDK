@@ -2602,10 +2602,10 @@ class Project(BaseModel):
         """
         all_tags = self.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
-            [tag],
+        Validate.value_against_list(
+            'tag',
+            tag,
             all_tags,
-            field_name='tag'
         )
 
         payload = {
@@ -2631,10 +2631,10 @@ class Project(BaseModel):
         """
         all_tags = self.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
-            [tag],
+        Validate.value_against_list(
+            'tag',
+            tag,
             all_tags,
-            field_name='tag'
         )
 
         payload = {
