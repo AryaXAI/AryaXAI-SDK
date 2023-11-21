@@ -52,6 +52,7 @@ def poll_events(
 ):
     last_message = ""
     log_length = 0
+    progress = 0
 
     for event in api_client.stream(
         f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
@@ -67,8 +68,9 @@ def poll_events(
             last_message = details.get("message")
             print(f"{details.get('message')}")
         if details.get("progress"):
-            progress = details.get("progress")
-            print(f"progress: {progress}%")
+            if details.get("progress") != progress:
+                progress = details.get("progress")
+                print(f"progress: {progress}%")
             # display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))
         if details.get("status") == "failed":
             if handle_failed_event:

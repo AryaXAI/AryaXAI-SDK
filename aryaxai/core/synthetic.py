@@ -218,7 +218,6 @@ class SyntheticModel(BaseModel):
         print('Calculating anonymity score...')
         poll_events(self.__api_client, self.project_name, res["event_id"])
         print('Anonymity score calculated successfully.\n')
-        return self.get_anonymity_score()
 
     def anonymity_score(self):
         """get anonymity score
