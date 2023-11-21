@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Callable, Optional
 from aryaxai.client.client import APIClient
 from IPython.display import display, HTML
 
@@ -43,7 +44,12 @@ def pretty_date(date: str) -> str:
 
     return datetime_obj.strftime('%d-%m-%Y %H:%M:%S')
 
-def poll_events(api_client: APIClient, project_name: str, event_id: str):
+def poll_events(
+    api_client: APIClient,
+    project_name: str,
+    event_id: str,
+    handle_failed_event: Optional[Callable] = None,
+):
     last_message = ""
     log_length = 0
 
@@ -54,8 +60,6 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
 
         if not event.get("success"):
             raise Exception(details)
-        if details.get("status") == "failed":
-            raise Exception(details.get("message"))
         if details.get("logs"):
             print(details.get("logs")[log_length:])
             log_length = len(details.get("logs"))
@@ -66,3 +70,7 @@ def poll_events(api_client: APIClient, project_name: str, event_id: str):
             progress = details.get("progress")
             print(f"progress: {progress}%")
             # display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))
+        if details.get("status") == "failed":
+            if handle_failed_event:
+                handle_failed_event()
+            raise Exception(details.get("message"))

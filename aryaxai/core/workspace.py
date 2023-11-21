@@ -8,7 +8,7 @@ from aryaxai.common.xai_uris import (
     GET_WORKSPACES_URI,
     UPDATE_WORKSPACE_URI,
     GET_NOTIFICATIONS_URI,
-    CLEAR_NOTIFICATIONS_URI
+    CLEAR_NOTIFICATIONS_URI,
 )
 from aryaxai.core.project import Project
 
@@ -107,10 +107,35 @@ class Workspace(BaseModel):
         res = self.__api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
-    def projects(self) -> List[Project]:
+    def projects(self) -> pd.DataFrame:
         """get user projects for this Workspace
 
-        :return: list of Projects
+        :return: Projects details dataframe
+        """
+        workspaces = self.__api_client.get(GET_WORKSPACES_URI)
+        current_workspace = next(
+            filter(
+                lambda workspace: workspace["workspace_name"] == self.workspace_name,
+                workspaces["details"],
+            )
+        )
+        projects_df = pd.DataFrame(
+            current_workspace["projects"],
+            columns=[
+                "user_project_name",
+                "access_type",
+                "created_by",
+                "created_at",
+                "updated_at",
+            ],
+        )
+        return projects_df
+
+    def project(self, project_name: str) -> Project:
+        """Select specific project
+
+        :param project_name: Name of the project
+        :return: Project
         """
         workspaces = self.__api_client.get(GET_WORKSPACES_URI)
         current_workspace = next(
@@ -123,15 +148,6 @@ class Workspace(BaseModel):
             Project(api_client=self.__api_client, **project)
             for project in current_workspace["projects"]
         ]
-        return projects
-
-    def project(self, project_name: str) -> Project:
-        """Select specific project
-
-        :param project_name: Name of the project
-        :return: Project
-        """
-        projects = self.projects()
 
         project = next(
             filter(lambda project: project.user_project_name == project_name, projects),
@@ -161,14 +177,14 @@ class Workspace(BaseModel):
         project = Project(api_client=self.__api_client, **res["details"])
 
         return project
-    
+
     def get_notifications(self) -> pd.DataFrame:
         """get user workspace notifications
 
         :return: DataFrame
         """
         url = f"{GET_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
-        
+
         res = self.__api_client.get(url)
 
         if not res["success"]:
@@ -179,9 +195,9 @@ class Workspace(BaseModel):
         if not notifications:
             return "No notifications found."
 
-        return pd.DataFrame(
-            notifications
-        ).reindex(columns=['project_name', 'message', 'time'])
+        return pd.DataFrame(notifications).reindex(
+            columns=["project_name", "message", "time"]
+        )
 
     def clear_notifications(self) -> str:
         """clear user workspace notifications
@@ -190,13 +206,13 @@ class Workspace(BaseModel):
         :return: str
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
-        
+
         res = self.__api_client.post(url)
 
-        if not res['success']:
-            raise Exception('Error while clearing workspace notifications.')
+        if not res["success"]:
+            raise Exception("Error while clearing workspace notifications.")
 
-        return res['details']
+        return res["details"]
 
     def __print__(self) -> str:
         return f"Workspace(user_workspace_name='{self.user_workspace_name}', created_by='{self.created_by}', created_at='{self.created_at}')"

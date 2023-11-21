@@ -21,7 +21,7 @@ class SyntheticDataTag(BaseModel):
     created_at: str
 
     overall_quality_score: float
-    column_shapes:float
+    column_shapes: float
     column_pair_trends: float
 
     metadata: Optional[dict] = {}
@@ -60,12 +60,14 @@ class SyntheticDataTag(BaseModel):
     def __repr__(self) -> str:
         return self.__print__()
 
+
 class SyntheticModel(BaseModel):
     """Synthetic Model Class
 
     :param BaseModel: _description_
     :return: _description_
     """
+
     __api_client: APIClient
     project_name: str
     project: Any
@@ -93,7 +95,7 @@ class SyntheticModel(BaseModel):
 
         :return: model type
         """
-        return self.metadata['model_name']
+        return self.metadata["model_name"]
 
     def get_data_quality(self) -> pd.DataFrame:
         """get data quality
@@ -103,7 +105,7 @@ class SyntheticModel(BaseModel):
         quality = {
             "overall_quality_score": self.overall_quality_score,
             "column_shapes": self.column_shapes,
-            "column_pair_trends": self.column_pair_trends
+            "column_pair_trends": self.column_pair_trends,
         }
 
         df = pd.DataFrame(quality, index=[0])
@@ -123,7 +125,7 @@ class SyntheticModel(BaseModel):
                 go.Bar(
                     x=[x_data[i] for i in indices],
                     y=[y_data[i] for i in indices],
-                    name=metric
+                    name=metric,
                 )
             )
 
@@ -168,13 +170,13 @@ class SyntheticModel(BaseModel):
         payload = {
             "project_name": self.project_name,
             "model_name": self.model_name,
-            "num_of_datapoints": num_of_datapoints
+            "num_of_datapoints": num_of_datapoints,
         }
 
         res = self.__api_client.post(GENERATE_SYNTHETIC_DATA_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
         print('Generating synthetic datapoints...')
         poll_events(self.__api_client, self.project_name, res["event_id"])
@@ -189,35 +191,29 @@ class SyntheticModel(BaseModel):
         :return: None
         """
         if len(aux_columns) < 2:
-            raise Exception('aux_columns requires minimum 2 columns.')
+            raise Exception("aux_columns requires minimum 2 columns.")
 
-        project_config = self.project.config()['metadata']
+        project_config = self.project.config()["metadata"]
 
-        Validate.raise_exception_on_invalid_value(
-            aux_columns,
-            project_config['feature_include'],
-            'feature'
+        Validate.value_against_list(
+            "feature", aux_columns, project_config["feature_include"]
         )
 
         all_tags = self.project.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
-            [control_tag],
-            all_tags,
-            field_name='tag'
-        )
+        Validate.value_against_list("tag", [control_tag], all_tags)
 
         payload = {
             "aux_columns": aux_columns,
             "control_tag": control_tag,
             "model_name": self.model_name,
-            "project_name": self.project_name
+            "project_name": self.project_name,
         }
 
         res = self.__api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
         print('Calculating anonymity score...')
         poll_events(self.__api_client, self.project_name, res["event_id"])
@@ -237,9 +233,9 @@ class SyntheticModel(BaseModel):
 
         res = self.__api_client.post(GET_ANONYMITY_SCORE_URI, payload)
 
-        if not res['success']:
-            print(res['details'])
-            raise Exception('Error while getting anonymity score.')
+        if not res["success"]:
+            print(res["details"])
+            raise Exception("Error while getting anonymity score.")
 
         print('metadata:')
         print(res['details']['metadata'])
@@ -257,6 +253,7 @@ class SyntheticModel(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
+
 
 class SyntheticPrompt(BaseModel):
     __api_client: APIClient
@@ -285,16 +282,18 @@ class SyntheticPrompt(BaseModel):
         expression_list = []
 
         if not self.metadata:
-            raise Exception('Expression not found.')
+            raise Exception("Expression not found.")
 
-        for item in self.metadata['expression']:
+        for item in self.metadata["expression"]:
             if isinstance(item, dict):
-                expression_list.append(f"{item['column']} {item['expression']} {item['value']}")
+                expression_list.append(
+                    f"{item['column']} {item['expression']} {item['value']}"
+                )
             else:
                 expression_list.append(item)
 
-        return ' '.join(expression_list)
-    
+        return " ".join(expression_list)
+
     def get_config(self) -> List[dict]:
         """get prompt configuration
 
@@ -302,7 +301,7 @@ class SyntheticPrompt(BaseModel):
         """
         return self.configuration
 
-    '''
+    """
     def delete(self) -> str:
         payload = {
             "delete": True,
@@ -317,7 +316,7 @@ class SyntheticPrompt(BaseModel):
             raise Exception(res['details'])
         
         return res['details']
-    '''
+    """
 
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)
