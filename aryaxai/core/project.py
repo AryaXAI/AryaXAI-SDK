@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Callable, List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
     DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
@@ -44,8 +44,6 @@ from aryaxai.common.xai_uris import (
     DATA_DRFIT_DIAGNOSIS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
-    DELETE_SYNTHETIC_TAG_URI,
-    DOWNLOAD_SYNTHETIC_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
@@ -64,7 +62,6 @@ from aryaxai.common.xai_uris import (
     GET_POLICY_PARAMS_URI,
     GET_PROJECT_CONFIG,
     GET_SYNTHETIC_MODEL_DETAILS_URI,
-    GET_SYNTHETIC_DATA_TAGS_URI,
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
@@ -400,11 +397,9 @@ class Project(BaseModel):
                 config, ["project_type", "unique_identifier", "true_label"]
             )
 
-            valid_project_type = ["classification", "regression"]
-            if not config["project_type"] in valid_project_type:
-                raise Exception(
-                    f"{config['project_type']} is not a valid project_type, select from {valid_project_type}"
-                )
+            Validate.value_against_list(
+                "project_type", config, ["classification", "regression"]
+            )
 
             uploaded_path = upload_file_and_return_path()
 
@@ -414,20 +409,20 @@ class Project(BaseModel):
 
             column_names = file_info.get("details").get("column_names")
 
-            if not config["unique_identifier"] in column_names:
-                self.delete_file(uploaded_path)
-                raise Exception(
-                    f"{config['unique_identifier']} is not a valid unique_identifier, select from {column_names}"
-                )
+            Validate.value_against_list(
+                "unique_identifier",
+                config["unique_identifier"],
+                column_names,
+                lambda: self.delete_file(uploaded_path),
+            )
 
             if config.get("feature_exclude"):
-                if not all(
-                    feature in column_names for feature in config["feature_exclude"]
-                ):
-                    self.delete_file(uploaded_path)
-                    raise Exception(
-                        f"feature_exclude is not valid, select valid values from {column_names}"
-                    )
+                Validate.value_against_list(
+                    "feature_exclude",
+                    config["feature_exclude"],
+                    column_names,
+                    lambda: self.delete_file(uploaded_path),
+                )
 
             feature_exclude = [
                 config["unique_identifier"],
@@ -556,16 +551,12 @@ class Project(BaseModel):
 
         model_types = self.__api_client.get(GET_MODEL_TYPES_URI)
         valid_model_architecture = model_types.get("model_architecture").keys()
-        if model_architecture not in valid_model_architecture:
-            raise Exception(
-                f"{model_architecture} is not valid, select from {valid_model_architecture}"
-            )
+        Validate.value_against_list(
+            "model_achitecture", model_architecture, valid_model_architecture
+        )
 
         valid_model_types = model_types.get("model_architecture")[model_architecture]
-        if model_type not in valid_model_types:
-            raise Exception(
-                f"{model_type} is not valid, select from {valid_model_types}"
-            )
+        Validate.value_against_list("model_type", model_type, valid_model_types)
 
         uploaded_path = upload_file_and_return_path()
 
@@ -630,8 +621,7 @@ class Project(BaseModel):
         if not valid_tags:
             raise Exception("Data diagnosis not available, please upload data first.")
 
-        if tag not in valid_tags:
-            raise Exception(f"Not a vaild tag. Pick a valid tag from {valid_tags}")
+        Validate.value_against_list("tag", tag, valid_tags)
 
         data_diagnosis = pd.DataFrame(res["details"][tag]["alerts"])
         data_diagnosis[["Tag", "Description"]] = data_diagnosis[0].str.extract(
@@ -761,19 +751,20 @@ class Project(BaseModel):
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        Validate.validate_tags(payload["base_line_tag"], all_tags)
-        Validate.validate_tags(payload["current_tag"], all_tags)
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        Validate.validate_features(
-            payload.get("features_to_use", []), tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "features_to_use",
+            payload.get("features_to_use", []),
+            tags_info["alluniquefeatures"],
         )
 
-        if payload["stat_test_name"] not in DATA_DRIFT_STAT_TESTS:
-            raise Exception(
-                f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}."
-            )
+        Validate.value_against_list(
+            "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
+        )
 
         res = self.__api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
 
@@ -850,27 +841,29 @@ class Project(BaseModel):
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        Validate.validate_tags(payload["base_line_tag"], all_tags)
-        Validate.validate_tags(payload["current_tag"], all_tags)
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        if payload["model_type"] not in TARGET_DRIFT_MODEL_TYPES:
-            raise Exception(
-                f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}."
-            )
-
-        if payload["stat_test_name"] not in TARGET_DRIFT_STAT_TESTS:
-            raise Exception(
-                f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}."
-            )
-
-        Validate.validate_features(
-            [payload["baseline_true_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "model_type", payload["model_type"], TARGET_DRIFT_MODEL_TYPES
         )
 
-        Validate.validate_features(
-            [payload["current_true_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "stat_test_name", payload["stat_test_name"], TARGET_DRIFT_STAT_TESTS
+        )
+
+        Validate.value_against_list(
+            "baseline_true_label",
+            [payload["baseline_true_label"]],
+            tags_info["alluniquefeatures"],
+        )
+
+        Validate.value_against_list(
+            "current_true_label",
+            [payload["current_true_label"]],
+            tags_info["alluniquefeatures"],
         )
 
         res = self.__api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
@@ -920,25 +913,28 @@ class Project(BaseModel):
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        Validate.validate_tags(payload["base_line_tag"], all_tags)
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        if payload["model_type"] not in MODEL_TYPES:
-            raise Exception(
-                f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}."
-            )
+        Validate.value_against_list("model_type", payload["model_type"], MODEL_TYPES)
 
-        Validate.validate_features(
-            [payload["baseline_true_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "baseline_true_label",
+            [payload["baseline_true_label"]],
+            tags_info["alluniquefeatures"],
         )
 
-        Validate.validate_features(
-            [payload["baseline_pred_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "baseline_pred_label",
+            [payload["baseline_pred_label"]],
+            tags_info["alluniquefeatures"],
         )
 
-        Validate.validate_features(
-            payload.get("features_to_use", []), tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "features_to_use",
+            payload.get("features_to_use", []),
+            tags_info["alluniquefeatures"],
         )
 
         res = self.__api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
@@ -988,30 +984,35 @@ class Project(BaseModel):
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        Validate.validate_tags(payload["base_line_tag"], all_tags)
-        Validate.validate_tags(payload["current_tag"], all_tags)
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        if payload["model_type"] not in MODEL_TYPES:
-            raise Exception(
-                f"{payload['model_type']} is not a valid model_type. Pick a valid value from {TARGET_DRIFT_MODEL_TYPES}."
-            )
+        Validate.value_against_list("model_type", payload["model_type"], MODEL_TYPES)
 
-        Validate.validate_features(
-            [payload["baseline_true_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "baseline_true_label",
+            [payload["baseline_true_label"]],
+            tags_info["alluniquefeatures"],
         )
 
-        Validate.validate_features(
-            [payload["baseline_pred_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "baseline_pred_label",
+            [payload["baseline_pred_label"]],
+            tags_info["alluniquefeatures"],
         )
 
-        Validate.validate_features(
-            [payload["current_true_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "current_true_label",
+            [payload["current_true_label"]],
+            tags_info["alluniquefeatures"],
         )
 
-        Validate.validate_features(
-            [payload["current_pred_label"]], tags_info["alluniquefeatures"]
+        Validate.value_against_list(
+            "current_pred_label",
+            [payload["current_pred_label"]],
+            tags_info["alluniquefeatures"],
         )
 
         res = self.__api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
@@ -1112,70 +1113,79 @@ class Project(BaseModel):
         if type == "Data Drift":
             Validate.check_for_missing_keys(payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS)
 
-            Validate.validate_tags(payload["base_line_tag"], all_tags)
-            Validate.validate_tags(payload["current_tag"], all_tags)
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
+            )
+            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
-            if payload["stat_test_name"] not in DATA_DRIFT_STAT_TESTS:
-                raise Exception(
-                    f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {DATA_DRIFT_STAT_TESTS}."
-                )
+            Validate.value_against_list(
+                "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
+            )
 
-            Validate.validate_features(
-                payload.get("features_to_use", []), tags_info["alluniquefeatures"]
+            Validate.value_against_list(
+                "features_to_use",
+                payload.get("features_to_use", []),
+                tags_info["alluniquefeatures"],
             )
         elif type == "Target Drift":
             Validate.check_for_missing_keys(
                 payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
             )
 
-            Validate.validate_tags(payload["base_line_tag"], all_tags)
-            Validate.validate_tags(payload["current_tag"], all_tags)
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
+            )
+            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
-            if payload["model_type"] not in MODEL_TYPES:
-                raise Exception(
-                    f"{payload['model_type']} is not a valid model_type. Pick a valid type from {MODEL_TYPES}"
-                )
-
-            if (
-                payload["model_type"] == "classification"
-                and payload["stat_test_name"]
-                not in TARGET_DRIFT_STAT_TESTS_CLASSIFICATION
-            ):
-                raise Exception(
-                    f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS_CLASSIFICATION}."
-                )
-
-            if (
-                payload["model_type"] == "regression"
-                and payload["stat_test_name"] not in TARGET_DRIFT_STAT_TESTS_REGRESSION
-            ):
-                raise Exception(
-                    f"{payload['stat_test_name']} is not a valid stat_test_name. Pick a valid value from {TARGET_DRIFT_STAT_TESTS_REGRESSION}."
-                )
-
-            Validate.validate_features(
-                [payload["baseline_true_label"]], tags_info["alluniquefeatures"]
+            Validate.value_against_list(
+                "model_type", payload["model_type"], MODEL_TYPES
             )
 
-            Validate.validate_features(
-                [payload["current_true_label"]], tags_info["alluniquefeatures"]
+            if payload["model_type"] == "classification":
+                Validate.value_against_list(
+                    "stat_test_name",
+                    payload["stat_test_name"],
+                    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
+                )
+
+            if payload["model_type"] == "regression":
+                Validate.value_against_list(
+                    "stat_test_name",
+                    payload["stat_test_name"],
+                    TARGET_DRIFT_STAT_TESTS_REGRESSION,
+                )
+
+            Validate.value_against_list(
+                "baseline_true_label",
+                [payload["baseline_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
+
+            Validate.value_against_list(
+                "current_true_label"[payload["current_true_label"]],
+                tags_info["alluniquefeatures"],
             )
         elif type == "Model Performance":
             Validate.check_for_missing_keys(payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS)
 
-            Validate.validate_tags(payload["base_line_tag"], all_tags)
-
-            if payload["model_type"] not in MODEL_TYPES:
-                raise Exception(
-                    f"{payload['model_type']} is not a valid model type. Pick a valid type from {MODEL_TYPES}"
-                )
-
-            Validate.validate_features(
-                [payload["baseline_true_label"]], tags_info["alluniquefeatures"]
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
             )
 
-            Validate.validate_features(
-                [payload["baseline_pred_label"]], tags_info["alluniquefeatures"]
+            Validate.value_against_list(
+                "model_type", payload["model_type"], MODEL_TYPES
+            )
+
+            Validate.value_against_list(
+                "baseline_true_label",
+                [payload["baseline_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
+
+            Validate.value_against_list(
+                "baseline_pred_label",
+                [payload["baseline_pred_label"]],
+                tags_info["alluniquefeatures"],
             )
 
             if payload["model_type"] == "classification":
@@ -1186,36 +1196,29 @@ class Project(BaseModel):
 
                 all_class_label = self.get_labels(payload["baseline_true_label"])
 
-                if payload["class_label"] not in all_class_label:
-                    raise Exception(
-                        f"{payload['class_label']} is not a valid class_label. Pick a valid value from {all_class_label}."
-                    )
-
-                if (
-                    payload["model_performance_metric"]
-                    not in MODEL_PERF_METRICS_CLASSIFICATION
-                ):
-                    raise Exception(
-                        f"{payload['model_performance_metric']} is not a valid model_performance_metric. Pick a valid value from {MODEL_PERF_METRICS_CLASSIFICATION}."
-                    )
-
-            if (
-                payload["model_type"] == "regression"
-                and payload["model_performance_metric"]
-                not in MODEL_PERF_METRICS_REGRESSION
-            ):
-                raise Exception(
-                    f"{payload['model_performance_metric']} is not a valid model_performance_metric. Pick a valid value from {MODEL_PERF_METRICS_REGRESSION}."
+                Validate.value_against_list(
+                    "class_label", payload["class_label"], all_class_label
                 )
+
+                Validate.value_against_list(
+                    "model_performance_metric",
+                    payload["model_performance_metric"],
+                    MODEL_PERF_METRICS_CLASSIFICATION,
+                )
+
+            if payload["model_type"] == "regression":
+                Validate.value_against_list(
+                    "model_performance_metric",
+                    payload["model_performance_metric"],
+                    MODEL_PERF_METRICS_REGRESSION,
+                )
+
         else:
             raise Exception(
                 'Invalid trigger type. Please use one of ["Data Drift", "Target Drift", "Model Performance"]'
             )
 
-        if payload["frequency"] not in MAIL_FREQUENCIES:
-            raise Exception(
-                f"Invalid frequency value. Please use one of {MAIL_FREQUENCIES}"
-            )
+        Validate.value_against_list("frequency", payload["frequency"], MAIL_FREQUENCIES)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
@@ -1348,27 +1351,19 @@ class Project(BaseModel):
 
         available_models = self.available_models()
 
-        if model_type not in available_models:
-            raise Exception(
-                f"{model_type} is not a valid model_type, select from \n{available_models}"
-            )
+        Validate.value_against_list("model_type", model_type, available_models)
 
         if data_config:
             if data_config.get("feature_exclude"):
-                if not all(
-                    feature in project_config["metadata"]["feature_include"]
-                    for feature in data_config["feature_exclude"]
-                ):
-                    raise Exception(
-                        f"feature_exclude is not valid,\nalready excluded features : {project_config['metadata']['feature_exclude']} \nselect valid values from : {project_config['metadata']['feature_include'] }"
-                    )
+                Validate.value_against_list(
+                    "feature_exclude",
+                    data_config["feature_exclude"],
+                    project_config["metadata"]["feature_include"],
+                )
 
             if data_config.get("tags"):
                 available_tags = self.tags()
-                if not all(tag in available_tags for tag in data_config["tags"]):
-                    raise Exception(
-                        f"tags is not valid,select valid values from :\n{available_tags}"
-                    )
+                Validate.value_against_list("tags", data_config["tags"], available_tags)
 
         if model_config:
             model_params = self.__api_client.get(MODEL_PARAMETERS_URI)
@@ -1386,10 +1381,11 @@ class Project(BaseModel):
                         )
 
                     if model_param["type"] == "select":
-                        if model_config_param_value not in model_param["value"]:
-                            raise Exception(
-                                f"Invalid value for {model_config_param}, select from {model_param['value']}"
-                            )
+                        Validate.value_against_list(
+                            model_config_param,
+                            model_config_param_value,
+                            model_param["value"],
+                        )
                     elif model_param["type"] == "input":
                         if model_config_param_value > model_param["max"]:
                             raise Exception(
@@ -1537,10 +1533,8 @@ class Project(BaseModel):
 
         available_models = models["model_name"].to_list()
 
-        if model_name and model_name not in available_models:
-            raise Exception(
-                f"{model_name} model is not valid,select valid model from :\n{available_models}"
-            )
+        if model_name:
+            Validate.value_against_list("model_name", model_name, available_models)
 
         model = (
             model_name
@@ -1702,10 +1696,7 @@ class Project(BaseModel):
         """
         if tag:
             all_tags = self.all_tags()
-            if tag not in all_tags:
-                raise Exception(
-                    f"Invalid {tag} tag, select valid tag from \n{all_tags}"
-                )
+            Validate.value_against_list("tag", tag, all_tags)
 
         paylod = {
             "project_name": self.project_name,
@@ -1916,7 +1907,7 @@ class Project(BaseModel):
 
         Validate.string("statement", statement)
 
-        Validate.list_against_list(
+        Validate.value_against_list(
             "linked_feature",
             linked_features,
             observation_params["details"]["eng_features"],
@@ -1991,7 +1982,7 @@ class Project(BaseModel):
             payload["update_keys"]["metadata"] = {"expression": expression}
 
         if linked_features:
-            Validate.list_against_list(
+            Validate.value_against_list(
                 "linked_feature",
                 linked_features,
                 observation_params["details"]["eng_features"],
@@ -2124,7 +2115,7 @@ class Project(BaseModel):
             lambda metadata: generate_expression(metadata["expression"])
         )
 
-        policy_df.insert["updated_expression"] = policy_df["updated_keys"].apply(
+        policy_df["updated_expression"] = policy_df["updated_keys"].apply(
             lambda data: generate_expression(data.get("metadata", {}).get("expression"))
             if data
             else None
@@ -2381,9 +2372,7 @@ class Project(BaseModel):
             model_params = all_models_param[model_name]
         except KeyError as e:
             availabel_models = list(all_models_param.keys())
-            Validate.raise_exception_on_invalid_value(
-                [model_name], availabel_models, field_name="model"
-            )
+            Validate.value_against_list("model", [model_name], availabel_models)
 
         # validate and prepare data config
         data_config["model_name"] = model_name
@@ -2391,23 +2380,22 @@ class Project(BaseModel):
         available_tags = self.tags()
         tags = data_config.get("tags", project_config["avaialble_tags"])
 
-        Validate.raise_exception_on_invalid_value(
-            tags, available_tags, field_name="tag"
-        )
+        Validate.value_against_list("tag", tags, available_tags)
 
         feature_exclude = data_config.get(
             "feature_exclude", project_config["feature_exclude"]
         )
 
-        Validate.raise_exception_on_invalid_value(
-            feature_exclude, project_config["avaialble_options"]
+        Validate.value_against_list(
+            "feature_exclude", feature_exclude, project_config["avaialble_options"]
         )
 
         feature_include = data_config.get(
             "feature_include", project_config["feature_include"]
         )
 
-        Validate.raise_exception_on_invalid_value(
+        Validate.value_against_list(
+            "feature_include",
             feature_include,
             project_config["avaialble_options"],
         )
@@ -2435,8 +2423,8 @@ class Project(BaseModel):
                                 f"{key} value should be between {model_param['min']} and {model_param['max']}"
                             )
                     elif model_param["type"] == "select":
-                        Validate.raise_exception_on_invalid_value(
-                            [value], model_param["value"]
+                        Validate.value_against_list(
+                            "value", [value], model_param["value"]
                         )
 
         payload = {
@@ -2613,7 +2601,7 @@ def poll_events(
     api_client: APIClient,
     project_name: str,
     event_id: str,
-    handle_failed_event: Optional[function] = None,
+    handle_failed_event: Optional[Callable] = None,
 ):
     last_message = ""
     log_length = 0
@@ -2741,16 +2729,16 @@ def validate_configuration(configuration, params):
 
         if isinstance(expression, dict):
             # validate column name
-            if expression.get("column") not in params.get("eng_features"):
-                raise Exception(
-                    f"{expression.get('column')} is not a valid feature, select valid features from\n{params.get('eng_features')}"
-                )
+            Validate.value_against_list(
+                "feature", expression.get("column"), params.get("eng_features")
+            )
 
             # validate operator
-            if expression.get("expression") not in params.get("condition_operators"):
-                raise Exception(
-                    f"{expression.get('expression')} is not a valid expression"
-                )
+            Validate.value_against_list(
+                "condition_operator",
+                expression.get("expression"),
+                params.get("condition_operators"),
+            )
 
             # validate value(s)
             expression_value = expression.get("value")

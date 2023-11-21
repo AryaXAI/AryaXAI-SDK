@@ -10,7 +10,18 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.types import SyntheticDataConfig
 from aryaxai.common.utils import pretty_date
 from aryaxai.common.validation import Validate
-from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI, GET_SYNTHETIC_DATA_TAGS_URI, GET_SYNTHETIC_TRAINING_LOGS_URI, UPDATE_SYNTHETIC_PROMPT_URI
+from aryaxai.common.xai_uris import (
+    DELETE_SYNTHETIC_MODEL_URI,
+    DELETE_SYNTHETIC_TAG_URI,
+    DOWNLOAD_SYNTHETIC_DATA_URI,
+    GENERATE_ANONYMITY_SCORE_URI,
+    GENERATE_SYNTHETIC_DATA_URI,
+    GET_ANONYMITY_SCORE_URI,
+    GET_SYNTHETIC_DATA_TAGS_URI,
+    GET_SYNTHETIC_TRAINING_LOGS_URI,
+    UPDATE_SYNTHETIC_PROMPT_URI,
+)
+
 
 class SyntheticDataTag(BaseModel):
     __api_client: APIClient
@@ -22,7 +33,7 @@ class SyntheticDataTag(BaseModel):
     created_at: str
 
     overall_quality_score: float
-    column_shapes:float
+    column_shapes: float
     column_pair_trends: float
 
     metadata: Optional[dict] = {}
@@ -59,24 +70,17 @@ class SyntheticDataTag(BaseModel):
         """
         all_tags = self.project.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
+        Validate.value_against_list(
+            "tag",
             [self.tag],
             all_tags,
-            field_name='tag'
         )
 
-        payload = {
-            "project_name": self.project_name,
-            "tag": self.tag
-        }
+        payload = {"project_name": self.project_name, "tag": self.tag}
 
-        res = self.__api_client.request(
-            'POST',
-            DOWNLOAD_SYNTHETIC_DATA_URI,
-            payload
-        )
+        res = self.__api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
 
-        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+        synthetic_data = pd.read_csv(io.StringIO(res.content.decode("utf-8")))
 
         return synthetic_data
 
@@ -88,10 +92,10 @@ class SyntheticDataTag(BaseModel):
         """
         all_tags = self.project.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
+        Validate.value_against_list(
+            "tag",
             [self.tag],
             all_tags,
-            field_name='tag'
         )
 
         payload = {
@@ -116,12 +120,14 @@ class SyntheticDataTag(BaseModel):
     def __repr__(self) -> str:
         return self.__print__()
 
+
 class SyntheticModel(BaseModel):
     """Synthetic Model Class
 
     :param BaseModel: _description_
     :return: _description_
     """
+
     __api_client: APIClient
     project_name: str
     project: Any
@@ -149,7 +155,7 @@ class SyntheticModel(BaseModel):
 
         :return: model type
         """
-        return self.metadata['model_name']
+        return self.metadata["model_name"]
 
     def get_data_quality(self) -> pd.DataFrame:
         """get data quality
@@ -159,7 +165,7 @@ class SyntheticModel(BaseModel):
         quality = {
             "overall_quality_score": self.overall_quality_score,
             "column_shapes": self.column_shapes,
-            "column_pair_trends": self.column_pair_trends
+            "column_pair_trends": self.column_pair_trends,
         }
 
         df = pd.DataFrame(quality, index=[0])
@@ -179,7 +185,7 @@ class SyntheticModel(BaseModel):
                 go.Bar(
                     x=[x_data[i] for i in indices],
                     y=[y_data[i] for i in indices],
-                    name=metric
+                    name=metric,
                 )
             )
 
@@ -224,15 +230,15 @@ class SyntheticModel(BaseModel):
         payload = {
             "project_name": self.project_name,
             "model_name": self.model_name,
-            "num_of_datapoints": num_of_datapoints
+            "num_of_datapoints": num_of_datapoints,
         }
 
         res = self.__api_client.post(GENERATE_SYNTHETIC_DATA_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        return res['details']
+        return res["details"]
 
     def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
         """generate anonymity score
@@ -244,37 +250,31 @@ class SyntheticModel(BaseModel):
         :return: None
         """
         if len(aux_columns) < 2:
-            raise Exception('aux_columns requires minimum 2 columns.')
+            raise Exception("aux_columns requires minimum 2 columns.")
 
-        project_config = self.project.config()['metadata']
+        project_config = self.project.config()["metadata"]
 
-        Validate.raise_exception_on_invalid_value(
-            aux_columns,
-            project_config['feature_include'],
-            'feature'
+        Validate.value_against_list(
+            "feature", aux_columns, project_config["feature_include"]
         )
 
         all_tags = self.project.all_tags()
 
-        Validate.raise_exception_on_invalid_value(
-            [control_tag],
-            all_tags,
-            field_name='tag'
-        )
+        Validate.value_against_list("tag", [control_tag], all_tags)
 
         payload = {
             "aux_columns": aux_columns,
             "control_tag": control_tag,
             "model_name": self.model_name,
-            "project_name": self.project_name
+            "project_name": self.project_name,
         }
 
         res = self.__api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        return res['details']
+        return res["details"]
 
     def get_anonymity_score(self):
         """get anonymity score
@@ -289,27 +289,24 @@ class SyntheticModel(BaseModel):
 
         res = self.__api_client.post(GET_ANONYMITY_SCORE_URI, payload)
 
-        if not res['success']:
-            print(res['details'])
-            raise Exception('Error while getting anonymity score.')
+        if not res["success"]:
+            print(res["details"])
+            raise Exception("Error while getting anonymity score.")
 
-        return res['details']['scores']
+        return res["details"]["scores"]
 
     def delete(self):
         """
         deletes current model
         """
-        payload = {
-            "project_name": self.project_name,
-            "model_name": self.model_name
-        }
+        payload = {"project_name": self.project_name, "model_name": self.model_name}
 
         res = self.__api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        return res['details']
+        return res["details"]
 
     def get_tags(self) -> List[SyntheticDataTag]:
         """get synthetic data tags of the model
@@ -323,14 +320,17 @@ class SyntheticModel(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics data tags.")
 
-        data_tags = res['details']
+        data_tags = res["details"]
 
-        synthetic_data_tags = [SyntheticDataTag(
-                    **data_tag,
-                    api_client=self.__api_client,
-                    project_name=self.project_name,
-                    project=self.project
-                ) for data_tag in data_tags]
+        synthetic_data_tags = [
+            SyntheticDataTag(
+                **data_tag,
+                api_client=self.__api_client,
+                project_name=self.project_name,
+                project=self.project,
+            )
+            for data_tag in data_tags
+        ]
 
         return synthetic_data_tags
 
@@ -342,11 +342,13 @@ class SyntheticModel(BaseModel):
         """
         data_tags = self.get_tags()
 
-        data_tag = next((data_tag for data_tag in data_tags if data_tag.tag == tag), None)
+        data_tag = next(
+            (data_tag for data_tag in data_tags if data_tag.tag == tag), None
+        )
 
         if not data_tag:
             valid_tags = [data_tag.tag for data_tag in data_tags]
-            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
+            raise Exception(f"{tag} is invalid. Pick a valid value from {valid_tags}")
 
         return data_tag
 
@@ -360,6 +362,7 @@ class SyntheticModel(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
+
 
 class SyntheticPrompt(BaseModel):
     __api_client: APIClient
@@ -388,23 +391,25 @@ class SyntheticPrompt(BaseModel):
         expression_list = []
 
         if not self.metadata:
-            raise Exception('Expression not found.')
+            raise Exception("Expression not found.")
 
-        for item in self.metadata['expression']:
+        for item in self.metadata["expression"]:
             if isinstance(item, dict):
-                expression_list.append(f"{item['column']} {item['expression']} {item['value']}")
+                expression_list.append(
+                    f"{item['column']} {item['expression']} {item['value']}"
+                )
             else:
                 expression_list.append(item)
 
-        return ' '.join(expression_list)
-    
+        return " ".join(expression_list)
+
     def get_config(self) -> List[dict]:
         """get prompt configuration
 
         :return: prompt configuration
         """
         return self.configuration
-    
+
     def activate(self) -> str:
         """activate prompt
 
@@ -412,27 +417,25 @@ class SyntheticPrompt(BaseModel):
         :raises Exception: _description_
         :return: response message
         """
-        if self.status == 'active':
-            raise Exception('Prompt is already active.')
+        if self.status == "active":
+            raise Exception("Prompt is already active.")
 
         payload = {
             "delete": False,
             "project_name": self.project_name,
             "prompt_id": self.prompt_id,
-            "update_keys": {
-                "status": "active"
-            }
+            "update_keys": {"status": "active"},
         }
 
         res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        self.status = res['details'][0]['status']
+        self.status = res["details"][0]["status"]
 
-        return 'Prompt activated successfully.'
-        
+        return "Prompt activated successfully."
+
     def deactivate(self) -> str:
         """deactive prompt
 
@@ -440,28 +443,26 @@ class SyntheticPrompt(BaseModel):
         :raises Exception: _description_
         :return: response message
         """
-        if self.status == 'inactive':
-            raise Exception('Prompt is already inactive.')
+        if self.status == "inactive":
+            raise Exception("Prompt is already inactive.")
 
         payload = {
             "delete": False,
             "project_name": self.project_name,
             "prompt_id": self.prompt_id,
-            "update_keys": {
-                "status": "inactive"
-            }
+            "update_keys": {"status": "inactive"},
         }
 
         res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        self.status = res['details'][0]['status']
+        self.status = res["details"][0]["status"]
 
-        return 'Prompt deactivated successfully.'
+        return "Prompt deactivated successfully."
 
-    '''
+    """
     def delete(self) -> str:
         payload = {
             "delete": True,
@@ -476,7 +477,7 @@ class SyntheticPrompt(BaseModel):
             raise Exception(res['details'])
         
         return res['details']
-    '''
+    """
 
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)

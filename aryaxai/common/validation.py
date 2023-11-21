@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 
 class Validate:
@@ -13,20 +13,29 @@ class Validate:
             raise Exception(f"{field_name} is required, cannot be empty list")
 
     @staticmethod
-    def value_against_list(field_name: str, value: str, valid_list: List):
-        if value not in valid_list:
-            raise Exception(
-                f"{value} is not valid {field_name}, select from {valid_list}"
-            )
-
-    @staticmethod
-    def list_against_list(field_name: str, value: List, valid_list: List):
-        Validate.list(field_name, value)
-        for val in value:
-            if val not in valid_list:
-                raise Exception(
-                    f"{val} is not a valid {field_name}, pick valid {field_name} from \n{valid_list}"
-                )
+    def value_against_list(
+        field_name: str,
+        value: str | List,
+        valid_list: List,
+        handle_error: Optional[Callable] = None,
+    ):
+        try:
+            if isinstance(value, str):
+                if value not in valid_list:
+                    raise Exception(
+                        f"{value} is not valid {field_name}, select from \n{valid_list}"
+                    )
+            if isinstance(value, List):
+                Validate.list(field_name, value)
+                for val in value:
+                    if val not in valid_list:
+                        raise Exception(
+                            f"{val} is not a valid {field_name}, pick valid {field_name} from \n{valid_list}"
+                        )
+        except Exception as e:
+            if handle_error:
+                handle_error()
+            raise e
 
     @staticmethod
     def check_for_missing_keys(value: dict, required_keys: list):
@@ -34,15 +43,6 @@ class Validate:
 
         if missing_keys:
             raise Exception(f"Keys not present: {missing_keys}")
-
-    @staticmethod
-    def validate_tags(tags: List[str], all_tags: List[str]):
-        if tags:
-            for tag in tags:
-                if tag not in all_tags:
-                    raise Exception(
-                        f"{tag} is not a valid tag. Pick a valid value from {all_tags}."
-                    )
 
     @staticmethod
     def validate_date_feature_val(payload: dict, all_datetime_features: List[str]):
@@ -73,30 +73,3 @@ class Validate:
                 raise Exception(
                     "start_date of current_date should be less than end_date."
                 )
-
-    @staticmethod
-    def validate_features(features: List[str], all_features: List[str]):
-        if features:
-            for feature in features:
-                if feature not in all_features:
-                    raise Exception(
-                        f"{feature} is not a valid feature. Pick a valid value from {all_features}."
-                    )
-
-    @staticmethod
-    def raise_exception_on_invalid_value(
-        values: List[str], valid_values: List[str], field_name: str = "value"
-    ):
-        """raise exception if values are not among valid values
-
-        :param value: values to be validated
-        :param valid_values: list of valid values
-        :param field_name: field name to be added in exception message, defaults to 'value'
-        :raises Exception: Given value is invalid among valid values
-        """
-        if values and valid_values:
-            for value in values:
-                if value not in valid_values:
-                    raise Exception(
-                        f"{value} is not valid {field_name}. Pick a valid {field_name} from {valid_values}."
-                    )
