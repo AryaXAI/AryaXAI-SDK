@@ -2143,7 +2143,7 @@ class Project(BaseModel):
                 "old_decision",
                 "updated_decision",
                 "old_expression",
-                "updated_expresion",
+                "updated_expression",
                 "created_at",
                 "updated_at",
             ],
@@ -2724,7 +2724,7 @@ def build_expression(expression_string):
 def validate_configuration(configuration, params):
     for expression in configuration:
         if isinstance(expression, str):
-            if expression not in params.get("logical_operators"):
+            if expression not in ["(", ")", *params.get("logical_operators")]:
                 raise Exception(f"{expression} not a valid logical operator")
 
         if isinstance(expression, dict):
