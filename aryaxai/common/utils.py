@@ -1,4 +1,8 @@
 from datetime import datetime
+from aryaxai.client.client import APIClient
+from IPython.display import display, HTML
+
+from aryaxai.common.xai_uris import POLL_EVENTS
 
 def parse_float(s):
     """parse float from string, return None if not possible
@@ -38,3 +42,26 @@ def pretty_date(date: str) -> str:
             print("Date format invalid.")
 
     return datetime_obj.strftime('%d-%m-%Y %H:%M:%S')
+
+def poll_events(api_client: APIClient, project_name: str, event_id: str):
+    last_message = ""
+    log_length = 0
+
+    for event in api_client.stream(
+        f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
+    ):
+        details = event.get("details")
+
+        if not event.get("success"):
+            raise Exception(details)
+        if details.get("status") == "failed":
+            raise Exception(details.get("message"))
+        if details.get("logs"):
+            print(details.get("logs")[log_length:])
+            log_length = len(details.get("logs"))
+        if details.get("message") != last_message:
+            last_message = details.get("message")
+            print(f"message: {details.get('message')}")
+        if details.get("progress"):
+            progress = details.get("progress")
+            display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))

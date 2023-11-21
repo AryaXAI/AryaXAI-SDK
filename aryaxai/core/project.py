@@ -22,7 +22,7 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig, SyntheticModelHyperParams
-from aryaxai.common.utils import parse_datetime, parse_float
+from aryaxai.common.utils import parse_datetime, parse_float, poll_events
 from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
@@ -71,7 +71,6 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_PROMPT_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
-    POLL_EVENTS,
     REMOVE_MODEL_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
@@ -2710,27 +2709,6 @@ class Project(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
-
-
-def poll_events(api_client: APIClient, project_name: str, event_id: str):
-    last_message = ""
-    log_length = 0
-
-    for event in api_client.stream(
-        f"{POLL_EVENTS}?project_name={project_name}&event_id={event_id}"
-    ):
-        details = event.get("details")
-
-        if not event.get("success"):
-            raise Exception(details)
-        if details.get("status") == "failed":
-            raise Exception(details.get("message"))
-        if details.get("logs"):
-            print(details.get("logs")[log_length:])
-            log_length = len(details.get("logs"))
-        if details.get("message") != last_message:
-            last_message = details.get("message")
-            print(f"message: {details.get("message")}")
 
 def generate_expression(expression):
     if not expression:

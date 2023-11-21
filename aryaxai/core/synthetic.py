@@ -7,10 +7,9 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from aryaxai.client.client import APIClient
-from aryaxai.common.utils import pretty_date
+from aryaxai.common.utils import poll_events, pretty_date
 from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI
-from aryaxai.core.project import poll_events
 
 class SyntheticDataTag(BaseModel):
     __api_client: APIClient
