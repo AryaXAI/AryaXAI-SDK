@@ -15,15 +15,26 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: Fetch tags
         run: git fetch --prune --tags
+
       - name: Get Release Notes
         id: release_notes
         run: |
           RELEASE_NOTES=$(gh release view $(git describe --tags --abbrev=0) --notes)
           echo "::set-output name=text::$RELEASE_NOTES"
+
+      - name: Install dependencies and run tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+          pytest tests/
+
       - name: Build package
         run: python3 -m pip install --upgrade build && python3 -m build
+
       - name: Publish package to PyPI
         run: |
           python -m pip install --upgrade twine
@@ -32,8 +43,14 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       - name: Send release notes to Slack
-        uses: slack/github-action@v4
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
         with:
-          slack-token: ${{ secrets.SLACK_TOKEN }}
-          channel: '#your-channel'
-          text: ${{ steps.release_notes.outputs.text }}
+          # Slack channel id, channel name, or user id to post message.
+          # See also: https://api.slack.com/methods/chat.postMessage#channels
+          # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+          channel-id: 'aryaxi-backend'
+          # For posting a simple plain text message
+          slack-message: "Release notes:\n\n${{ steps.release_notes.outputs.text }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
