@@ -179,7 +179,13 @@ class SyntheticModel(BaseModel):
             raise Exception(res["details"])
 
         print('Generating synthetic datapoints...')
-        poll_events(self.__api_client, self.project_name, res["event_id"])
+        poll_events(
+            self.__api_client,
+            self.project_name,
+            res["event_id"],
+            progress_message="Synthetic Data generation progress"
+        )
+        print('Synthetic datapoints generated successfully.\n')
 
     def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
         """generate anonymity score
