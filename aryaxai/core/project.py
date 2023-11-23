@@ -682,7 +682,7 @@ class Project(BaseModel):
                 config = res["config"]
         except:
             pass
-        print(f"Using config: {config}")
+
         return config
 
     def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
