@@ -22,7 +22,7 @@ jobs:
       - name: Get Release Notes
         id: release_notes
         run: |
-          RELEASE_NOTES=$(gh release view --json body)
+          RELEASE_NOTES=$(gh release view --json body | jq -r .body)
           echo "::set-output name=text::$RELEASE_NOTES"
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -57,6 +57,7 @@ jobs:
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'aryaxai-sdk-release'
           # For posting a simple plain text message
-          slack-message: "Release notes:\n\n${{ steps.release_notes.outputs.text }}"
+          slack-message: "Release:\n\n${{ steps.release_notes.outputs.text }}"
+          mrkdwn: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
