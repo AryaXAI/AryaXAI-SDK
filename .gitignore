@@ -20,5 +20,9 @@ _templates
 # Venv
 *venv
 
+# env file
+.env.local
+.env.testing
+
 # package version file
 aryaxai/version.py
