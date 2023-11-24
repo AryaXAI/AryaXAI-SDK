@@ -74,14 +74,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Date:* $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+                    "text": "*Release Date:* $(date -u +\"%Y-%m-%d %H:%M:%S UTC\")"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*PyPI URL:* [aryaxai/${TAG_NAME}](https://pypi.org/project/aryaxai/${TAG_NAME}/)"
+                    "text": "*PyPI URL:* https://pypi.org/project/aryaxai/${TAG_NAME}"
                   }
                 },
                 {
