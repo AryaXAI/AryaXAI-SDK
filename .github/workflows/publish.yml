@@ -67,21 +67,21 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Version:* ${TAG_NAME}"
+                    "text": "*Release Version:* ${{ TAG_NAME }}"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Date:* $(date -u +\"%Y-%m-%d %H:%M:%S UTC\")"
+                    "text": "*Release Date:* ${{ github.event.created_at }}"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*PyPI URL:* https://pypi.org/project/aryaxai/${TAG_NAME}"
+                    "text": "*PyPI URL:* https://pypi.org/project/aryaxai/${{ TAG_NAME }}"
                   }
                 },
                 {
@@ -91,7 +91,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Notes:* ${RELEASE_NOTES}"
+                    "text": "*Release Notes:* ${{ RELEASE_NOTES }}"
                   }
                 }
               ]
