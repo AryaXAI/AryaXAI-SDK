@@ -22,7 +22,7 @@ jobs:
       - name: Get Release Notes
         id: release_notes
         run: |
-          RELEASE_NOTES=$(gh release view $(git describe --tags --abbrev=0) --notes)
+          RELEASE_NOTES=$(gh release view)
           echo "::set-output name=text::$RELEASE_NOTES"
 
       - name: Install dependencies and run tests
