@@ -23,7 +23,7 @@ jobs:
         id: release_notes
         run: |
           TAG_NAME=$(gh release view --json tagName | jq -r .tagName)
-          RELEASE_NOTES=$(gh release view --json body | jq -r .url)
+          RELEASE_NOTES=$(gh release view --json url | jq -r .url)
           RELEASE_NOTES="${RELEASE_NOTES//$'\n'/\\n}"
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_OUTPUT
