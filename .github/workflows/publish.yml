@@ -24,6 +24,8 @@ jobs:
         run: |
           RELEASE_NOTES=$(gh release view)
           echo "::set-output name=text::$RELEASE_NOTES"
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Install dependencies and run tests
         run: |
