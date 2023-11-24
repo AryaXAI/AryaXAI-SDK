@@ -21,7 +21,12 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS_REGRESSION,
     TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
-from aryaxai.common.types import DataConfig, ProjectConfig, SyntheticDataConfig, SyntheticModelHyperParams
+from aryaxai.common.types import (
+    DataConfig,
+    ProjectConfig,
+    SyntheticDataConfig,
+    SyntheticModelHyperParams,
+)
 from aryaxai.common.utils import parse_datetime, parse_float, poll_events
 from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
@@ -541,6 +546,15 @@ class Project(BaseModel):
         model_name: str,
         model_data_tags: List[str],
     ):
+        """Uploads your custom model on AryaXAI
+
+        :param model_path: path of the model
+        :param model_architecture: architecture of model ["machine_learning", "deep_learning"]
+        :param model_type: type of the model based on the architecture
+        :param model_name: name of the model
+        :param model_data_tags: data tags for model
+        """
+
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
             res = self.__api_client.file(
@@ -2458,7 +2472,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        print('Training initiated...')
+        print("Training initiated...")
         poll_events(self.__api_client, self.project_name, res["event_id"])
 
     def remove_synthetic_model(self, model_name: str) -> str:
@@ -2470,20 +2484,19 @@ class Project(BaseModel):
         :return: response message
         """
         models_df = self.synthetic_models()
-        valid_models = models_df['model_name'].tolist()
+        valid_models = models_df["model_name"].tolist()
 
         if model_name not in valid_models:
-            raise ValueError(f"{model_name} is not valid. Pick a valid value from {valid_models}")
-        
-        payload = {
-            "project_name": self.project_name,
-            "model_name": model_name
-        }
+            raise ValueError(
+                f"{model_name} is not valid. Pick a valid value from {valid_models}"
+            )
+
+        payload = {"project_name": self.project_name, "model_name": model_name}
 
         res = self.__api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
         return f"{model_name} deleted successfully."
 
@@ -2513,10 +2526,12 @@ class Project(BaseModel):
         :return: _description_
         """
         models_df = self.synthetic_models()
-        valid_models = models_df['model_name'].tolist()
+        valid_models = models_df["model_name"].tolist()
 
         if model_name not in valid_models:
-            raise ValueError(f"{model_name} is not valid. Pick a valid value from {valid_models}")
+            raise ValueError(
+                f"{model_name} is not valid. Pick a valid value from {valid_models}"
+            )
 
         url = f"{GET_SYNTHETIC_MODEL_DETAILS_URI}?project_name={self.project_name}&model_name={model_name}"
 
@@ -2555,7 +2570,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics data tags.")
 
-        data_tags = res['details']
+        data_tags = res["details"]
 
         for data_tag in data_tags:
             del data_tag["metadata"]
@@ -2576,20 +2591,26 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception("Error while getting synthetics data tags.")
 
-        data_tags = res['details']
+        data_tags = res["details"]
 
-        syn_data_tags = [SyntheticDataTag(
-                    **data_tag,
-                    api_client=self.__api_client,
-                    project_name=self.project_name,
-                    project=self
-                ) for data_tag in data_tags]
+        syn_data_tags = [
+            SyntheticDataTag(
+                **data_tag,
+                api_client=self.__api_client,
+                project_name=self.project_name,
+                project=self,
+            )
+            for data_tag in data_tags
+        ]
 
-        data_tag = next((syn_data_tag for syn_data_tag in syn_data_tags if syn_data_tag.tag == tag), None)
+        data_tag = next(
+            (syn_data_tag for syn_data_tag in syn_data_tags if syn_data_tag.tag == tag),
+            None,
+        )
 
         if not data_tag:
             valid_tags = [syn_data_tag.tag for syn_data_tag in syn_data_tags]
-            raise Exception(f'{tag} is invalid. Pick a valid value from {valid_tags}')
+            raise Exception(f"{tag} is invalid. Pick a valid value from {valid_tags}")
 
         return data_tag
 
@@ -2603,23 +2624,16 @@ class Project(BaseModel):
         all_tags = self.all_tags()
 
         Validate.value_against_list(
-            'tag',
+            "tag",
             tag,
             all_tags,
         )
 
-        payload = {
-            "project_name": self.project_name,
-            "tag": tag
-        }
+        payload = {"project_name": self.project_name, "tag": tag}
 
-        res = self.__api_client.request(
-            "POST",
-            DOWNLOAD_SYNTHETIC_DATA_URI,
-            payload
-        )
+        res = self.__api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
 
-        synthetic_data = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+        synthetic_data = pd.read_csv(io.StringIO(res.content.decode("utf-8")))
 
         return synthetic_data
 
@@ -2632,7 +2646,7 @@ class Project(BaseModel):
         all_tags = self.all_tags()
 
         Validate.value_against_list(
-            'tag',
+            "tag",
             tag,
             all_tags,
         )
@@ -2706,23 +2720,23 @@ class Project(BaseModel):
         :return: response message
         """
         if status not in ["active", "inactive"]:
-            raise Exception("Invalid status value. Pick a valid value from ['active', 'inactive'].")
+            raise Exception(
+                "Invalid status value. Pick a valid value from ['active', 'inactive']."
+            )
 
         payload = {
             "delete": False,
             "project_name": self.project_name,
             "prompt_id": prompt_id,
-            "update_keys": {
-                "status": status
-            }
+            "update_keys": {"status": status},
         }
 
         res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
 
-        if not res['success']:
-            raise Exception(res['details'])
+        if not res["success"]:
+            raise Exception(res["details"])
 
-        return 'Synthetic prompt updated successfully.'
+        return "Synthetic prompt updated successfully."
 
     def synthetic_prompts(self) -> pd.DataFrame:
         """get synthetic prompts for the project
@@ -2739,7 +2753,9 @@ class Project(BaseModel):
 
         prompts = res["details"]
 
-        return pd.DataFrame(prompts).reindex(columns=["prompt_id", "prompt_name", "status", "created_at", "updated_at"])
+        return pd.DataFrame(prompts).reindex(
+            columns=["prompt_id", "prompt_name", "status", "created_at", "updated_at"]
+        )
 
     def synthetic_prompt(self, prompt_id: str) -> SyntheticPrompt:
         """get synthetic prompt by prompt id
@@ -2757,17 +2773,14 @@ class Project(BaseModel):
         prompts = res["details"]
 
         curr_prompt = next(
-            (prompt for prompt in prompts if prompt['prompt_id'] == prompt_id),
-            None
+            (prompt for prompt in prompts if prompt["prompt_id"] == prompt_id), None
         )
 
         if not curr_prompt:
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(
-            **curr_prompt,
-            api_client=self.__api_client,
-            project=self
+            **curr_prompt, api_client=self.__api_client, project=self
         )
 
     def __print__(self) -> str:
@@ -2778,6 +2791,7 @@ class Project(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
+
 
 def generate_expression(expression):
     if not expression:
