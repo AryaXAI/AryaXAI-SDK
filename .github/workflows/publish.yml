@@ -23,7 +23,7 @@ jobs:
         id: release_notes
         run: |
           TAG_NAME=$(gh release view --json tagName | jq -r .tagName)
-          RELEASE_NOTES=$(gh release view --json body | jq -r .body)
+          RELEASE_NOTES=$(gh release view --json body | jq -r .url)
           RELEASE_NOTES="${RELEASE_NOTES//$'\n'/\\n}"
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_OUTPUT
@@ -67,14 +67,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Version:* ${{ steps.release_notes.outputs.TAG_NAME }}"
+                    "text": "*Version:* ${{ steps.release_notes.outputs.TAG_NAME }}"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Release Date:* ${{ github.event.created_at }}"
+                    "text": "*Release Notes:* ${{ steps.release_notes.outputs.RELEASE_NOTES }}"
                   }
                 },
                 {
@@ -82,16 +82,6 @@ jobs:
                   "text": {
                     "type": "mrkdwn",
                     "text": "*PyPI URL:* https://pypi.org/project/aryaxai/${{ steps.release_notes.outputs.TAG_NAME }}"
-                  }
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Release Notes:* ${{ steps.release_notes.outputs.RELEASE_NOTES }}"
                   }
                 }
               ]
