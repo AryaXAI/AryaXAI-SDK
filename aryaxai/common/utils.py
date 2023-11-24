@@ -49,6 +49,7 @@ def poll_events(
     project_name: str,
     event_id: str,
     handle_failed_event: Optional[Callable] = None,
+    progress_message: str = "progress",
 ):
     last_message = ""
     log_length = 0
@@ -70,7 +71,7 @@ def poll_events(
         if details.get("progress"):
             if details.get("progress") != progress:
                 progress = details.get("progress")
-                print(f"progress: {progress}%")
+                print(f"{progress_message}: {progress}%")
             # display(HTML(f"<progress style='width:100%' value='{progress}' max='100'></progress>"))
         if details.get("status") == "failed":
             if handle_failed_event:
