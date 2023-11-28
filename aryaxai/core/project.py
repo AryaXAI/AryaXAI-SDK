@@ -680,24 +680,28 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_default_dashboard_config(self, uri: str) -> dict:
-        """get default config value of given dashboard
+    def get_default_dashboard(self, uri: str) -> dict:
+        """get default dashboard
 
         :param uri: uri of the dashboard
         :return: dict of dashboard config
         """
         config = {"project_name": self.project_name}
 
-        try:
-            res = self.__api_client.post(uri, config)
+        res = self.__api_client.post(uri, config)
 
-            if not res["success"]:
-                # take default config when not passed
-                config = res["config"]
-        except:
-            pass
+        if not res["success"]:
+            if "hosted_path" in res:
+                dashboard_url = res.get("hosted_path")
+                auth_token = self.__api_client.get_auth_token()
+                query_params = f"?id={auth_token}"
+                return Dashboard(
+                    config=res["config"], url=f"{dashboard_url}{query_params}"
+                )
 
-        return config
+        raise Exception(
+            "Cannot retrieve default dashboard, please create new dashboard"
+        )
 
     def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
         """get data drift dashboard
@@ -759,7 +763,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(DATA_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard(DATA_DRIFT_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -850,7 +854,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(TARGET_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard(TARGET_DRIFT_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -920,7 +924,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(BIAS_MONITORING_DASHBOARD_URI)
+            return self.get_default_dashboard(BIAS_MONITORING_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -994,7 +998,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(MODEL_PERFORMANCE_DASHBOARD_URI)
+            return self.get_default_dashboard(MODEL_PERFORMANCE_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
