@@ -1066,12 +1066,12 @@ class Project(BaseModel):
 
         return monitoring_triggers
 
-    def create_monitoring_trigger(self, type: str, payload: dict) -> str:
+    def create_monitoring_trigger(self, payload: dict) -> str:
         """create monitoring trigger for project
 
-        :param type: trigger type ["Data Drift", "Target Drift", "Model Performance"]
         :param payload: Data Drift Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
                     "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
@@ -1086,6 +1086,7 @@ class Project(BaseModel):
                     "current_tag": ""
                 } OR Target Drift Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
                     "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
@@ -1101,6 +1102,7 @@ class Project(BaseModel):
                     "current_true_label": ""
                 } OR Model Performance Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
                     "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
@@ -1114,17 +1116,21 @@ class Project(BaseModel):
                     "baseline_true_label": "",
                     "baseline_pred_label": ""
                 }
-                defaults to None
         :return: response
         """
+        Validate.value_against_list(
+            "trigger_type",
+            payload["trigger_type"],
+            ["Data Drift", "Target Drift", "Model Performance"],
+        )
+
         payload["project_name"] = self.project_name
-        payload["trigger_type"] = type
 
         # validate tags and labels
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        if type == "Data Drift":
+        if payload["trigger_type"] == "Data Drift":
             Validate.check_for_missing_keys(payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS)
 
             Validate.value_against_list(
@@ -1141,7 +1147,7 @@ class Project(BaseModel):
                     payload.get("features_to_use", []),
                     tags_info["alluniquefeatures"],
                 )
-        elif type == "Target Drift":
+        elif payload["trigger_type"] == "Target Drift":
             Validate.check_for_missing_keys(
                 payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
             )
@@ -1179,7 +1185,7 @@ class Project(BaseModel):
                 "current_true_label"[payload["current_true_label"]],
                 tags_info["alluniquefeatures"],
             )
-        elif type == "Model Performance":
+        elif payload["trigger_type"] == "Model Performance":
             Validate.check_for_missing_keys(payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS)
 
             Validate.value_against_list(
