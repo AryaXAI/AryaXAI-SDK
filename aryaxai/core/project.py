@@ -177,8 +177,8 @@ class Project(BaseModel):
     def remove_user_from_project(self, email: str) -> str:
         """Removes user from project
 
-        :param email: _description_
-        :return: _description_
+        :param email: user email
+        :return: response
         """
         payload = {
             "project_name": self.project_name,
@@ -348,7 +348,8 @@ class Project(BaseModel):
         self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
         """Uploads data for the current project
-        :param file_path: file path | dataframe to be uploaded
+        :param data: file path | dataframe to be uploaded
+        :param tag: tag for data
         :param config: project config
                 {
                     "project_type": "",
@@ -488,10 +489,11 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def upload_data_description(self, data: str | pd.DataFrame):
+    def upload_data_description(self, data: str | pd.DataFrame) -> str:
         """uploads data description for the project
 
         :param data: response
+        :return: response
         """
 
         def build_upload_data():
@@ -680,11 +682,11 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_default_dashboard(self, uri: str) -> dict:
+    def get_default_dashboard(self, uri: str) -> Dashboard:
         """get default dashboard
 
         :param uri: uri of the dashboard
-        :return: dict of dashboard config
+        :return: Dashboard
         """
         config = {"project_name": self.project_name}
 
@@ -758,8 +760,6 @@ class Project(BaseModel):
                         returns p_value
                         default threshold 0.05
                         drift detected when p_value < threshold
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
@@ -848,9 +848,6 @@ class Project(BaseModel):
                         returns p_value
                         default threshold 0.05
                         drift detected when p_value < threshold
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
@@ -916,11 +913,9 @@ class Project(BaseModel):
                     "model_type": "",
                     "baseline_true_label": "",
                     "baseline_pred_label": "",
-                    features_to_use: []
+                    "features_to_use": []
                 }
                 defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
@@ -993,8 +988,6 @@ class Project(BaseModel):
                     "current_pred_label": ""
                 }
                 defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
@@ -1052,7 +1045,7 @@ class Project(BaseModel):
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
 
-    def monitoring_triggers(self) -> dict:
+    def monitoring_triggers(self) -> pd.DataFrame:
         """get monitoring triggers of project
 
         :return: DataFrame
@@ -1081,7 +1074,7 @@ class Project(BaseModel):
                 {
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "stat_test_name": "",
                     "stat_test_threshold": 0,
                     "datadrift_features_per": 7,
@@ -1095,7 +1088,7 @@ class Project(BaseModel):
                 {
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "model_type": "",
                     "stat_test_name": ""
                     "stat_test_threshold": 0,
@@ -1110,7 +1103,7 @@ class Project(BaseModel):
                 {
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "model_type": "",
                     "model_performance_metric": "",
                     "model_performance_threshold": "",
@@ -1122,11 +1115,7 @@ class Project(BaseModel):
                     "baseline_pred_label": ""
                 }
                 defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :return: _description_
+        :return: response
         """
         payload["project_name"] = self.project_name
         payload["trigger_type"] = type
@@ -1280,11 +1269,11 @@ class Project(BaseModel):
 
         return "Monitoring trigger deleted successfully."
 
-    def alerts(self, page_num: int = 1) -> dict:
+    def alerts(self, page_num: int = 1) -> pd.DataFrame:
         """get monitoring alerts of project
 
         :param page_num: page num, defaults to 1
-        :return: DataFrame
+        :return: alerts DataFrame
         """
         payload = {"page_num": page_num, "project_name": self.project_name}
 
@@ -1300,11 +1289,11 @@ class Project(BaseModel):
 
         return pd.DataFrame(monitoring_alerts)
 
-    def get_alert_details(self, id: str) -> dict:
+    def get_alert_details(self, id: str) -> Alert:
         """get alert details by id
 
         :param id: alert or trigger id
-        :return: DataFrame
+        :return: Alert
         """
         payload = {
             "project_name": self.project_name,
@@ -1507,7 +1496,7 @@ class Project(BaseModel):
 
         return available_models
 
-    def activate_model(self, model_name: str):
+    def activate_model(self, model_name: str) -> str:
         """Sets the model to active for the project
 
         :param model_name: name of the model
@@ -1524,7 +1513,7 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def remove_model(self, model_name: str):
+    def remove_model(self, model_name: str) -> str:
         """Removes the trained model for the project
 
         :param model_name: name of the model
@@ -1541,7 +1530,9 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def model_inference(self, tag: str, model_name: Optional[str] = None):
+    def model_inference(
+        self, tag: str, model_name: Optional[str] = None
+    ) -> pd.DataFrame:
         """Run model inference on data
 
         :param tag: data tag for running inference
@@ -1590,7 +1581,7 @@ class Project(BaseModel):
 
         return tag_data_df
 
-    def model_summary(self, model_name: Optional[str] = None) -> dict:
+    def model_summary(self, model_name: Optional[str] = None) -> ModelSummary:
         """Model Summary
 
         :param model_name: name of the model, defaults to active model for project
@@ -1641,6 +1632,7 @@ class Project(BaseModel):
         :param tag: data tag for filtering, defaults to None
         :param start_date: start date for filtering, defaults to None
         :param end_date: end data for filtering, defaults to None
+        :return: casse details dataframe
         """
 
         def get_cases():
@@ -1765,7 +1757,7 @@ class Project(BaseModel):
         """clear user project notifications
 
         :raises Exception: _description_
-        :return: str
+        :return: response
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
 
@@ -2522,7 +2514,7 @@ class Project(BaseModel):
 
         return models_df
 
-    def synthetic_model(self, model_name: str) -> dict:
+    def synthetic_model(self, model_name: str) -> SyntheticModel:
         """get synthetic model details
 
         :param model_name: model name

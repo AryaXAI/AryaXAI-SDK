@@ -111,7 +111,7 @@ class XAI(BaseModel):
     def get_notifications(self) -> pd.DataFrame:
         """get user notifications
 
-        :return: DataFrame
+        :return: notification details dataFrame
         """
         res = self.__api_client.get(GET_NOTIFICATIONS_URI)
 
@@ -130,8 +130,7 @@ class XAI(BaseModel):
     def clear_notifications(self) -> str:
         """clear user notifications
 
-        :raises Exception: _description_
-        :return: str
+        :return: response
         """
         res = self.__api_client.post(CLEAR_NOTIFICATIONS_URI)
 
