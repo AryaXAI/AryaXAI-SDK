@@ -8,6 +8,7 @@ class ProjectConfig(TypedDict):
     tag: str
     pred_label: Optional[str]
     feature_exclude: Optional[List[str]]
+    drop_duplicate_uid: Optional[bool]
 
 
 class DataConfig(TypedDict):
