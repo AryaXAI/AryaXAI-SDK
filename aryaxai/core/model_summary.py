@@ -1,6 +1,6 @@
 from aryaxai.client.client import APIClient
-from aryaxai.common.xai_uris import MODEL_SVG_URI
-from typing import Dict
+from aryaxai.common.xai_uris import GET_PROJECT_CONFIG, MODEL_SVG_URI
+from typing import Dict, Optional
 from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 from IPython.display import SVG, display
@@ -11,7 +11,7 @@ class ModelSummary(BaseModel):
     project_type: str
     unique_identifier: str
     true_label: str
-    pred_label: str
+    pred_label: Optional[str] = None
     metadata: Dict
     model_results: Dict
     is_automl: bool
@@ -81,3 +81,16 @@ class ModelSummary(BaseModel):
 
         svg = SVG(res.get("details"))
         display(svg)
+
+    def data_config(self):
+        """returns data config for the project
+
+        :return: response
+        """
+        res = self.__api_client.get(
+            f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
+        )
+        res["details"].pop("updated_by")
+        res["details"]["metadata"].pop("path")
+
+        return res.get("details")

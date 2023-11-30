@@ -1,4 +1,5 @@
-from typing import List, Optional, TypedDict
+from typing import List, Optional, TypedDict, Dict
+
 
 class ProjectConfig(TypedDict):
     project_type: str
@@ -12,8 +13,9 @@ class ProjectConfig(TypedDict):
 class DataConfig(TypedDict):
     tags: List[str]
     feature_exclude: List[str]
-    feature_encodings: List[str]
+    feature_encodings: Dict[str, str]
     drop_duplicate_uid: bool
+
 
 class SyntheticDataConfig(TypedDict):
     model_name: str
@@ -22,6 +24,7 @@ class SyntheticDataConfig(TypedDict):
     feature_include: List[str]
     feature_actual_used: List[str]
     drop_duplicate_uid: bool
+
 
 class SyntheticModelHyperParams(TypedDict):
     # GPT2 hyper params
@@ -34,6 +37,6 @@ class SyntheticModelHyperParams(TypedDict):
     tabular_config: Optional[str]
     train_size: Optional[float]
 
-    #CTGAN hyper params
+    # CTGAN hyper params
     epochs: Optional[int]
     test_ratio: Optional[float]
