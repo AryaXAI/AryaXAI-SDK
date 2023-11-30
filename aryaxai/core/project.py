@@ -1357,7 +1357,7 @@ class Project(BaseModel):
                         {
                             "tags": List[str]
                             "feature_exclude": List[str]
-                            "feature_encodings": List[str]
+                            "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
                             "drop_duplicate_uid": bool
                         },
                         defaults to None
@@ -1385,6 +1385,18 @@ class Project(BaseModel):
                 available_tags = self.tags()
                 Validate.value_against_list("tags", data_config["tags"], available_tags)
 
+            if data_config.get("feature_encodings"):
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(data_config["feature_encodings"].keys()),
+                    list(project_config["metadata"]["feature_encodings"].keys()),
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(data_config["feature_encodings"].values()),
+                    ["labelencode", "countencode"],
+                )
+
         if model_config:
             model_params = self.__api_client.get(MODEL_PARAMETERS_URI)
             model_name = f"{model_type}_{project_config['project_type']}".lower()
@@ -1396,9 +1408,10 @@ class Project(BaseModel):
                     model_config_param_value = model_config[model_config_param]
 
                     if not model_param:
-                        raise Exception(
-                            f"Invalid model config for {model_type} \n {json.dumps(model_parameters)}"
-                        )
+                        # raise Exception(
+                        #     f"Invalid model config for {model_type} \n {json.dumps(model_parameters)}"
+                        # )
+                        continue
 
                     if model_param["type"] == "select":
                         Validate.value_against_list(
@@ -1457,11 +1470,15 @@ class Project(BaseModel):
             },
         }
 
+        print("Config :-")
+        print(json.dumps(payload["metadata"], indent=1))
+
         res = self.__api_client.post(TRAIN_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
+        print("\nTraining Initiated")
         poll_events(self.__api_client, self.project_name, res["event_id"])
 
         return "Model Trained Successfully"
