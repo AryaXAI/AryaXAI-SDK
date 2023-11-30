@@ -609,11 +609,11 @@ class Project(BaseModel):
             lambda: self.delete_file(uploaded_path),
         )
 
-    def data_summary(self, tag: str) -> pd.DataFrame:
-        """Data Summary for the project
+    def data_observations(self, tag: str) -> pd.DataFrame:
+        """Data Observations for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data summary dataframe
+        :return: data observations dataframe
         """
         res = self.__api_client.post(
             f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
@@ -635,11 +635,11 @@ class Project(BaseModel):
         summary = pd.DataFrame(res["data"]["data"][tag])
         return summary
 
-    def data_diagnosis(self, tag: str) -> pd.DataFrame:
-        """Data Diagnosis for the project
+    def data_warnings(self, tag: str) -> pd.DataFrame:
+        """Data warnings for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data diagnosis dataframe
+        :return: data warnings dataframe
         """
         res = self.__api_client.get(
             f"{GET_DATA_DIAGNOSIS_URI}?project_name={self.project_name}"
@@ -647,23 +647,23 @@ class Project(BaseModel):
         valid_tags = res["details"].keys()
 
         if not valid_tags:
-            raise Exception("Data diagnosis not available, please upload data first.")
+            raise Exception("Data warnings not available, please upload data first.")
 
         Validate.value_against_list("tag", tag, valid_tags)
 
-        data_diagnosis = pd.DataFrame(res["details"][tag]["alerts"])
-        data_diagnosis[["Tag", "Description"]] = data_diagnosis[0].str.extract(
+        data_warnings = pd.DataFrame(res["details"][tag]["alerts"])
+        data_warnings[["Tag", "Description"]] = data_warnings[0].str.extract(
             r"\['(.*?)'] (.+?) #"
         )
-        data_diagnosis["Description"] = data_diagnosis["Description"].str.replace(
+        data_warnings["Description"] = data_warnings["Description"].str.replace(
             r"[^\w\s]", "", regex=True
         )
-        data_diagnosis = data_diagnosis[["Description", "Tag"]]
+        data_warnings = data_warnings[["Description", "Tag"]]
 
-        data = {"Warnings": len(data_diagnosis)}
+        data = {"Warnings": len(data_warnings)}
         print(data)
 
-        return data_diagnosis
+        return data_warnings
 
     def data_drift_diagnosis(
         self, baseline_tags: List[str], current_tags: List[str]
