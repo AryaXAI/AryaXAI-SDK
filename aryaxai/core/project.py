@@ -75,6 +75,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
+    MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
@@ -214,6 +215,10 @@ class Project(BaseModel):
         res = self.__api_client.get(
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
         )
+        if res.get("details") != "Not Found":
+            res["details"].pop("updated_by")
+            res["details"]["metadata"].pop("path")
+            res["details"]["metadata"].pop("avaialble_tags")
 
         return res.get("details")
 
@@ -357,6 +362,7 @@ class Project(BaseModel):
                     "true_label": "",
                     "pred_label": "",
                     "feature_exclude": [],
+                    "drop_duplicate_uid: ""
                 },
                 defaults to None
         :return: response
@@ -399,9 +405,10 @@ class Project(BaseModel):
                     "true_label": "",
                     "pred_label": "",
                     "feature_exclude": [],
+                    "drop_duplicate_uid": False,
                 }
                 raise Exception(
-                    f"Project Config is required, since no config is set for project \n {json.dumps(config)}"
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
                 )
 
             Validate.check_for_missing_keys(
@@ -455,7 +462,7 @@ class Project(BaseModel):
                     "path": uploaded_path,
                     "tag": tag,
                     "tags": [tag],
-                    "drop_duplicate_uid": False,
+                    "drop_duplicate_uid": config.get("drop_duplicate_uid"),
                     "feature_exclude": feature_exclude,
                     "feature_include": feature_include,
                     "feature_encodings": {},
@@ -602,11 +609,11 @@ class Project(BaseModel):
             lambda: self.delete_file(uploaded_path),
         )
 
-    def data_summary(self, tag: str) -> pd.DataFrame:
-        """Data Summary for the project
+    def data_observations(self, tag: str) -> pd.DataFrame:
+        """Data Observations for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data summary dataframe
+        :return: data observations dataframe
         """
         res = self.__api_client.post(
             f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
@@ -628,11 +635,11 @@ class Project(BaseModel):
         summary = pd.DataFrame(res["data"]["data"][tag])
         return summary
 
-    def data_diagnosis(self, tag: str) -> pd.DataFrame:
-        """Data Diagnosis for the project
+    def data_warnings(self, tag: str) -> pd.DataFrame:
+        """Data warnings for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data diagnosis dataframe
+        :return: data warnings dataframe
         """
         res = self.__api_client.get(
             f"{GET_DATA_DIAGNOSIS_URI}?project_name={self.project_name}"
@@ -640,23 +647,23 @@ class Project(BaseModel):
         valid_tags = res["details"].keys()
 
         if not valid_tags:
-            raise Exception("Data diagnosis not available, please upload data first.")
+            raise Exception("Data warnings not available, please upload data first.")
 
         Validate.value_against_list("tag", tag, valid_tags)
 
-        data_diagnosis = pd.DataFrame(res["details"][tag]["alerts"])
-        data_diagnosis[["Tag", "Description"]] = data_diagnosis[0].str.extract(
+        data_warnings = pd.DataFrame(res["details"][tag]["alerts"])
+        data_warnings[["Tag", "Description"]] = data_warnings[0].str.extract(
             r"\['(.*?)'] (.+?) #"
         )
-        data_diagnosis["Description"] = data_diagnosis["Description"].str.replace(
+        data_warnings["Description"] = data_warnings["Description"].str.replace(
             r"[^\w\s]", "", regex=True
         )
-        data_diagnosis = data_diagnosis[["Description", "Tag"]]
+        data_warnings = data_warnings[["Description", "Tag"]]
 
-        data = {"Warnings": len(data_diagnosis)}
+        data = {"Warnings": len(data_warnings)}
         print(data)
 
-        return data_diagnosis
+        return data_warnings
 
     def data_drift_diagnosis(
         self, baseline_tags: List[str], current_tags: List[str]
@@ -1501,6 +1508,15 @@ class Project(BaseModel):
 
         return staged_models_df
 
+    def active_model(self) -> pd.DataFrame:
+        """Current Active Model for project
+
+        :return: current active model dataframe
+        """
+        staged_models_df = self.models()
+        active_model = staged_models_df[staged_models_df["status"] == "active"]
+        return active_model
+
     def available_models(self) -> List[str]:
         """Returns all models which can be trained on platform
 
@@ -1603,6 +1619,23 @@ class Project(BaseModel):
         tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
 
         return tag_data_df
+
+    def model_inferences(self) -> pd.DataFrame:
+        """All model inferences
+
+        :return: model inferences dataframe
+        """
+
+        res = self.__api_client.get(
+            f"{MODEL_INFERENCES_URI}?project_name={self.project_name}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        model_inference_df = pd.DataFrame(res["details"]["inference_details"])
+
+        return model_inference_df
 
     def model_summary(self, model_name: Optional[str] = None) -> ModelSummary:
         """Model Summary
@@ -2418,7 +2451,7 @@ class Project(BaseModel):
         data_config["model_name"] = model_name
 
         available_tags = self.tags()
-        tags = data_config.get("tags", project_config["avaialble_tags"])
+        tags = data_config.get("tags", available_tags)
 
         Validate.value_against_list("tag", tags, available_tags)
 

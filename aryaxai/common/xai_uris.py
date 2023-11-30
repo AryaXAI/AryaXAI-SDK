@@ -52,6 +52,7 @@ DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
 MODEL_SUMMARY_URI = f"{API_VERSION}/project/get_model_perfermance"
 MODEL_SVG_URI = f"{API_VERSION}/project/get_model_svg_plot"
 GET_MODEL_PERFORMANCE_URI = f"{API_VERSION}/dashboard/model_performance"
+MODEL_INFERENCES_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
 
 # Explainability
 GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"
