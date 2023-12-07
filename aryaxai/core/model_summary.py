@@ -91,8 +91,9 @@ class ModelSummary(BaseModel):
         res = self.__api_client.get(
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}&model_name={model_name}"
         )
-        res["details"].pop("updated_by")
-        res["details"]["metadata"].pop("path")
-        res["details"]["metadata"].pop("avaialble_tags")
+        if res.get("details") != "Not Found":
+            res["details"].pop("updated_by")
+            res["details"]["metadata"].pop("path")
+            res["details"]["metadata"].pop("avaialble_tags")
 
         return res.get("details")

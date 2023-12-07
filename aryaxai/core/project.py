@@ -1833,15 +1833,18 @@ class Project(BaseModel):
             f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
         )
 
-        if not res.get("details"):
-            raise Exception("No observations found")
-
         observation_df = pd.DataFrame(res.get("details"))
+
+        if observation_df.empty:
+            return observation_df
+
         observation_df = observation_df[
             observation_df["status"].isin(["active", "inactive"])
         ]
+
         if observation_df.empty:
-            raise Exception("No observations found")
+            return observation_df
+
         observation_df["expression"] = observation_df["metadata"].apply(
             lambda metadata: generate_expression(metadata["expression"])
         )
@@ -2112,13 +2115,16 @@ class Project(BaseModel):
             f"{GET_POLICIES_URI}?project_name={self.project_name}"
         )
 
-        if not res.get("details"):
-            raise Exception("No policies found")
-
         policy_df = pd.DataFrame(res.get("details"))
-        policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
+
         if policy_df.empty:
-            raise Exception("No policies found")
+            return policy_df
+
+        policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
+
+        if policy_df.empty:
+            return policy_df
+
         policy_df["expression"] = policy_df["metadata"].apply(
             lambda metadata: generate_expression(metadata["expression"])
         )
