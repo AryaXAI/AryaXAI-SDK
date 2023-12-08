@@ -26,7 +26,7 @@ class XAI(BaseModel):
         debug = self.env.get_debug()
         base_url = self.env.get_base_url()
 
-        self.api_client = APIClient(debug=debug, base_url=base_url)
+        self.api_client = APIClient(debug=debug, base_url=base_url) 
 
     def login(self):
         """login to AryaXAI platform
