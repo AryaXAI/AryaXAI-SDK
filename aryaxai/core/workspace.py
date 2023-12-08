@@ -21,11 +21,11 @@ class Workspace(BaseModel):
     workspace_name: str
     created_at: str
 
-    _api_client: APIClient
+    api_client: APIClient
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._api_client = kwargs.get("_api_client")
+        self.api_client = kwargs.get("api_client")
 
     def rename_workspace(self, new_workspace_name: str) -> str:
         """rename the current workspace to new name
@@ -39,7 +39,7 @@ class Workspace(BaseModel):
                 "rename_workspace": new_workspace_name,
             },
         }
-        res = self._api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         self.user_workspace_name = new_workspace_name
         return res.get("details")
 
@@ -51,7 +51,7 @@ class Workspace(BaseModel):
             "workspace_name": self.workspace_name,
             "modify_req": {"delete_workspace": self.user_workspace_name},
         }
-        res = self._api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def add_user_to_workspace(self, email: str, role: UserRole) -> str:
@@ -70,7 +70,7 @@ class Workspace(BaseModel):
                 },
             },
         }
-        res = self._api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def remove_user_from_workspace(self, email: str) -> str:
@@ -85,7 +85,7 @@ class Workspace(BaseModel):
                 "remove_user_workspace": email,
             },
         }
-        res = self._api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def update_user_access_for_workspace(self, email: str, role: UserRole) -> str:
@@ -104,7 +104,7 @@ class Workspace(BaseModel):
                 }
             },
         }
-        res = self._api_client.post(UPDATE_WORKSPACE_URI, payload)
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
     def projects(self) -> pd.DataFrame:
@@ -112,7 +112,7 @@ class Workspace(BaseModel):
 
         :return: Projects details dataframe
         """
-        workspaces = self._api_client.get(GET_WORKSPACES_URI)
+        workspaces = self.api_client.get(GET_WORKSPACES_URI)
         current_workspace = next(
             filter(
                 lambda workspace: workspace["workspace_name"] == self.workspace_name,
@@ -137,7 +137,7 @@ class Workspace(BaseModel):
         :param project_name: Name of the project
         :return: Project
         """
-        workspaces = self._api_client.get(GET_WORKSPACES_URI)
+        workspaces = self.api_client.get(GET_WORKSPACES_URI)
         current_workspace = next(
             filter(
                 lambda workspace: workspace["workspace_name"] == self.workspace_name,
@@ -145,7 +145,7 @@ class Workspace(BaseModel):
             )
         )
         projects = [
-            Project(_api_client=self._api_client, **project)
+            Project(api_client=self.api_client, **project)
             for project in current_workspace["projects"]
         ]
 
@@ -169,12 +169,12 @@ class Workspace(BaseModel):
             "project_name": project_name,
             "workspace_name": self.workspace_name,
         }
-        res = self._api_client.post(CREATE_PROJECT_URI, payload)
+        res = self.api_client.post(CREATE_PROJECT_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
-        project = Project(_api_client=self._api_client, **res["details"])
+        project = Project(api_client=self.api_client, **res["details"])
 
         return project
 
@@ -185,7 +185,7 @@ class Workspace(BaseModel):
         """
         url = f"{GET_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception("Error while getting workspace notifications.")
@@ -207,7 +207,7 @@ class Workspace(BaseModel):
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?workspace_name={self.workspace_name}"
 
-        res = self._api_client.post(url)
+        res = self.api_client.post(url)
 
         if not res["success"]:
             raise Exception("Error while clearing workspace notifications.")

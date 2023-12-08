@@ -19,11 +19,11 @@ class ModelSummary(BaseModel):
 
     model_config = ConfigDict(protected_namespaces=())
 
-    _api_client: APIClient
+    api_client: APIClient
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._api_client = kwargs.get("_api_client")
+        self.api_client = kwargs.get("api_client")
 
     def info(self) -> dict:
         """Model Info
@@ -72,7 +72,7 @@ class ModelSummary(BaseModel):
     def prediction_path(self):
         """Prediction path plot"""
         model_name = self.model_results.get("model_name")
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{MODEL_SVG_URI}?project_name={self.project_name}&model_name={model_name}"
         )
 

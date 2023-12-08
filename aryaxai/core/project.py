@@ -119,11 +119,11 @@ class Project(BaseModel):
     user_workspace_name: str
     workspace_name: str
 
-    _api_client: APIClient
+    api_client: APIClient
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._api_client = kwargs.get("_api_client")
+        self.api_client = kwargs.get("api_client")
 
     def rename_project(self, new_project_name: str) -> str:
         """Renames current project
@@ -137,7 +137,7 @@ class Project(BaseModel):
                 "rename_project": new_project_name,
             },
         }
-        res = self._api_client.post(UPDATE_PROJECT_URI, payload)
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         self.user_project_name = new_project_name
         return res.get("details")
 
@@ -152,7 +152,7 @@ class Project(BaseModel):
                 "delete_project": self.user_project_name,
             },
         }
-        res = self._api_client.post(UPDATE_PROJECT_URI, payload)
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
 
     def add_user_to_project(self, email: str, role: str) -> str:
@@ -171,7 +171,7 @@ class Project(BaseModel):
                 },
             },
         }
-        res = self._api_client.post(UPDATE_PROJECT_URI, payload)
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
 
     def remove_user_from_project(self, email: str) -> str:
@@ -184,7 +184,7 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "modify_req": {"remove_user_project": email},
         }
-        res = self._api_client.post(UPDATE_PROJECT_URI, payload)
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
 
     def update_user_access_for_project(self, email: str, role: str) -> str:
@@ -203,7 +203,7 @@ class Project(BaseModel):
                 },
             },
         }
-        res = self._api_client.post(UPDATE_PROJECT_URI, payload)
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
 
     def config(self) -> str:
@@ -211,7 +211,7 @@ class Project(BaseModel):
 
         :return: response
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
         )
 
@@ -222,7 +222,7 @@ class Project(BaseModel):
 
         :return: response
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{AVAILABLE_TAGS_URI}?project_name={self.project_name}"
         )
 
@@ -238,7 +238,7 @@ class Project(BaseModel):
         :param feature_name: feature name
         :return: unique values of feature
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_LABELS_URI}?project_name={self.project_name}&feature_name={feature_name}"
         )
 
@@ -255,7 +255,7 @@ class Project(BaseModel):
 
         :return: user uploaded files dataframe
         """
-        files = self._api_client.get(
+        files = self.api_client.get(
             f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
         )
 
@@ -280,7 +280,7 @@ class Project(BaseModel):
         :param file_name: user uploaded file name
         :return: file summary dataframe
         """
-        files = self._api_client.get(
+        files = self.api_client.get(
             f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
         )
 
@@ -316,7 +316,7 @@ class Project(BaseModel):
         :param file_name: uploaded file name
         :return: response
         """
-        files = self._api_client.get(
+        files = self.api_client.get(
             f"{ALL_DATA_FILE_URI}?project_name={self.project_name}"
         )
 
@@ -341,7 +341,7 @@ class Project(BaseModel):
             "path": file_data["filepath"],
         }
 
-        res = self._api_client.post(DELETE_DATA_FILE_URI, payload)
+        res = self.api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
     def upload_data(
@@ -377,7 +377,7 @@ class Project(BaseModel):
 
         def upload_file_and_return_path() -> str:
             files = {"in_file": build_upload_data()}
-            res = self._api_client.file(
+            res = self.api_client.file(
                 f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
                 files,
             )
@@ -413,7 +413,7 @@ class Project(BaseModel):
 
             uploaded_path = upload_file_and_return_path()
 
-            file_info = self._api_client.post(
+            file_info = self.api_client.post(
                 UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
             )
 
@@ -462,13 +462,13 @@ class Project(BaseModel):
                 },
             }
 
-            res = self._api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
+            res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
 
             if not res["success"]:
                 self.delete_file(uploaded_path)
                 raise Exception(res.get("details"))
 
-            poll_events(self._api_client, self.project_name, res["event_id"])
+            poll_events(self.api_client, self.project_name, res["event_id"])
 
             return res.get("details")
 
@@ -480,7 +480,7 @@ class Project(BaseModel):
             "type": "data",
             "project_name": self.project_name,
         }
-        res = self._api_client.post(UPLOAD_DATA_URI, payload)
+        res = self.api_client.post(UPLOAD_DATA_URI, payload)
 
         if not res["success"]:
             self.delete_file(uploaded_path)
@@ -512,7 +512,7 @@ class Project(BaseModel):
 
         def upload_file_and_return_path() -> str:
             files = {"in_file": build_upload_data()}
-            res = self._api_client.file(
+            res = self.api_client.file(
                 f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
                 files,
             )
@@ -530,7 +530,7 @@ class Project(BaseModel):
             "type": "data_description",
             "project_name": self.project_name,
         }
-        res = self._api_client.post(UPLOAD_DATA_URI, payload)
+        res = self.api_client.post(UPLOAD_DATA_URI, payload)
 
         if not res["success"]:
             self.delete_file(uploaded_path)
@@ -557,7 +557,7 @@ class Project(BaseModel):
 
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
-            res = self._api_client.file(
+            res = self.api_client.file(
                 f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
                 files,
             )
@@ -568,7 +568,7 @@ class Project(BaseModel):
 
             return uploaded_path
 
-        model_types = self._api_client.get(GET_MODEL_TYPES_URI)
+        model_types = self.api_client.get(GET_MODEL_TYPES_URI)
         valid_model_architecture = model_types.get("model_architecture").keys()
         Validate.value_against_list(
             "model_achitecture", model_architecture, valid_model_architecture
@@ -588,13 +588,13 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
         }
 
-        res = self._api_client.post(UPLOAD_MODEL_URI, payload)
+        res = self.api_client.post(UPLOAD_MODEL_URI, payload)
 
         if not res.get("success"):
             raise Exception(res.get("details"))
 
         poll_events(
-            self._api_client,
+            self.api_client,
             self.project_name,
             res["event_id"],
             lambda: self.delete_file(uploaded_path),
@@ -606,7 +606,7 @@ class Project(BaseModel):
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data summary dataframe
         """
-        res = self._api_client.post(
+        res = self.api_client.post(
             f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
         )
         valid_tags = res["data"]["data"].keys()
@@ -632,7 +632,7 @@ class Project(BaseModel):
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data diagnosis dataframe
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_DATA_DIAGNOSIS_URI}?project_name={self.project_name}"
         )
         valid_tags = res["details"].keys()
@@ -669,7 +669,7 @@ class Project(BaseModel):
             "baseline_tags": baseline_tags,
             "current_tags": current_tags,
         }
-        res = self._api_client.post(DATA_DRFIT_DIAGNOSIS_URI, payload)
+        res = self.api_client.post(DATA_DRFIT_DIAGNOSIS_URI, payload)
 
         if not res["success"]:
             raise Exception(res.get("details").get("reason"))
@@ -689,7 +689,7 @@ class Project(BaseModel):
         config = {"project_name": self.project_name}
 
         try:
-            res = self._api_client.post(uri, config)
+            res = self.api_client.post(uri, config)
 
             if not res["success"]:
                 # take default config when not passed
@@ -786,14 +786,14 @@ class Project(BaseModel):
             "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
         )
 
-        res = self._api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
+        res = self.api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
         dashboard_url = res.get("hosted_path", None)
-        auth_token = self._api_client.get_auth_token()
+        auth_token = self.api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
@@ -886,14 +886,14 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self._api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
+        res = self.api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
         dashboard_url = res.get("hosted_path", None)
-        auth_token = self._api_client.get_auth_token()
+        auth_token = self.api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
@@ -958,14 +958,14 @@ class Project(BaseModel):
                 tags_info["alluniquefeatures"],
             )
 
-        res = self._api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
+        res = self.api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
         dashboard_url = res.get("hosted_path", None)
-        auth_token = self._api_client.get_auth_token()
+        auth_token = self.api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
@@ -1036,14 +1036,14 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self._api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
+        res = self.api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
         dashboard_url = res.get("hosted_path", None)
-        auth_token = self._api_client.get_auth_token()
+        auth_token = self.api_client.get_auth_token()
         query_params = f"?id={auth_token}"
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
@@ -1054,7 +1054,7 @@ class Project(BaseModel):
         :return: DataFrame
         """
         url = f"{GET_TRIGGERS_URI}?project_name={self.project_name}"
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to get triggers"))
@@ -1249,7 +1249,7 @@ class Project(BaseModel):
                 "create_trigger": payload,
             },
         }
-        res = self._api_client.post(CREATE_TRIGGER_URI, payload)
+        res = self.api_client.post(CREATE_TRIGGER_URI, payload)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to create trigger"))
@@ -1269,7 +1269,7 @@ class Project(BaseModel):
             },
         }
 
-        res = self._api_client.post(DELETE_TRIGGER_URI, payload)
+        res = self.api_client.post(DELETE_TRIGGER_URI, payload)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to delete trigger"))
@@ -1284,7 +1284,7 @@ class Project(BaseModel):
         """
         payload = {"page_num": page_num, "project_name": self.project_name}
 
-        res = self._api_client.post(EXECUTED_TRIGGER_URI, payload)
+        res = self.api_client.post(EXECUTED_TRIGGER_URI, payload)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to get alerts"))
@@ -1306,7 +1306,7 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "id": id,
         }
-        res = self._api_client.post(GET_EXECUTED_TRIGGER_INFO, payload)
+        res = self.api_client.post(GET_EXECUTED_TRIGGER_INFO, payload)
 
         if not res["success"]:
             return Exception(res.get("details", "Failed to get trigger details"))
@@ -1334,10 +1334,10 @@ class Project(BaseModel):
         """
         get model performance dashboard
         """
-        url = self._api_client.get_url(GET_MODEL_PERFORMANCE_URI)
+        url = self.api_client.get_url(GET_MODEL_PERFORMANCE_URI)
 
         # append params
-        auth_token = self._api_client.get_auth_token()
+        auth_token = self.api_client.get_auth_token()
         url = f"{url}/{self.project_name}?id={auth_token}"
 
         if model_name:
@@ -1387,7 +1387,7 @@ class Project(BaseModel):
                 Validate.value_against_list("tags", data_config["tags"], available_tags)
 
         if model_config:
-            model_params = self._api_client.get(MODEL_PARAMETERS_URI)
+            model_params = self.api_client.get(MODEL_PARAMETERS_URI)
             model_name = f"{model_type}_{project_config['project_type']}".lower()
             model_parameters = model_params.get(model_name)
 
@@ -1458,12 +1458,12 @@ class Project(BaseModel):
             },
         }
 
-        res = self._api_client.post(TRAIN_MODEL_URI, payload)
+        res = self.api_client.post(TRAIN_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
-        poll_events(self._api_client, self.project_name, res["event_id"])
+        poll_events(self.api_client, self.project_name, res["event_id"])
 
         return "Model Trained Successfully"
 
@@ -1472,7 +1472,7 @@ class Project(BaseModel):
 
         :return: Dataframe with details of all models
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_MODELS_URI}?project_name={self.project_name}"
         )
 
@@ -1490,7 +1490,7 @@ class Project(BaseModel):
 
         :return: list of all models
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_MODELS_URI}?project_name={self.project_name}"
         )
 
@@ -1513,7 +1513,7 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "model_name": model_name,
         }
-        res = self._api_client.post(UPDATE_ACTIVE_MODEL_URI, payload)
+        res = self.api_client.post(UPDATE_ACTIVE_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -1530,7 +1530,7 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "model_name": model_name,
         }
-        res = self._api_client.post(REMOVE_MODEL_URI, payload)
+        res = self.api_client.post(REMOVE_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -1568,7 +1568,7 @@ class Project(BaseModel):
             "tags": tag,
         }
 
-        run_model_res = self._api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
+        run_model_res = self.api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
 
         if not run_model_res["success"]:
             raise Exception(run_model_res["details"])
@@ -1578,7 +1578,7 @@ class Project(BaseModel):
             "tag": f"{tag}_{model}_Inference",
         }
 
-        tag_data = self._api_client.request(
+        tag_data = self.api_client.request(
             "POST", DOWNLOAD_TAG_DATA_URI, download_tag_payload
         )
 
@@ -1592,7 +1592,7 @@ class Project(BaseModel):
         :param model_name: name of the model, defaults to active model for project
         :return: model summary
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{MODEL_SUMMARY_URI}?project_name={self.project_name}"
             + (f"&model_name={model_name}" if model_name else "")
         )
@@ -1600,7 +1600,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        return ModelSummary(_api_client=self._api_client, **res.get("details"))
+        return ModelSummary(api_client=self.api_client, **res.get("details"))
 
     def tags(self) -> List[str]:
         """Available User Tags for Project
@@ -1644,7 +1644,7 @@ class Project(BaseModel):
                 "project_name": self.project_name,
                 "page_num": 1,
             }
-            res = self._api_client.post(GET_CASES_URI, payload)
+            res = self.api_client.post(GET_CASES_URI, payload)
             return res
 
         def search_cases():
@@ -1656,7 +1656,7 @@ class Project(BaseModel):
                 "tag": tag,
                 "page_num": 1,
             }
-            res = self._api_client.post(SEARCH_CASE_URI, payload)
+            res = self.api_client.post(SEARCH_CASE_URI, payload)
             return res
 
         cases = (
@@ -1691,7 +1691,7 @@ class Project(BaseModel):
             "unique_identifier": unique_identifer,
             "tag": tag,
         }
-        res = self._api_client.post(CASE_INFO_URI, payload)
+        res = self.api_client.post(CASE_INFO_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -1727,7 +1727,7 @@ class Project(BaseModel):
             "tag": tag,
         }
 
-        res = self._api_client.post(DELETE_CASE_URI, paylod)
+        res = self.api_client.post(DELETE_CASE_URI, paylod)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -1741,7 +1741,7 @@ class Project(BaseModel):
         """
         url = f"{GET_NOTIFICATIONS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception("Error while getting project notifications.")
@@ -1765,7 +1765,7 @@ class Project(BaseModel):
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.post(url)
+        res = self.api_client.post(url)
 
         if not res["success"]:
             raise Exception("Error while clearing project notifications.")
@@ -1777,7 +1777,7 @@ class Project(BaseModel):
 
         :return: observation details dataframe
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
         )
 
@@ -1826,7 +1826,7 @@ class Project(BaseModel):
 
         :return: observation trail details dataframe
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
         )
 
@@ -1920,7 +1920,7 @@ class Project(BaseModel):
         :param linked_features: linked features of observation
         :return: response
         """
-        observation_params = self._api_client.get(
+        observation_params = self.api_client.get(
             f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
         )
 
@@ -1947,7 +1947,7 @@ class Project(BaseModel):
             "linked_features": linked_features,
         }
 
-        res = self._api_client.post(CREATE_OBSERVATION_URI, payload)
+        res = self.api_client.post(CREATE_OBSERVATION_URI, payload)
         if not res["success"]:
             raise Exception(res.get("details"))
 
@@ -1991,7 +1991,7 @@ class Project(BaseModel):
             "update_keys": {},
         }
 
-        observation_params = self._api_client.get(
+        observation_params = self.api_client.get(
             f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
         )
 
@@ -2018,7 +2018,7 @@ class Project(BaseModel):
             Validate.value_against_list("status", status, ["active", "inactive"])
             payload["update_keys"]["status"] = status
 
-        res = self._api_client.post(UPDATE_OBSERVATION_URI, payload)
+        res = self.api_client.post(UPDATE_OBSERVATION_URI, payload)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2044,7 +2044,7 @@ class Project(BaseModel):
             "update_keys": {},
         }
 
-        res = self._api_client.post(UPDATE_OBSERVATION_URI, payload)
+        res = self.api_client.post(UPDATE_OBSERVATION_URI, payload)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2056,7 +2056,7 @@ class Project(BaseModel):
 
         :return: policy details dataframe
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_POLICIES_URI}?project_name={self.project_name}"
         )
 
@@ -2104,7 +2104,7 @@ class Project(BaseModel):
 
         :return: observation details dataframe
         """
-        res = self._api_client.get(
+        res = self.api_client.get(
             f"{GET_POLICIES_URI}?project_name={self.project_name}"
         )
 
@@ -2202,7 +2202,7 @@ class Project(BaseModel):
         """
         configuration, expression = build_expression(expression)
 
-        policy_params = self._api_client.get(
+        policy_params = self.api_client.get(
             f"{GET_POLICY_PARAMS_URI}?project_name={self.project_name}"
         )
 
@@ -2225,7 +2225,7 @@ class Project(BaseModel):
             "decision": input if decision == "input" else decision,
         }
 
-        res = self._api_client.post(CREATE_POLICY_URI, payload)
+        res = self.api_client.post(CREATE_POLICY_URI, payload)
         if not res["success"]:
             raise Exception(res.get("details"))
 
@@ -2271,7 +2271,7 @@ class Project(BaseModel):
             "update_keys": {},
         }
 
-        policy_params = self._api_client.get(
+        policy_params = self.api_client.get(
             f"{GET_POLICY_PARAMS_URI}?project_name={self.project_name}"
         )
 
@@ -2302,7 +2302,7 @@ class Project(BaseModel):
                 input if decision == "input" else decision
             )
 
-        res = self._api_client.post(UPDATE_POLICY_URI, payload)
+        res = self.api_client.post(UPDATE_POLICY_URI, payload)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2328,7 +2328,7 @@ class Project(BaseModel):
             "update_keys": {},
         }
 
-        res = self._api_client.post(UPDATE_POLICY_URI, payload)
+        res = self.api_client.post(UPDATE_POLICY_URI, payload)
 
         if not res["success"]:
             raise Exception(res.get("details"))
@@ -2340,7 +2340,7 @@ class Project(BaseModel):
 
         :return: hyper params
         """
-        return self._api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
+        return self.api_client.get(GET_SYNTHETIC_MODEL_PARAMS_URI)
 
     def train_synthetic_model(
         self,
@@ -2467,13 +2467,13 @@ class Project(BaseModel):
             },
         }
 
-        res = self._api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
+        res = self.api_client.post(TRAIN_SYNTHETIC_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
         print("Training initiated...")
-        poll_events(self._api_client, self.project_name, res["event_id"])
+        poll_events(self.api_client, self.project_name, res["event_id"])
 
     def remove_synthetic_model(self, model_name: str) -> str:
         """deletes synthetic model
@@ -2493,7 +2493,7 @@ class Project(BaseModel):
 
         payload = {"project_name": self.project_name, "model_name": model_name}
 
-        res = self._api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
+        res = self.api_client.post(DELETE_SYNTHETIC_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2507,7 +2507,7 @@ class Project(BaseModel):
         """
         url = f"{GET_SYNTHETIC_MODELS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception("Error while getting synthetics models.")
@@ -2535,7 +2535,7 @@ class Project(BaseModel):
 
         url = f"{GET_SYNTHETIC_MODEL_DETAILS_URI}?project_name={self.project_name}&model_name={model_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2552,7 +2552,7 @@ class Project(BaseModel):
             **model_details,
             **data_quality,
             metadata=metadata,
-            _api_client=self._api_client,
+            api_client=self.api_client,
             project=self,
         )
 
@@ -2565,7 +2565,7 @@ class Project(BaseModel):
         """
         url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception("Error while getting synthetics data tags.")
@@ -2586,7 +2586,7 @@ class Project(BaseModel):
         """
         url = f"{GET_SYNTHETIC_DATA_TAGS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception("Error while getting synthetics data tags.")
@@ -2596,7 +2596,7 @@ class Project(BaseModel):
         syn_data_tags = [
             SyntheticDataTag(
                 **data_tag,
-                _api_client=self._api_client,
+                api_client=self.api_client,
                 project_name=self.project_name,
                 project=self,
             )
@@ -2631,7 +2631,7 @@ class Project(BaseModel):
 
         payload = {"project_name": self.project_name, "tag": tag}
 
-        res = self._api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
+        res = self.api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
 
         synthetic_data = pd.read_csv(io.StringIO(res.content.decode("utf-8")))
 
@@ -2656,7 +2656,7 @@ class Project(BaseModel):
             "tag": tag,
         }
 
-        res = self._api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
+        res = self.api_client.post(DELETE_SYNTHETIC_TAG_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2667,7 +2667,7 @@ class Project(BaseModel):
         """get observation parameters for the project (used in validating synthetic prompt)"""
         url = f"{GET_OBSERVATION_PARAMS_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         return res["details"]
 
@@ -2703,7 +2703,7 @@ class Project(BaseModel):
             "metadata": {"expression": expression},
         }
 
-        res = self._api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)
+        res = self.api_client.post(CREATE_SYNTHETIC_PROMPT_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2731,7 +2731,7 @@ class Project(BaseModel):
             "update_keys": {"status": status},
         }
 
-        res = self._api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+        res = self.api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2746,7 +2746,7 @@ class Project(BaseModel):
         """
         url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2765,7 +2765,7 @@ class Project(BaseModel):
         """
         url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
 
-        res = self._api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2780,7 +2780,7 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(
-            **curr_prompt, _api_client=self._api_client, project=self
+            **curr_prompt, api_client=self.api_client, project=self
         )
 
     def __print__(self) -> str:

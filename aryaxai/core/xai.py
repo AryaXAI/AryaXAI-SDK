@@ -18,7 +18,7 @@ class XAI(BaseModel):
     """Base class to connect with AryaXAI platform"""
 
     env: Environment = Environment()
-    _api_client: APIClient
+    api_client: APIClient
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -26,7 +26,7 @@ class XAI(BaseModel):
         debug = self.env.get_debug()
         base_url = self.env.get_base_url()
 
-        self._api_client = APIClient(debug=debug, base_url=base_url)
+        self.api_client = APIClient(debug=debug, base_url=base_url)
 
     def login(self):
         """login to AryaXAI platform
@@ -40,9 +40,9 @@ class XAI(BaseModel):
         if not access_token:
             raise ValueError("Either set XAI_ACCESS_TOKEN or pass the Access token")
 
-        res = self._api_client.post(LOGIN_URI, payload={"access_token": access_token})
-        self._api_client.update_headers(res["access_token"])
-        self._api_client.set_access_token(access_token)
+        res = self.api_client.post(LOGIN_URI, payload={"access_token": access_token})
+        self.api_client.update_headers(res["access_token"])
+        self.api_client.set_access_token(access_token)
 
         print("Authenticated successfully.")
 
@@ -51,7 +51,7 @@ class XAI(BaseModel):
 
         :return: workspace details dataframe
         """
-        workspaces = self._api_client.get(GET_WORKSPACES_URI)
+        workspaces = self.api_client.get(GET_WORKSPACES_URI)
 
         workspace_df = pd.DataFrame(
             workspaces["details"],
@@ -72,9 +72,9 @@ class XAI(BaseModel):
         :param workspace_name: Name of the workspace to be used
         :return: Workspace
         """
-        workspaces = self._api_client.get(GET_WORKSPACES_URI)
+        workspaces = self.api_client.get(GET_WORKSPACES_URI)
         user_workspaces = [
-            Workspace(_api_client=self._api_client, **workspace)
+            Workspace(api_client=self.api_client, **workspace)
             for workspace in workspaces["details"]
         ]
 
@@ -98,13 +98,13 @@ class XAI(BaseModel):
         :return: response
         """
 
-        res = self._api_client.post(
+        res = self.api_client.post(
             CREATE_WORKSPACE_URI, {"workspace_name": workspace_name}
         )
         if not res["success"]:
             raise Exception(res.get("details"))
 
-        workspace = Workspace(_api_client=self._api_client, **res["workspace_details"])
+        workspace = Workspace(api_client=self.api_client, **res["workspace_details"])
 
         return workspace
 
@@ -113,7 +113,7 @@ class XAI(BaseModel):
 
         :return: DataFrame
         """
-        res = self._api_client.get(GET_NOTIFICATIONS_URI)
+        res = self.api_client.get(GET_NOTIFICATIONS_URI)
 
         if not res["success"]:
             raise Exception("Error while getting user notifications.")
@@ -133,7 +133,7 @@ class XAI(BaseModel):
         :raises Exception: _description_
         :return: str
         """
-        res = self._api_client.post(CLEAR_NOTIFICATIONS_URI)
+        res = self.api_client.post(CLEAR_NOTIFICATIONS_URI)
 
         if not res["success"]:
             raise Exception("Error while clearing user notifications.")
