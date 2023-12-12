@@ -88,7 +88,7 @@ class ModelSummary(BaseModel):
         :return: response
         """
         model_name = self.model_results.get("model_name")
-        res = self.__api_client.get(
+        res = self.api_client.get(
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}&model_name={model_name}"
         )
         if res.get("details") != "Not Found":
