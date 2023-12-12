@@ -5,6 +5,7 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
 from aryaxai.core.workspace import Workspace
 from aryaxai.common.xai_uris import (
+    AVAILABLE_CUSTOM_SERVERS,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_WORKSPACE_URI,
     GET_NOTIFICATIONS_URI,
@@ -26,7 +27,7 @@ class XAI(BaseModel):
         debug = self.env.get_debug()
         base_url = self.env.get_base_url()
 
-        self.api_client = APIClient(debug=debug, base_url=base_url) 
+        self.api_client = APIClient(debug=debug, base_url=base_url)
 
     def login(self):
         """login to AryaXAI platform
@@ -137,4 +138,12 @@ class XAI(BaseModel):
         if not res["success"]:
             raise Exception("Error while clearing user notifications.")
 
+        return res["details"]
+
+    def available_custom_servers(self) -> dict:
+        """available custom servers
+
+        :return: response
+        """
+        res = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)
         return res["details"]

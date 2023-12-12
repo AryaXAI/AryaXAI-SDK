@@ -10,6 +10,7 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.utils import poll_events, pretty_date
 from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
+    AVAILABLE_CUSTOM_SERVERS,
     DELETE_SYNTHETIC_MODEL_URI,
     DELETE_SYNTHETIC_TAG_URI,
     DOWNLOAD_SYNTHETIC_DATA_URI,
@@ -168,16 +169,28 @@ class SyntheticModel(BaseModel):
         return res['details']
     '''
 
-    def generate_synthetic_datapoints(self, num_of_datapoints: int):
+    def generate_synthetic_datapoints(
+        self, num_of_datapoints: int, instance_type: Optional[str] = "shared"
+    ):
         """generate given number of synthetic datapoints
 
         :param num_of_datapoints: total datapoints to generate
-        :raises Exception: _description_
+        :param instance_type: type of instance to run training
+            for all available instances check xai.available_custom_servers()
+            defaults to shared
         :return: None
         """
+        if instance_type != "shared":
+            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            servers = list(
+                map(lambda instance: instance["instance_name"], available_servers)
+            )
+            Validate.value_against_list("instance_type", instance_type, servers)
+
         payload = {
             "project_name": self.project_name,
             "model_name": self.model_name,
+            "instance_type": instance_type,
             "num_of_datapoints": num_of_datapoints,
         }
 
@@ -195,15 +208,29 @@ class SyntheticModel(BaseModel):
         )
         print("Synthetic datapoints generated successfully.\n")
 
-    def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
+    def generate_anonymity_score(
+        self,
+        aux_columns: List[str],
+        control_tag: str,
+        instance_type: Optional[str] = "shared",
+    ):
         """generate anonymity score
 
         :param aux_columns: list of features
         :param control_tag: tag
-        :raises Exception: _description_
-        :raises Exception: _description_
+        :param instance_type: type of instance to run training
+            for all available instances check xai.available_custom_servers()
+            defaults to shared
+
         :return: None
         """
+        if instance_type != "shared":
+            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            servers = list(
+                map(lambda instance: instance["instance_name"], available_servers)
+            )
+            Validate.value_against_list("instance_type", instance_type, servers)
+
         if len(aux_columns) < 2:
             raise Exception("aux_columns requires minimum 2 columns.")
 
@@ -222,6 +249,7 @@ class SyntheticModel(BaseModel):
             "control_tag": control_tag,
             "model_name": self.model_name,
             "project_name": self.project_name,
+            "instance_type": instance_type,
         }
 
         res = self.api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
@@ -229,9 +257,9 @@ class SyntheticModel(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        print('Calculating anonymity score...')
+        print("Calculating anonymity score...")
         poll_events(self.api_client, self.project_name, res["event_id"])
-        print('Anonymity score calculated successfully.\n')
+        print("Anonymity score calculated successfully.\n")
 
     def anonymity_score(self):
         """get anonymity score
