@@ -75,6 +75,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
+    MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
@@ -177,8 +178,8 @@ class Project(BaseModel):
     def remove_user_from_project(self, email: str) -> str:
         """Removes user from project
 
-        :param email: _description_
-        :return: _description_
+        :param email: user email
+        :return: response
         """
         payload = {
             "project_name": self.project_name,
@@ -214,6 +215,10 @@ class Project(BaseModel):
         res = self.api_client.get(
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
         )
+        if res.get("details") != "Not Found":
+            res["details"].pop("updated_by")
+            res["details"]["metadata"].pop("path")
+            res["details"]["metadata"].pop("avaialble_tags")
 
         return res.get("details")
 
@@ -348,7 +353,8 @@ class Project(BaseModel):
         self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
         """Uploads data for the current project
-        :param file_path: file path | dataframe to be uploaded
+        :param data: file path | dataframe to be uploaded
+        :param tag: tag for data
         :param config: project config
                 {
                     "project_type": "",
@@ -356,6 +362,7 @@ class Project(BaseModel):
                     "true_label": "",
                     "pred_label": "",
                     "feature_exclude": [],
+                    "drop_duplicate_uid: ""
                 },
                 defaults to None
         :return: response
@@ -398,9 +405,10 @@ class Project(BaseModel):
                     "true_label": "",
                     "pred_label": "",
                     "feature_exclude": [],
+                    "drop_duplicate_uid": False,
                 }
                 raise Exception(
-                    f"Project Config is required, since no config is set for project \n {json.dumps(config)}"
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
                 )
 
             Validate.check_for_missing_keys(
@@ -454,7 +462,7 @@ class Project(BaseModel):
                     "path": uploaded_path,
                     "tag": tag,
                     "tags": [tag],
-                    "drop_duplicate_uid": False,
+                    "drop_duplicate_uid": config.get("drop_duplicate_uid"),
                     "feature_exclude": feature_exclude,
                     "feature_include": feature_include,
                     "feature_encodings": {},
@@ -488,10 +496,11 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def upload_data_description(self, data: str | pd.DataFrame):
+    def upload_data_description(self, data: str | pd.DataFrame) -> str:
         """uploads data description for the project
 
         :param data: response
+        :return: response
         """
 
         def build_upload_data():
@@ -600,11 +609,11 @@ class Project(BaseModel):
             lambda: self.delete_file(uploaded_path),
         )
 
-    def data_summary(self, tag: str) -> pd.DataFrame:
-        """Data Summary for the project
+    def data_observations(self, tag: str) -> pd.DataFrame:
+        """Data Observations for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data summary dataframe
+        :return: data observations dataframe
         """
         res = self.api_client.post(
             f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
@@ -626,11 +635,11 @@ class Project(BaseModel):
         summary = pd.DataFrame(res["data"]["data"][tag])
         return summary
 
-    def data_diagnosis(self, tag: str) -> pd.DataFrame:
-        """Data Diagnosis for the project
+    def data_warnings(self, tag: str) -> pd.DataFrame:
+        """Data warnings for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
-        :return: data diagnosis dataframe
+        :return: data warnings dataframe
         """
         res = self.api_client.get(
             f"{GET_DATA_DIAGNOSIS_URI}?project_name={self.project_name}"
@@ -638,23 +647,23 @@ class Project(BaseModel):
         valid_tags = res["details"].keys()
 
         if not valid_tags:
-            raise Exception("Data diagnosis not available, please upload data first.")
+            raise Exception("Data warnings not available, please upload data first.")
 
         Validate.value_against_list("tag", tag, valid_tags)
 
-        data_diagnosis = pd.DataFrame(res["details"][tag]["alerts"])
-        data_diagnosis[["Tag", "Description"]] = data_diagnosis[0].str.extract(
+        data_warnings = pd.DataFrame(res["details"][tag]["alerts"])
+        data_warnings[["Tag", "Description"]] = data_warnings[0].str.extract(
             r"\['(.*?)'] (.+?) #"
         )
-        data_diagnosis["Description"] = data_diagnosis["Description"].str.replace(
+        data_warnings["Description"] = data_warnings["Description"].str.replace(
             r"[^\w\s]", "", regex=True
         )
-        data_diagnosis = data_diagnosis[["Description", "Tag"]]
+        data_warnings = data_warnings[["Description", "Tag"]]
 
-        data = {"Warnings": len(data_diagnosis)}
+        data = {"Warnings": len(data_warnings)}
         print(data)
 
-        return data_diagnosis
+        return data_warnings
 
     def data_drift_diagnosis(
         self, baseline_tags: List[str], current_tags: List[str]
@@ -680,24 +689,28 @@ class Project(BaseModel):
 
         return data_drift_diagnosis
 
-    def get_default_dashboard_config(self, uri: str) -> dict:
-        """get default config value of given dashboard
+    def get_default_dashboard(self, uri: str) -> Dashboard:
+        """get default dashboard
 
         :param uri: uri of the dashboard
-        :return: dict of dashboard config
+        :return: Dashboard
         """
         config = {"project_name": self.project_name}
 
-        try:
-            res = self.api_client.post(uri, config)
+        res = self.api_client.post(uri, config)
 
-            if not res["success"]:
-                # take default config when not passed
-                config = res["config"]
-        except:
-            pass
+        if not res["success"]:
+            if "hosted_path" in res:
+                dashboard_url = res.get("hosted_path")
+                auth_token = self.__api_client.get_auth_token()
+                query_params = f"?id={auth_token}"
+                return Dashboard(
+                    config=res["config"], url=f"{dashboard_url}{query_params}"
+                )
 
-        return config
+        raise Exception(
+            "Cannot retrieve default dashboard, please create new dashboard"
+        )
 
     def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
         """get data drift dashboard
@@ -754,12 +767,10 @@ class Project(BaseModel):
                         returns p_value
                         default threshold 0.05
                         drift detected when p_value < threshold
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(DATA_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard(DATA_DRIFT_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -844,13 +855,10 @@ class Project(BaseModel):
                         returns p_value
                         default threshold 0.05
                         drift detected when p_value < threshold
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(TARGET_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard(TARGET_DRIFT_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -912,15 +920,13 @@ class Project(BaseModel):
                     "model_type": "",
                     "baseline_true_label": "",
                     "baseline_pred_label": "",
-                    features_to_use: []
+                    "features_to_use": []
                 }
                 defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(BIAS_MONITORING_DASHBOARD_URI)
+            return self.get_default_dashboard(BIAS_MONITORING_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -989,12 +995,10 @@ class Project(BaseModel):
                     "current_pred_label": ""
                 }
                 defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
         :return: Dashboard
         """
         if not payload:
-            payload = self.get_default_dashboard_config(MODEL_PERFORMANCE_DASHBOARD_URI)
+            return self.get_default_dashboard(MODEL_PERFORMANCE_DASHBOARD_URI)
 
         payload["project_name"] = self.project_name
 
@@ -1048,7 +1052,7 @@ class Project(BaseModel):
 
         return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
 
-    def monitoring_triggers(self) -> dict:
+    def monitoring_triggers(self) -> pd.DataFrame:
         """get monitoring triggers of project
 
         :return: DataFrame
@@ -1069,15 +1073,15 @@ class Project(BaseModel):
 
         return monitoring_triggers
 
-    def create_monitoring_trigger(self, type: str, payload: dict) -> str:
+    def create_monitoring_trigger(self, payload: dict) -> str:
         """create monitoring trigger for project
 
-        :param type: trigger type ["Data Drift", "Target Drift", "Model Performance"]
         :param payload: Data Drift Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "stat_test_name": "",
                     "stat_test_threshold": 0,
                     "datadrift_features_per": 7,
@@ -1089,9 +1093,10 @@ class Project(BaseModel):
                     "current_tag": ""
                 } OR Target Drift Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "model_type": "",
                     "stat_test_name": ""
                     "stat_test_threshold": 0,
@@ -1104,9 +1109,10 @@ class Project(BaseModel):
                     "current_true_label": ""
                 } OR Model Performance Trigger Payload
                 {
+                    "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
                     "trigger_name": "",
                     "mail_list": [],
-                    "frequency": "",
+                    "frequency": "",   #['daily','weekly','monthly','quarterly','yearly']
                     "model_type": "",
                     "model_performance_metric": "",
                     "model_performance_threshold": "",
@@ -1117,21 +1123,21 @@ class Project(BaseModel):
                     "baseline_true_label": "",
                     "baseline_pred_label": ""
                 }
-                defaults to None
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :raises Exception: _description_
-        :return: _description_
+        :return: response
         """
+        Validate.value_against_list(
+            "trigger_type",
+            payload["trigger_type"],
+            ["Data Drift", "Target Drift", "Model Performance"],
+        )
+
         payload["project_name"] = self.project_name
-        payload["trigger_type"] = type
 
         # validate tags and labels
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
 
-        if type == "Data Drift":
+        if payload["trigger_type"] == "Data Drift":
             Validate.check_for_missing_keys(payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS)
 
             Validate.value_against_list(
@@ -1148,7 +1154,7 @@ class Project(BaseModel):
                     payload.get("features_to_use", []),
                     tags_info["alluniquefeatures"],
                 )
-        elif type == "Target Drift":
+        elif payload["trigger_type"] == "Target Drift":
             Validate.check_for_missing_keys(
                 payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
             )
@@ -1186,7 +1192,7 @@ class Project(BaseModel):
                 "current_true_label"[payload["current_true_label"]],
                 tags_info["alluniquefeatures"],
             )
-        elif type == "Model Performance":
+        elif payload["trigger_type"] == "Model Performance":
             Validate.check_for_missing_keys(payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS)
 
             Validate.value_against_list(
@@ -1276,11 +1282,11 @@ class Project(BaseModel):
 
         return "Monitoring trigger deleted successfully."
 
-    def alerts(self, page_num: int = 1) -> dict:
+    def alerts(self, page_num: int = 1) -> pd.DataFrame:
         """get monitoring alerts of project
 
         :param page_num: page num, defaults to 1
-        :return: DataFrame
+        :return: alerts DataFrame
         """
         payload = {"page_num": page_num, "project_name": self.project_name}
 
@@ -1296,11 +1302,11 @@ class Project(BaseModel):
 
         return pd.DataFrame(monitoring_alerts)
 
-    def get_alert_details(self, id: str) -> dict:
+    def get_alert_details(self, id: str) -> Alert:
         """get alert details by id
 
         :param id: alert or trigger id
-        :return: DataFrame
+        :return: Alert
         """
         payload = {
             "project_name": self.project_name,
@@ -1358,7 +1364,7 @@ class Project(BaseModel):
                         {
                             "tags": List[str]
                             "feature_exclude": List[str]
-                            "feature_encodings": List[str]
+                            "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
                             "drop_duplicate_uid": bool
                         },
                         defaults to None
@@ -1386,6 +1392,18 @@ class Project(BaseModel):
                 available_tags = self.tags()
                 Validate.value_against_list("tags", data_config["tags"], available_tags)
 
+            if data_config.get("feature_encodings"):
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(data_config["feature_encodings"].keys()),
+                    list(project_config["metadata"]["feature_encodings"].keys()),
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(data_config["feature_encodings"].values()),
+                    ["labelencode", "countencode"],
+                )
+
         if model_config:
             model_params = self.api_client.get(MODEL_PARAMETERS_URI)
             model_name = f"{model_type}_{project_config['project_type']}".lower()
@@ -1397,9 +1415,10 @@ class Project(BaseModel):
                     model_config_param_value = model_config[model_config_param]
 
                     if not model_param:
-                        raise Exception(
-                            f"Invalid model config for {model_type} \n {json.dumps(model_parameters)}"
-                        )
+                        # raise Exception(
+                        #     f"Invalid model config for {model_type} \n {json.dumps(model_parameters)}"
+                        # )
+                        continue
 
                     if model_param["type"] == "select":
                         Validate.value_against_list(
@@ -1458,11 +1477,18 @@ class Project(BaseModel):
             },
         }
 
+        print("Config :-")
+        print(json.dumps(payload["metadata"], indent=1))
+
+        print("Config :-")
+        print(json.dumps(payload["metadata"], indent=1))
+
         res = self.api_client.post(TRAIN_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
+        print("\nTraining Initiated")
         poll_events(self.api_client, self.project_name, res["event_id"])
 
         return "Model Trained Successfully"
@@ -1485,6 +1511,15 @@ class Project(BaseModel):
 
         return staged_models_df
 
+    def active_model(self) -> pd.DataFrame:
+        """Current Active Model for project
+
+        :return: current active model dataframe
+        """
+        staged_models_df = self.models()
+        active_model = staged_models_df[staged_models_df["status"] == "active"]
+        return active_model
+
     def available_models(self) -> List[str]:
         """Returns all models which can be trained on platform
 
@@ -1503,7 +1538,7 @@ class Project(BaseModel):
 
         return available_models
 
-    def activate_model(self, model_name: str):
+    def activate_model(self, model_name: str) -> str:
         """Sets the model to active for the project
 
         :param model_name: name of the model
@@ -1520,7 +1555,7 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def remove_model(self, model_name: str):
+    def remove_model(self, model_name: str) -> str:
         """Removes the trained model for the project
 
         :param model_name: name of the model
@@ -1537,7 +1572,9 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def model_inference(self, tag: str, model_name: Optional[str] = None):
+    def model_inference(
+        self, tag: str, model_name: Optional[str] = None
+    ) -> pd.DataFrame:
         """Run model inference on data
 
         :param tag: data tag for running inference
@@ -1586,7 +1623,24 @@ class Project(BaseModel):
 
         return tag_data_df
 
-    def model_summary(self, model_name: Optional[str] = None) -> dict:
+    def model_inferences(self) -> pd.DataFrame:
+        """All model inferences
+
+        :return: model inferences dataframe
+        """
+
+        res = self.__api_client.get(
+            f"{MODEL_INFERENCES_URI}?project_name={self.project_name}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        model_inference_df = pd.DataFrame(res["details"]["inference_details"])
+
+        return model_inference_df
+
+    def model_summary(self, model_name: Optional[str] = None) -> ModelSummary:
         """Model Summary
 
         :param model_name: name of the model, defaults to active model for project
@@ -1637,6 +1691,7 @@ class Project(BaseModel):
         :param tag: data tag for filtering, defaults to None
         :param start_date: start date for filtering, defaults to None
         :param end_date: end data for filtering, defaults to None
+        :return: casse details dataframe
         """
 
         def get_cases():
@@ -1761,7 +1816,7 @@ class Project(BaseModel):
         """clear user project notifications
 
         :raises Exception: _description_
-        :return: str
+        :return: response
         """
         url = f"{CLEAR_NOTIFICATIONS_URI}?project_name={self.project_name}"
 
@@ -1781,15 +1836,18 @@ class Project(BaseModel):
             f"{GET_OBSERVATIONS_URI}?project_name={self.project_name}"
         )
 
-        if not res.get("details"):
-            raise Exception("No observations found")
-
         observation_df = pd.DataFrame(res.get("details"))
+
+        if observation_df.empty:
+            return observation_df
+
         observation_df = observation_df[
             observation_df["status"].isin(["active", "inactive"])
         ]
+
         if observation_df.empty:
-            raise Exception("No observations found")
+            return observation_df
+
         observation_df["expression"] = observation_df["metadata"].apply(
             lambda metadata: generate_expression(metadata["expression"])
         )
@@ -2060,13 +2118,16 @@ class Project(BaseModel):
             f"{GET_POLICIES_URI}?project_name={self.project_name}"
         )
 
-        if not res.get("details"):
-            raise Exception("No policies found")
-
         policy_df = pd.DataFrame(res.get("details"))
-        policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
+
         if policy_df.empty:
-            raise Exception("No policies found")
+            return policy_df
+
+        policy_df = policy_df[policy_df["status"].isin(["active", "inactive"])]
+
+        if policy_df.empty:
+            return policy_df
+
         policy_df["expression"] = policy_df["metadata"].apply(
             lambda metadata: generate_expression(metadata["expression"])
         )
@@ -2399,7 +2460,7 @@ class Project(BaseModel):
         data_config["model_name"] = model_name
 
         available_tags = self.tags()
-        tags = data_config.get("tags", project_config["avaialble_tags"])
+        tags = data_config.get("tags", available_tags)
 
         Validate.value_against_list("tag", tags, available_tags)
 
@@ -2518,7 +2579,7 @@ class Project(BaseModel):
 
         return models_df
 
-    def synthetic_model(self, model_name: str) -> dict:
+    def synthetic_model(self, model_name: str) -> SyntheticModel:
         """get synthetic model details
 
         :param model_name: model name

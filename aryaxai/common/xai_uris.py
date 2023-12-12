@@ -10,8 +10,10 @@ LOGIN_URI = f"{API_VERSION}/access-token/authorize"
 # User
 GET_WORKSPACES_URI = f"{API_VERSION}/users/workspaces"
 CREATE_WORKSPACE_URI = f"{API_VERSION}/users/create_workspace"
-GET_NOTIFICATIONS_URI = f"{API_VERSION}/users/notifications"
-CLEAR_NOTIFICATIONS_URI = f"{API_VERSION}/users/clear-notifications"
+
+# Notifications
+GET_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/fetch"
+CLEAR_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/clear"
 
 # Workspace
 UPDATE_WORKSPACE_URI = f"{API_VERSION}/users/workspace_config_update"
@@ -52,6 +54,7 @@ DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
 MODEL_SUMMARY_URI = f"{API_VERSION}/project/get_model_perfermance"
 MODEL_SVG_URI = f"{API_VERSION}/project/get_model_svg_plot"
 GET_MODEL_PERFORMANCE_URI = f"{API_VERSION}/dashboard/model_performance"
+MODEL_INFERENCES_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
 
 # Explainability
 GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"

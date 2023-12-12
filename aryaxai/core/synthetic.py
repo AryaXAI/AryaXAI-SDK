@@ -9,7 +9,15 @@ import plotly.graph_objects as go
 from aryaxai.client.client import APIClient
 from aryaxai.common.utils import poll_events, pretty_date
 from aryaxai.common.validation import Validate
-from aryaxai.common.xai_uris import DELETE_SYNTHETIC_MODEL_URI, DELETE_SYNTHETIC_TAG_URI, DOWNLOAD_SYNTHETIC_DATA_URI, GENERATE_ANONYMITY_SCORE_URI, GENERATE_SYNTHETIC_DATA_URI, GET_ANONYMITY_SCORE_URI
+from aryaxai.common.xai_uris import (
+    DELETE_SYNTHETIC_MODEL_URI,
+    DELETE_SYNTHETIC_TAG_URI,
+    DOWNLOAD_SYNTHETIC_DATA_URI,
+    GENERATE_ANONYMITY_SCORE_URI,
+    GENERATE_SYNTHETIC_DATA_URI,
+    GET_ANONYMITY_SCORE_URI,
+)
+
 
 class SyntheticDataTag(BaseModel):
     api_client: APIClient
@@ -112,7 +120,7 @@ class SyntheticModel(BaseModel):
 
         return df
 
-    def plot_psi(self):
+    def quality_plot(self):
         """plot psi chart"""
         x_data = [item["Column"] for item in self.plot_data]
         y_data = [item["Quality Score"] for item in self.plot_data]
@@ -178,14 +186,14 @@ class SyntheticModel(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        print('Generating synthetic datapoints...')
+        print("Generating synthetic datapoints...")
         poll_events(
             self.api_client,
             self.project_name,
             res["event_id"],
-            progress_message="Synthetic Data generation progress"
+            progress_message="Synthetic Data generation progress",
         )
-        print('Synthetic datapoints generated successfully.\n')
+        print("Synthetic datapoints generated successfully.\n")
 
     def generate_anonymity_score(self, aux_columns: List[str], control_tag: str):
         """generate anonymity score
@@ -242,11 +250,11 @@ class SyntheticModel(BaseModel):
             print(res["details"])
             raise Exception("Error while getting anonymity score.")
 
-        print('metadata:')
-        print(res['details']['metadata'])
-        print('\n')
+        print("metadata:")
+        print(res["details"]["metadata"])
+        print("\n")
 
-        return pd.DataFrame(res['details']['scores'], index=[0])
+        return pd.DataFrame(res["details"]["scores"], index=[0])
 
     def __print__(self) -> str:
         created_at = pretty_date(self.created_at)
