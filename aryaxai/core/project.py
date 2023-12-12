@@ -702,7 +702,7 @@ class Project(BaseModel):
         if not res["success"]:
             if "hosted_path" in res:
                 dashboard_url = res.get("hosted_path")
-                auth_token = self.__api_client.get_auth_token()
+                auth_token = self.api_client.get_auth_token()
                 query_params = f"?id={auth_token}"
                 return Dashboard(
                     config=res["config"], url=f"{dashboard_url}{query_params}"
@@ -1629,7 +1629,7 @@ class Project(BaseModel):
         :return: model inferences dataframe
         """
 
-        res = self.__api_client.get(
+        res = self.api_client.get(
             f"{MODEL_INFERENCES_URI}?project_name={self.project_name}"
         )
 
