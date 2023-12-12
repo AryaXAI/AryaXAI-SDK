@@ -18,7 +18,7 @@ class XAI(BaseModel):
     """Base class to connect with AryaXAI platform"""
 
     env: Environment = Environment()
-    api_client: APIClient
+    api_client: APIClient = APIClient()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
