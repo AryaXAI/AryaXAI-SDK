@@ -40,6 +40,7 @@ import pandas as pd
 
 from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
+    AVAILABLE_CUSTOM_SERVERS,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CLEAR_NOTIFICATIONS_URI,
@@ -1498,9 +1499,7 @@ class Project(BaseModel):
 
         :return: Dataframe with details of all models
         """
-        res = self.api_client.get(
-            f"{GET_MODELS_URI}?project_name={self.project_name}"
-        )
+        res = self.api_client.get(f"{GET_MODELS_URI}?project_name={self.project_name}")
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -1525,9 +1524,7 @@ class Project(BaseModel):
 
         :return: list of all models
         """
-        res = self.api_client.get(
-            f"{GET_MODELS_URI}?project_name={self.project_name}"
-        )
+        res = self.api_client.get(f"{GET_MODELS_URI}?project_name={self.project_name}")
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2408,6 +2405,7 @@ class Project(BaseModel):
         model_name: str,
         data_config: Optional[SyntheticDataConfig] = {},
         hyper_params: Optional[SyntheticModelHyperParams] = {},
+        instance_type: Optional[str] = "shared",
     ):
         """Train synthetic model
 
@@ -2438,6 +2436,9 @@ class Project(BaseModel):
                 "test_ratio": float [0, 1] defaults to 0.2
             }
             defaults to {}
+        :param instance_type: type of instance to run training
+            for all available instances check xai.available_custom_servers()
+            defaults to shared
 
         :return: response
         """
@@ -2447,6 +2448,13 @@ class Project(BaseModel):
             raise Exception("Upload files first")
 
         project_config = project_config["metadata"]
+
+        if instance_type != "shared":
+            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            servers = list(
+                map(lambda instance: instance["instance_name"], available_servers)
+            )
+            Validate.value_against_list("instance_type", instance_type, servers)
 
         all_models_param = self.get_synthetic_model_params()
 
@@ -2517,6 +2525,7 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "model_name": model_name,
+            "instance_type": instance_type,
             "metadata": {
                 "model_name": model_name,
                 "tags": tags,
@@ -2840,9 +2849,7 @@ class Project(BaseModel):
         if not curr_prompt:
             raise Exception(f"Invalid prompt_id")
 
-        return SyntheticPrompt(
-            **curr_prompt, api_client=self.api_client, project=self
-        )
+        return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"

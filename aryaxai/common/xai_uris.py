@@ -10,6 +10,7 @@ LOGIN_URI = f"{API_VERSION}/access-token/authorize"
 # User
 GET_WORKSPACES_URI = f"{API_VERSION}/users/workspaces"
 CREATE_WORKSPACE_URI = f"{API_VERSION}/users/create_workspace"
+AVAILABLE_CUSTOM_SERVERS = f"{API_VERSION}/users/custom_servers"
 
 # Notifications
 GET_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/fetch"
