@@ -20,7 +20,7 @@ from aryaxai.common.xai_uris import (
 
 
 class SyntheticDataTag(BaseModel):
-    __api_client: APIClient
+    api_client: APIClient
     project_name: str
     project: Any
 
@@ -39,7 +39,7 @@ class SyntheticDataTag(BaseModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.__api_client = kwargs.get("api_client")
+        self.api_client = kwargs.get("api_client")
 
     def get_model_name(self) -> str:
         """get model type
@@ -76,7 +76,7 @@ class SyntheticModel(BaseModel):
     :return: _description_
     """
 
-    __api_client: APIClient
+    api_client: APIClient
     project_name: str
     project: Any
 
@@ -96,7 +96,7 @@ class SyntheticModel(BaseModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.__api_client = kwargs.get("api_client")
+        self.api_client = kwargs.get("api_client")
 
     def get_model_type(self) -> str:
         """get model type
@@ -160,7 +160,7 @@ class SyntheticModel(BaseModel):
         """
         url = f"{GET_SYNTHETIC_TRAINING_LOGS_URI}?project_name={self.project_name}&model_name={self.model_name}"
 
-        res = self.__api_client.get(url)
+        res = self.api_client.get(url)
 
         if not res['success']:
             raise Exception('Error while getting training logs.')
@@ -181,14 +181,14 @@ class SyntheticModel(BaseModel):
             "num_of_datapoints": num_of_datapoints,
         }
 
-        res = self.__api_client.post(GENERATE_SYNTHETIC_DATA_URI, payload)
+        res = self.api_client.post(GENERATE_SYNTHETIC_DATA_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
         print("Generating synthetic datapoints...")
         poll_events(
-            self.__api_client,
+            self.api_client,
             self.project_name,
             res["event_id"],
             progress_message="Synthetic Data generation progress",
@@ -224,14 +224,14 @@ class SyntheticModel(BaseModel):
             "project_name": self.project_name,
         }
 
-        res = self.__api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
+        res = self.api_client.post(GENERATE_ANONYMITY_SCORE_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
 
-        print("Calculating anonymity score...")
-        poll_events(self.__api_client, self.project_name, res["event_id"])
-        print("Anonymity score calculated successfully.\n")
+        print('Calculating anonymity score...')
+        poll_events(self.api_client, self.project_name, res["event_id"])
+        print('Anonymity score calculated successfully.\n')
 
     def anonymity_score(self):
         """get anonymity score
@@ -244,7 +244,7 @@ class SyntheticModel(BaseModel):
             "model_name": self.model_name,
         }
 
-        res = self.__api_client.post(GET_ANONYMITY_SCORE_URI, payload)
+        res = self.api_client.post(GET_ANONYMITY_SCORE_URI, payload)
 
         if not res["success"]:
             print(res["details"])
@@ -269,7 +269,7 @@ class SyntheticModel(BaseModel):
 
 
 class SyntheticPrompt(BaseModel):
-    __api_client: APIClient
+    api_client: APIClient
     project: Any
 
     prompt_name: str
@@ -285,7 +285,7 @@ class SyntheticPrompt(BaseModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.__api_client = kwargs.get("api_client")
+        self.api_client = kwargs.get("api_client")
 
     def get_expression(self) -> str:
         """construct prompt expression
@@ -323,7 +323,7 @@ class SyntheticPrompt(BaseModel):
             "update_keys": {}
         }
 
-        res = self.__api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
+        res = self.api_client.post(UPDATE_SYNTHETIC_PROMPT_URI, payload)
 
         if not res['success']:
             raise Exception(res['details'])
