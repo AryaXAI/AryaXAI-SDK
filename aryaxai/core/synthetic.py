@@ -10,10 +10,7 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.utils import poll_events, pretty_date
 from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
-    AVAILABLE_CUSTOM_SERVERS,
-    DELETE_SYNTHETIC_MODEL_URI,
-    DELETE_SYNTHETIC_TAG_URI,
-    DOWNLOAD_SYNTHETIC_DATA_URI,
+    AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     GENERATE_ANONYMITY_SCORE_URI,
     GENERATE_SYNTHETIC_DATA_URI,
     GET_ANONYMITY_SCORE_URI,
@@ -176,12 +173,14 @@ class SyntheticModel(BaseModel):
 
         :param num_of_datapoints: total datapoints to generate
         :param instance_type: type of instance to run training
-            for all available instances check xai.available_custom_servers()
+            for all available instances check xai.available_synthetic_custom_servers()
             defaults to shared
         :return: None
         """
         if instance_type != "shared":
-            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            available_servers = self.api_client.get(
+                AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI
+            )["details"]
             servers = list(
                 map(lambda instance: instance["instance_name"], available_servers)
             )
@@ -219,13 +218,15 @@ class SyntheticModel(BaseModel):
         :param aux_columns: list of features
         :param control_tag: tag
         :param instance_type: type of instance to run training
-            for all available instances check xai.available_custom_servers()
+            for all available instances check xai.available_synthetic_custom_servers()
             defaults to shared
 
         :return: None
         """
         if instance_type != "shared":
-            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            available_servers = self.api_client.get(
+                AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI
+            )["details"]
             servers = list(
                 map(lambda instance: instance["instance_name"], available_servers)
             )

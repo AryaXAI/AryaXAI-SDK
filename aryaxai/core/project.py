@@ -40,7 +40,8 @@ import pandas as pd
 
 from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
-    AVAILABLE_CUSTOM_SERVERS,
+    AVAILABLE_CUSTOM_SERVERS_URI,
+    AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
     CLEAR_NOTIFICATIONS_URI,
@@ -48,7 +49,7 @@ from aryaxai.common.xai_uris import (
     CREATE_POLICY_URI,
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
-    DATA_DRFIT_DIAGNOSIS_URI,
+    DASHBOARD_CONFIG_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
     DELETE_SYNTHETIC_MODEL_URI,
@@ -57,12 +58,13 @@ from aryaxai.common.xai_uris import (
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
+    GENERATE_DASHBOARD_URI,
     GET_CASES_URI,
     GET_DATA_DIAGNOSIS_URI,
+    GET_DATA_DRIFT_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_EXECUTED_TRIGGER_INFO,
     GET_LABELS_URI,
-    GET_MODEL_PERFORMANCE_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
@@ -76,12 +78,16 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
+    HOSTED_DASHBOARD_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
+    RUN_DATA_DRIFT_DIAGNOSIS_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
+    START_CUSTOM_SERVER_URI,
+    STOP_CUSTOM_SERVER_URI,
     TRAIN_MODEL_URI,
     TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
@@ -94,10 +100,6 @@ from aryaxai.common.xai_uris import (
     UPLOAD_DATA_FILE_URI,
     UPLOAD_DATA_URI,
     UPLOAD_DATA_WITH_CHECK_URI,
-    DATA_DRIFT_DASHBOARD_URI,
-    TARGET_DRIFT_DASHBOARD_URI,
-    BIAS_MONITORING_DASHBOARD_URI,
-    MODEL_PERFORMANCE_DASHBOARD_URI,
     UPLOAD_MODEL_URI,
 )
 import json
@@ -136,7 +138,9 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "rename_project": new_project_name,
+                "update_project":{
+                    "project_name": new_project_name,
+                }
             },
         }
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
@@ -207,6 +211,61 @@ class Project(BaseModel):
         }
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
+    
+    def start_server(self) -> str:
+        """start dedicated project server
+
+        :return: response
+        """
+        res = self.api_client.post(f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}")
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+    
+    def stop_server(self) -> str:
+        """stop dedicated project server
+
+        :return: response
+        """
+        res = self.api_client.post(f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}")
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+    
+    def update_server(self,server_type: str) -> str:
+        """update dedicated project server
+        :param server_type: dedicated instance to run workloads
+            for all available instances check xai.available_custom_servers()
+
+        :return: response
+        """
+        custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
+        Validate.value_against_list(
+            "server_type",
+            server_type,
+            [server["name"] for server in custom_servers],
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "update_project":{
+                    "project_name": self.user_project_name,
+                    "instance_type": server_type,
+                }
+            },
+        }
+
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+        
+        return "Server Updated"
 
     def config(self) -> str:
         """returns config for the project
@@ -667,47 +726,48 @@ class Project(BaseModel):
         return data_warnings
 
     def data_drift_diagnosis(
-        self, baseline_tags: List[str], current_tags: List[str]
+        self, baseline_tags: Optional[List[str]]=None, current_tags: Optional[List[str]]=None
     ) -> pd.DataFrame:
         """Data Drift Diagnosis for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data drift diagnosis dataframe
         """
-        payload = {
-            "project_name": self.project_name,
-            "baseline_tags": baseline_tags,
-            "current_tags": current_tags,
-        }
-        res = self.api_client.post(DATA_DRFIT_DIAGNOSIS_URI, payload)
+        if baseline_tags and current_tags:
+            payload = {
+                "project_name": self.project_name,
+                "baseline_tags": baseline_tags,
+                "current_tags": current_tags,
+            }
+            res = self.api_client.post(RUN_DATA_DRIFT_DIAGNOSIS_URI, payload)
 
-        if not res["success"]:
-            raise Exception(res.get("details").get("reason"))
+            if not res["success"]:
+                raise Exception(res.get("details").get("reason"))
+            
+            poll_events(self.api_client, self.project_name, res["task_id"])
 
+
+        res = self.api_client.post(f"{GET_DATA_DRIFT_DIAGNOSIS_URI}?project_name={self.project_name}")
         data_drift_diagnosis = pd.DataFrame(
-            res["details"]["results"]["detailed_report"]
+            res["details"]["detailed_report"]
         ).drop(["current_small_hist", "ref_small_hist"], axis=1)
 
         return data_drift_diagnosis
 
-    def get_default_dashboard(self, uri: str) -> Dashboard:
+    def get_default_dashboard(self, type: str) -> Dashboard:
         """get default dashboard
 
-        :param uri: uri of the dashboard
+        :param type: type of the dashboard
         :return: Dashboard
         """
-        config = {"project_name": self.project_name}
 
-        res = self.api_client.post(uri, config)
+        res = self.api_client.get(f"{DASHBOARD_CONFIG_URI}?type={type}&project_name={self.project_name}")
 
-        if not res["success"]:
-            if "hosted_path" in res:
-                dashboard_url = res.get("hosted_path")
-                auth_token = self.api_client.get_auth_token()
-                query_params = f"?id={auth_token}"
-                return Dashboard(
-                    config=res["config"], url=f"{dashboard_url}{query_params}"
-                )
+        if res["success"]:
+            auth_token = self.api_client.get_auth_token()
+            query_params = f"?project_name={self.project_name}&type={type}&access_token={auth_token}"
+
+            return Dashboard(config=res["details"], url=f"{HOSTED_DASHBOARD_URI}{query_params}")
 
         raise Exception(
             "Cannot retrieve default dashboard, please create new dashboard"
@@ -771,7 +831,8 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(DATA_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard("data_drift")
+
 
         payload["project_name"] = self.project_name
 
@@ -798,17 +859,16 @@ class Project(BaseModel):
             "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
         )
 
-        res = self.api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
+        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=data_drift", payload)
 
         if not res["success"]:
-            error_details = res.get("details", "Failed to get dashboard url")
+            print("res",res)
+            error_details = res.get("details", "Failed to generate dashboard")
             raise Exception(error_details)
+        
+        poll_events(self.api_client, self.project_name, res["task_id"])
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
-
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return self.get_default_dashboard("data_drift")
 
     def get_target_drift_dashboard(self, payload: TargetDriftPayload = {}) -> Dashboard:
         """get target drift dashboard
@@ -859,7 +919,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(TARGET_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard("target_drift")
 
         payload["project_name"] = self.project_name
 
@@ -895,17 +955,15 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
+        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=target_drift", payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
+        
+        poll_events(self.api_client, self.project_name, res["task_id"])
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
-
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return self.get_default_dashboard("target_drift")
 
     def get_bias_monitoring_dashboard(
         self, payload: BiasMonitoringPayload = {}
@@ -927,7 +985,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(BIAS_MONITORING_DASHBOARD_URI)
+            return self.get_default_dashboard("biasmonitoring")
 
         payload["project_name"] = self.project_name
 
@@ -965,17 +1023,15 @@ class Project(BaseModel):
                 tags_info["alluniquefeatures"],
             )
 
-        res = self.api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
-
+        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=biasmonitoring", payload)
+                                                                    
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        poll_events(self.api_client, self.project_name, res["task_id"])
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return self.get_default_dashboard("biasmonitoring")
 
     def get_model_performance_dashboard(
         self, payload: ModelPerformancePayload = {}
@@ -999,7 +1055,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(MODEL_PERFORMANCE_DASHBOARD_URI)
+            return self.get_default_dashboard("performance")
 
         payload["project_name"] = self.project_name
 
@@ -1041,17 +1097,15 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
+        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=performance", payload)
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        poll_events(self.api_client, self.project_name, res["task_id"])
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return self.get_default_dashboard("performance")
 
     def monitoring_triggers(self) -> pd.DataFrame:
         """get monitoring triggers of project
@@ -1341,11 +1395,8 @@ class Project(BaseModel):
         """
         get model performance dashboard
         """
-        url = self.api_client.get_url(GET_MODEL_PERFORMANCE_URI)
-
-        # append params
         auth_token = self.api_client.get_auth_token()
-        url = f"{url}/{self.project_name}?id={auth_token}"
+        url = f"{HOSTED_DASHBOARD_URI}?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
 
         if model_name:
             url = f"{url}&model_name={model_name}"
@@ -1477,9 +1528,6 @@ class Project(BaseModel):
                 "tags": tags,
             },
         }
-
-        print("Config :-")
-        print(json.dumps(payload["metadata"], indent=1))
 
         print("Config :-")
         print(json.dumps(payload["metadata"], indent=1))
@@ -2437,7 +2485,7 @@ class Project(BaseModel):
             }
             defaults to {}
         :param instance_type: type of instance to run training
-            for all available instances check xai.available_custom_servers()
+            for all available instances check xai.available_synthetic_custom_servers()
             defaults to shared
 
         :return: response
@@ -2450,7 +2498,7 @@ class Project(BaseModel):
         project_config = project_config["metadata"]
 
         if instance_type != "shared":
-            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            available_servers = self.api_client.get(AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI)["details"]
             servers = list(
                 map(lambda instance: instance["instance_name"], available_servers)
             )

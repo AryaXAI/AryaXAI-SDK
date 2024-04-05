@@ -1,11 +1,14 @@
 import os
+from typing import Optional
 import pandas as pd
 from pydantic import BaseModel
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
+from aryaxai.common.validation import Validate
 from aryaxai.core.workspace import Workspace
 from aryaxai.common.xai_uris import (
-    AVAILABLE_CUSTOM_SERVERS,
+    AVAILABLE_CUSTOM_SERVERS_URI,
+    AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_WORKSPACE_URI,
     GET_NOTIFICATIONS_URI,
@@ -62,6 +65,8 @@ class XAI(BaseModel):
                 "created_by",
                 "created_at",
                 "updated_at",
+                "instance_type",
+                "instance_status",
             ],
         )
 
@@ -92,16 +97,31 @@ class XAI(BaseModel):
 
         return workspace
 
-    def create_workspace(self, workspace_name: str) -> Workspace:
+    def create_workspace(
+        self, workspace_name: str, server_type: Optional[str] = None
+    ) -> Workspace:
         """create user workspace
 
         :param workspace_name: name for the workspace
+        :param server_type: dedicated instance to run workloads
+            for all available instances check xai.available_custom_servers()
+            defaults to shared
         :return: response
         """
+        payload = {"workspace_name": workspace_name}
 
-        res = self.api_client.post(
-            CREATE_WORKSPACE_URI, {"workspace_name": workspace_name}
-        )
+        if server_type:
+            custom_servers = self.available_custom_servers()
+            Validate.value_against_list(
+                "server_type",
+                server_type,
+                [server["name"] for server in custom_servers],
+            )
+
+            payload["instance_type"] = server_type
+
+        res = self.api_client.post(CREATE_WORKSPACE_URI, payload)
+
         if not res["success"]:
             raise Exception(res.get("details"))
 
@@ -145,5 +165,13 @@ class XAI(BaseModel):
 
         :return: response
         """
-        res = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)
+        res = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
+        return res
+
+    def available_synthetic_custom_servers(self) -> dict:
+        """available synthetic custom servers
+
+        :return: response
+        """
+        res = self.api_client.get(AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI)
         return res["details"]

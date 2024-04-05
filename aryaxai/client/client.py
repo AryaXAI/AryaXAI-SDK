@@ -136,8 +136,11 @@ class APIClient(BaseModel):
 
         self.refresh_bearer_token()
         response = self.base_request("GET", uri, stream=True)
-        for res in response.iter_lines():
-            yield json.loads(res.decode("utf-8"))
+        for res in response.iter_lines(decode_unicode=True):
+            if res:
+                if res.startswith("data: "):
+                    res = res.split("data: ")[1]
+                yield json.loads(res)
 
     def file(self, uri, files):
         """makes multipart request to send files
