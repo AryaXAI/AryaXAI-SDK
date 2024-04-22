@@ -305,7 +305,7 @@ class SyntheticPrompt(BaseModel):
     prompt_id: str
     project_name: str
     status: str
-    configuration: List[dict]
+    configuration: List[Any]
     metadata: dict
     created_by: str
     updated_by: str
