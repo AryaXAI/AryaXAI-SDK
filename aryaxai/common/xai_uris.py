@@ -35,7 +35,7 @@ DELETE_DATA_FILE_URI = f"{API_VERSION}/project/delete_data"
 ALL_DATA_FILE_URI = f"{API_VERSION}/project/get_all_uploaded_files"
 UPLOAD_DATA_URI = f"{API_VERSION_V2}/project/upload_data"
 UPLOAD_DATA_WITH_CHECK_URI = f"{API_VERSION_V2}/project/upload_data_with_check"
-UPLOAD_MODEL_URI = f"{API_VERSION}/project/upload_model"
+UPLOAD_MODEL_URI = f"{API_VERSION_V2}/project/upload_model"
 GET_MODEL_TYPES_URI = f"{API_VERSION}/project/get_model_types"
 GET_DATA_SUMMARY_URI = f"{API_VERSION}/project/data_summary"
 GET_DATA_DIAGNOSIS_URI = f"{API_VERSION}/project/get_data_diagnosis"
@@ -45,7 +45,7 @@ GET_PROJECT_CONFIG = f"{API_VERSION}/users/get_xai_config"
 AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
 
 # Monitoring
-HOSTED_DASHBOARD_URI = "https://aixai.pages.dev/sdk/dashboard"
+HOSTED_DASHBOARD_URI = "https://beta.aryaxai.com/sdk/dashboard"
 GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"
 DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
 MODEL_PERFORMANCE_DASHBOARD_URI = (
