@@ -115,3 +115,4 @@ GET_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/get_synthetics_promts"
 
 # Events
 POLL_EVENTS = f"{API_VERSION_V2}/events/poll"
+FETCH_EVENTS = f"{API_VERSION_V2}/events/fetch"

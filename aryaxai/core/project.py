@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Dict, List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
     DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
@@ -58,6 +58,7 @@ from aryaxai.common.xai_uris import (
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
+    FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_CASES_URI,
     GET_DATA_DIAGNOSIS_URI,
@@ -138,7 +139,7 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "update_project":{
+                "update_project": {
                     "project_name": new_project_name,
                 }
             },
@@ -211,32 +212,36 @@ class Project(BaseModel):
         }
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
-    
+
     def start_server(self) -> str:
         """start dedicated project server
 
         :return: response
         """
-        res = self.api_client.post(f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}")
+        res = self.api_client.post(
+            f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}"
+        )
 
         if not res["status"]:
             raise Exception(res.get("message"))
 
         return res["message"]
-    
+
     def stop_server(self) -> str:
         """stop dedicated project server
 
         :return: response
         """
-        res = self.api_client.post(f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}")
+        res = self.api_client.post(
+            f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}"
+        )
 
         if not res["status"]:
             raise Exception(res.get("message"))
 
         return res["message"]
-    
-    def update_server(self,server_type: str) -> str:
+
+    def update_server(self, server_type: str) -> str:
         """update dedicated project server
         :param server_type: dedicated instance to run workloads
             for all available instances check xai.available_custom_servers()
@@ -253,7 +258,7 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "update_project":{
+                "update_project": {
                     "project_name": self.user_project_name,
                     "instance_type": server_type,
                 }
@@ -264,7 +269,7 @@ class Project(BaseModel):
 
         if not res["success"]:
             raise Exception(res.get("details"))
-        
+
         return "Server Updated"
 
     def config(self) -> str:
@@ -455,6 +460,11 @@ class Project(BaseModel):
 
             return uploaded_path
 
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -592,6 +602,11 @@ class Project(BaseModel):
 
             return uploaded_path
 
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -637,6 +652,11 @@ class Project(BaseModel):
 
             return uploaded_path
 
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         model_types = self.api_client.get(GET_MODEL_TYPES_URI)
         valid_model_architecture = model_types.get("model_architecture").keys()
         Validate.value_against_list(
@@ -676,7 +696,7 @@ class Project(BaseModel):
         :return: data observations dataframe
         """
         res = self.api_client.post(
-            f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
+            f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=false"
         )
         valid_tags = res["data"]["data"].keys()
 
@@ -726,7 +746,9 @@ class Project(BaseModel):
         return data_warnings
 
     def data_drift_diagnosis(
-        self, baseline_tags: Optional[List[str]]=None, current_tags: Optional[List[str]]=None
+        self,
+        baseline_tags: Optional[List[str]] = None,
+        current_tags: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Data Drift Diagnosis for the project
 
@@ -743,14 +765,15 @@ class Project(BaseModel):
 
             if not res["success"]:
                 raise Exception(res.get("details").get("reason"))
-            
+
             poll_events(self.api_client, self.project_name, res["task_id"])
 
-
-        res = self.api_client.post(f"{GET_DATA_DRIFT_DIAGNOSIS_URI}?project_name={self.project_name}")
-        data_drift_diagnosis = pd.DataFrame(
-            res["details"]["detailed_report"]
-        ).drop(["current_small_hist", "ref_small_hist"], axis=1)
+        res = self.api_client.post(
+            f"{GET_DATA_DRIFT_DIAGNOSIS_URI}?project_name={self.project_name}"
+        )
+        data_drift_diagnosis = pd.DataFrame(res["details"]["detailed_report"]).drop(
+            ["current_small_hist", "ref_small_hist"], axis=1
+        )
 
         return data_drift_diagnosis
 
@@ -761,13 +784,17 @@ class Project(BaseModel):
         :return: Dashboard
         """
 
-        res = self.api_client.get(f"{DASHBOARD_CONFIG_URI}?type={type}&project_name={self.project_name}")
+        res = self.api_client.get(
+            f"{DASHBOARD_CONFIG_URI}?type={type}&project_name={self.project_name}"
+        )
 
         if res["success"]:
             auth_token = self.api_client.get_auth_token()
             query_params = f"?project_name={self.project_name}&type={type}&access_token={auth_token}"
 
-            return Dashboard(config=res["details"], url=f"{HOSTED_DASHBOARD_URI}{query_params}")
+            return Dashboard(
+                config=res["details"], url=f"{HOSTED_DASHBOARD_URI}{query_params}"
+            )
 
         raise Exception(
             "Cannot retrieve default dashboard, please create new dashboard"
@@ -833,6 +860,10 @@ class Project(BaseModel):
         if not payload:
             return self.get_default_dashboard("data_drift")
 
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
@@ -862,10 +893,10 @@ class Project(BaseModel):
         res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=data_drift", payload)
 
         if not res["success"]:
-            print("res",res)
+            print("res", res)
             error_details = res.get("details", "Failed to generate dashboard")
             raise Exception(error_details)
-        
+
         poll_events(self.api_client, self.project_name, res["task_id"])
 
         return self.get_default_dashboard("data_drift")
@@ -921,6 +952,11 @@ class Project(BaseModel):
         if not payload:
             return self.get_default_dashboard("target_drift")
 
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         payload["project_name"] = self.project_name
 
         # validate required fields
@@ -955,12 +991,14 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=target_drift", payload)
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=target_drift", payload
+        )
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
-        
+
         poll_events(self.api_client, self.project_name, res["task_id"])
 
         return self.get_default_dashboard("target_drift")
@@ -986,6 +1024,11 @@ class Project(BaseModel):
         """
         if not payload:
             return self.get_default_dashboard("biasmonitoring")
+
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
@@ -1023,8 +1066,10 @@ class Project(BaseModel):
                 tags_info["alluniquefeatures"],
             )
 
-        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=biasmonitoring", payload)
-                                                                    
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=biasmonitoring", payload
+        )
+
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
@@ -1056,6 +1101,11 @@ class Project(BaseModel):
         """
         if not payload:
             return self.get_default_dashboard("performance")
+
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
@@ -1097,7 +1147,9 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=performance", payload)
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=performance", payload
+        )
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
@@ -1423,6 +1475,11 @@ class Project(BaseModel):
         :param model_config: config with hyper parameters for the model, defaults to None
         :return: response
         """
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -1626,6 +1683,11 @@ class Project(BaseModel):
         :param model_name: name of the model, defaults to active model for the project
         :return: model inference dataframe
         """
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         available_tags = self.tags()
         if tag not in available_tags:
             raise Exception(
@@ -1962,9 +2024,11 @@ class Project(BaseModel):
         )
 
         observation_df["updated_expression"] = observation_df["updated_keys"].apply(
-            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
-            if data
-            else None
+            lambda data: (
+                generate_expression(data.get("metadata", {}).get("expression"))
+                if data
+                else None
+            )
         )
 
         observation_df = observation_df.drop(
@@ -2243,9 +2307,11 @@ class Project(BaseModel):
         )
 
         policy_df["updated_expression"] = policy_df["updated_keys"].apply(
-            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
-            if data
-            else None
+            lambda data: (
+                generate_expression(data.get("metadata", {}).get("expression"))
+                if data
+                else None
+            )
         )
 
         policy_df = policy_df.drop(
@@ -2490,6 +2556,11 @@ class Project(BaseModel):
 
         :return: response
         """
+        events = self.events(status=["running"])
+
+        if events:
+            raise Exception("Please wait for your existing tasks to be complete")
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -2498,7 +2569,9 @@ class Project(BaseModel):
         project_config = project_config["metadata"]
 
         if instance_type != "shared":
-            available_servers = self.api_client.get(AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI)["details"]
+            available_servers = self.api_client.get(
+                AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI
+            )["details"]
             servers = list(
                 map(lambda instance: instance["instance_name"], available_servers)
             )
@@ -2898,6 +2971,30 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
+
+    def events(
+        self,
+        event_id: Optional[str] = None,
+        event_names: Optional[List[str]] = None,
+        status: Optional[List[str]] = None,
+    ) -> List[Dict]:
+        """get info about events
+
+        :return: event details
+        """
+        payload = {
+            "project_name": self.project_name,
+            "event_id": event_id,
+            "event_names": event_names,
+            "status": status,
+        }
+
+        res = self.api_client.post(FETCH_EVENTS, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res.get("details")
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
