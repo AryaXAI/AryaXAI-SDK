@@ -863,7 +863,8 @@ class Project(BaseModel):
         events = self.events(status=["running"])
 
         if events:
-            raise Exception("Please wait for your existing tasks to be complete")
+            print('Generating One More Dashboard')
+            #raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
