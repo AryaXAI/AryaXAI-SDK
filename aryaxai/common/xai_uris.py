@@ -51,6 +51,8 @@ DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
 MODEL_PERFORMANCE_DASHBOARD_URI = (
     f"{API_VERSION_V2}/dashboard/model_performance_dashboard"
 )
+DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_logs"
+GET_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/get_dashboard"
 
 # Auto ML
 MODEL_PARAMETERS_URI = f"{API_VERSION}/users/get_xai_model_parameters"

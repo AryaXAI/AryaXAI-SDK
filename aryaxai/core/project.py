@@ -50,6 +50,7 @@ from aryaxai.common.xai_uris import (
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
     DASHBOARD_CONFIG_URI,
+    DASHBOARD_LOGS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
     DELETE_SYNTHETIC_MODEL_URI,
@@ -61,6 +62,7 @@ from aryaxai.common.xai_uris import (
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_CASES_URI,
+    GET_DASHBOARD_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_DRIFT_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
@@ -414,6 +416,105 @@ class Project(BaseModel):
         res = self.api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
+    def update_config(self, config: DataConfig):
+        """updates config for the project
+
+        :param config: updated config
+                    {
+                        "tags": List[str]
+                        "feature_exclude": List[str]
+                        "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
+                        "drop_duplicate_uid": bool
+                    },
+
+        :return: response
+        """
+        if not config:
+            raise Exception("Please upload config")
+
+        project_config = self.config()
+
+        if project_config == "Not Found":
+            raise Exception("Config does not exist, please upload files first")
+
+        available_tags = self.available_tags()
+
+        if config.get("tags"):
+            Validate.value_against_list(
+                "tags", config["tags"], available_tags.get("user_tags")
+            )
+
+        all_unique_features = [
+            *project_config["metadata"]["feature_exclude"],
+            *project_config["metadata"]["feature_include"],
+        ]
+
+        if config.get("feature_exclude"):
+            Validate.value_against_list(
+                "feature_exclude",
+                config["feature_exclude"],
+                all_unique_features,
+            )
+
+        if config.get("feature_encodings"):
+            Validate.value_against_list(
+                "feature_encodings_feature",
+                list(config["feature_encodings"].keys()),
+                list(project_config["metadata"]["feature_encodings"].keys()),
+            )
+            Validate.value_against_list(
+                "feature_encodings_feature",
+                list(config["feature_encodings"].values()),
+                ["labelencode", "countencode"],
+            )
+
+        if config.get("feature_exclude") is None:
+            feature_exclude = project_config["metadata"]["feature_exclude"]
+        else:
+            feature_exclude = config.get("feature_exclude", [])
+
+        feature_include = [
+            feature for feature in all_unique_features if feature not in feature_exclude
+        ]
+
+        feature_encodings = (
+            config.get("feature_encodings")
+            or project_config["metadata"]["feature_encodings"]
+        )
+
+        drop_duplicate_uid = (
+            config.get("drop_duplicate_uid")
+            or project_config["metadata"]["drop_duplicate_uid"]
+        )
+
+        tags = config.get("tags") or project_config["metadata"]["tags"]
+
+        payload = {
+            "project_name": self.project_name,
+            "project_type": project_config["project_type"],
+            "unique_identifier": project_config["unique_identifier"],
+            "true_label": project_config["true_label"],
+            "pred_label": project_config.get("pred_label"),
+            "config_update": True,
+            "metadata": {
+                "feature_include": feature_include,
+                "feature_exclude": feature_exclude,
+                "feature_encodings": feature_encodings,
+                "drop_duplicate_uid": drop_duplicate_uid,
+                "tags": tags,
+            },
+        }
+
+        print("Config :-")
+        print(json.dumps(payload["metadata"], indent=1))
+
+        res = self.api_client.post(TRAIN_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to update config"))
+
+        poll_events(self.api_client, self.project_name, res.get("event_id"))
+
     def upload_data(
         self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
@@ -550,6 +651,9 @@ class Project(BaseModel):
 
             return res.get("details")
 
+        if project_config != "Not Found" and config:
+            raise Exception("Config already exists, please remove config")
+
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -629,6 +733,7 @@ class Project(BaseModel):
         model_type: str,
         model_name: str,
         model_data_tags: List[str],
+        model_test_tags: Optional[List[str]],
     ):
         """Uploads your custom model on AryaXAI
 
@@ -642,7 +747,7 @@ class Project(BaseModel):
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model",
                 files,
             )
 
@@ -666,6 +771,10 @@ class Project(BaseModel):
         valid_model_types = model_types.get("model_architecture")[model_architecture]
         Validate.value_against_list("model_type", model_type, valid_model_types)
 
+        tags = self.tags()
+        Validate.value_against_list("model_data_tags", model_data_tags, tags)
+        Validate.value_against_list("model_test_tags", model_test_tags, tags)
+
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -675,6 +784,7 @@ class Project(BaseModel):
             "model_type": model_type,
             "model_path": uploaded_path,
             "model_data_tags": model_data_tags,
+            "model_test_tags": model_test_tags,
         }
 
         res = self.api_client.post(UPLOAD_MODEL_URI, payload)
@@ -785,7 +895,7 @@ class Project(BaseModel):
         """
 
         res = self.api_client.get(
-            f"{DASHBOARD_CONFIG_URI}?type={type}&project_name={self.project_name}"
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}"
         )
 
         if res["success"]:
@@ -793,7 +903,9 @@ class Project(BaseModel):
             query_params = f"?project_name={self.project_name}&type={type}&access_token={auth_token}"
 
             return Dashboard(
-                config=res["details"], url=f"{HOSTED_DASHBOARD_URI}{query_params}"
+                config=res.get("config"),
+                raw_data=res.get("details"),
+                url=f"{HOSTED_DASHBOARD_URI}{query_params}",
             )
 
         raise Exception(
@@ -1159,6 +1271,71 @@ class Project(BaseModel):
 
         return self.get_default_dashboard("performance")
 
+    def get_all_dashboards(self, type: str, page: Optional[int] = 1):
+        """get all dashboard
+
+        :param type: type of the dashboard
+        :page: page number defaults to 1
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{DASHBOARD_LOGS_URI}?project_name={self.project_name}&type={type}&page={page}",
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get all dashboard"))
+
+        logs = pd.DataFrame(res.get("details").get("dashboards"))
+        logs.drop(
+            columns=[
+                "max_features",
+                "limit_features",
+                "time_taken",
+                "baseline_date",
+                "current_date",
+                "task_id",
+                "type",
+                "date_feature",
+                "stat_test_threshold",
+            ],
+            inplace=True,
+        )
+        return logs
+
+    def get_dashboard(self, type: str, dashboard_id: str) -> Dashboard:
+        """get dashboard
+
+        :param type: type of the dashboard
+        :param dashboard_id: id of dashboard
+        :return: Dashboard
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}&dashboard_id={dashboard_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get dashboard"))
+
+        auth_token = self.api_client.get_auth_token()
+        query_params = f"?project_name={self.project_name}&type={type}&dashboard_id={dashboard_id}&access_token={auth_token}"
+
+        return Dashboard(
+            config=res.get("config"),
+            raw_data=res.get("details"),
+            url=f"{HOSTED_DASHBOARD_URI}{query_params}",
+        )
+
     def monitoring_triggers(self) -> pd.DataFrame:
         """get monitoring triggers of project
 
@@ -1192,6 +1369,7 @@ class Project(BaseModel):
                     "stat_test_name": "",
                     "stat_test_threshold": 0,
                     "datadrift_features_per": 7,
+                    "dataset_drift_percentage": 50,
                     "features_to_use": [],
                     "date_feature": "",
                     "baseline_date": { "start_date": "", "end_date": ""},
@@ -1260,6 +1438,10 @@ class Project(BaseModel):
                     "features_to_use",
                     payload.get("features_to_use", []),
                     tags_info["alluniquefeatures"],
+                )
+            if payload.get("dataset_drift_percentage"):
+                payload["datadrift_features_per"] = payload.get(
+                    "dataset_drift_percentage"
                 )
         elif payload["trigger_type"] == "Target Drift":
             Validate.check_for_missing_keys(

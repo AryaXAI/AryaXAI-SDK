@@ -1,27 +1,22 @@
-MODEL_TYPES = [
-    'classification',
-    'regression'
-]
+MODEL_TYPES = ["classification", "regression"]
 
-TARGET_DRIFT_MODEL_TYPES = [
-    "classification"
-]
+TARGET_DRIFT_MODEL_TYPES = ["classification"]
 
 
 DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS = [
     "base_line_tag",
     "current_tag",
-    "stat_test_name"
+    "stat_test_name",
 ]
 
 DATA_DRIFT_STAT_TESTS = [
-    'chisquare',
-    'jensenshannon',
-    'ks',
-    'kl_div',
-    'psi',
-    'wasserstein',
-    'z'
+    "chisquare",
+    "jensenshannon",
+    "ks",
+    "kl_div",
+    "psi",
+    "wasserstein",
+    "z",
 ]
 
 
@@ -31,30 +26,24 @@ TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS = [
     "baseline_true_label",
     "current_true_label",
     "model_type",
-    "stat_test_name"
+    "stat_test_name",
 ]
 
-TARGET_DRIFT_STAT_TESTS = [
-    'chisquare',
-    'jensenshannon',
-    'kl_div',
-    'psi',
-    'z'
-]
+TARGET_DRIFT_STAT_TESTS = ["chisquare", "jensenshannon", "kl_div", "psi", "z"]
 
 TARGET_DRIFT_STAT_TESTS_CLASSIFICATION = [
-    'chisquare',
-    'jensenshannon',
-    'kl_div',
-    'psi',
+    "chisquare",
+    "jensenshannon",
+    "kl_div",
+    "psi",
 ]
 
 TARGET_DRIFT_STAT_TESTS_REGRESSION = [
-    'jensenshannon',
-    'kl_div',
-    'ks',
-    'psi',
-    'wasserstein',
+    "jensenshannon",
+    "kl_div",
+    "ks",
+    "psi",
+    "wasserstein",
 ]
 
 
@@ -67,12 +56,12 @@ BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS = [
 
 MODEL_PERF_DASHBOARD_REQUIRED_FIELDS = [
     "base_line_tag",
-    "current_tag",  
+    "current_tag",
     "baseline_true_label",
     "baseline_pred_label",
     "current_true_label",
     "current_pred_label",
-    "model_type"
+    "model_type",
 ]
 
 
@@ -109,8 +98,8 @@ MODEL_PERF_TRIGGER_REQUIRED_FIELDS = [
     "model_performance_metric",
     "model_performance_threshold",
     "baseline_true_label",
-    "baseline_pred_label",  
-    "base_line_tag"
+    "baseline_pred_label",
+    "base_line_tag",
 ]
 
 MODEL_PERF_METRICS_CLASSIFICATION = [
@@ -121,22 +110,25 @@ MODEL_PERF_METRICS_CLASSIFICATION = [
     "precision",
     "recall",
     "true_negative_rate",
-    "true_positive_rate"
+    "true_positive_rate",
 ]
 
 MODEL_PERF_METRICS_REGRESSION = [
     "mean_abs_perc_error",
     "mean_abs_perc_error",
     "mean_squared_error",
-    "r2_score"
+    "r2_score",
 ]
 
 MAIL_FREQUENCIES = [
-    'daily',
-    'weekly',
-    'monthly',
-    'quarterly',
-    'yearly'
+    "1 hour",
+    "3 hour",
+    "6 hour",
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "yearly",
 ]
 
 SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS = {
@@ -148,10 +140,7 @@ SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS = {
         "model_type": "tabular",
         "random_state": 1,
         "tabular_config": "GPT2Config",
-        "train_size": 0.8
+        "train_size": 0.8,
     },
-    "CTGAN": {
-        "epochs": 100,
-        "test_ratio": 0.2
-    }
+    "CTGAN": {"epochs": 100, "test_ratio": 0.2},
 }
