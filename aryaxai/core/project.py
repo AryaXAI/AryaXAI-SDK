@@ -1366,7 +1366,10 @@ class Project(BaseModel):
                 )
             )
 
-        df = pd.read_csv(io.StringIO(res.text))
+        try:
+            df = pd.read_csv(io.StringIO(res.text))
+        except:
+            df = pd.DataFrame()
 
         return df
 
