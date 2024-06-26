@@ -51,6 +51,7 @@ from aryaxai.common.xai_uris import (
     CREATE_TRIGGER_URI,
     DASHBOARD_CONFIG_URI,
     DASHBOARD_LOGS_URI,
+    DOWNLOAD_DASHBOARD_LOGS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
     DELETE_SYNTHETIC_MODEL_URI,
@@ -1307,6 +1308,31 @@ class Project(BaseModel):
             inplace=True,
         )
         return logs
+    
+    def get_dasboard_log_data(self, type: str):
+        """get all dashboard
+
+        :param type: type of the dashboard
+        :page: page number defaults to 1
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        auth_token = self.api_client.get_auth_token()
+        query_params = f"?project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
+        res = self.api_client.get(
+            f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}",
+        )
+        
+        if res.status_code != 200:
+            raise Exception(res.get("details", f"Error Downloading Dasboard Logs, {res.status_code}"))
+
+        df = pd.read_csv(io.StringIO(res.text))
+
+        return df
 
     def get_dashboard(self, type: str, dashboard_id: str) -> Dashboard:
         """get dashboard
