@@ -1352,7 +1352,7 @@ class Project(BaseModel):
             type,
             ["data_drift", "target_drift", "performance", "biasmonitoring"],
         )
-        self.refresh_bearer_token()
+        self.api_client.refresh_bearer_token()
         auth_token = self.api_client.get_auth_token()
         query_params = f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
 
