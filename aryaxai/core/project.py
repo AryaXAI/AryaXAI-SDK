@@ -915,10 +915,14 @@ class Project(BaseModel):
         )
 
     def get_data_drift_dashboard(
-        self, payload: DataDriftPayload = {}, instance_type: Optional[str] = None
+        self,
+        payload: DataDriftPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
     ) -> Dashboard:
         """get data drift dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param instance_type: instance type for running on custom server
         :param payload: data drift payload
             {
@@ -1021,13 +1025,21 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to generate dashboard")
             raise Exception(error_details)
 
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("data_drift")
+
         return "Data Drift dashboard generation initiated"
 
     def get_target_drift_dashboard(
-        self, payload: TargetDriftPayload = {}, instance_type: Optional[str] = None
+        self,
+        payload: TargetDriftPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
     ) -> Dashboard:
         """get target drift dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param instance_type: instance type for running on custom server
         :param payload: target drift payload
                 {
@@ -1132,13 +1144,20 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("target_drift")
+
         return "Target drift dashboard generation initiated"
 
     def get_bias_monitoring_dashboard(
-        self, payload: BiasMonitoringPayload = {}
+        self,
+        payload: BiasMonitoringPayload = {},
+        run_in_background: bool = False,
     ) -> Dashboard:
         """get bias monitoring dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param payload: bias monitoring payload
                 {
                     "base_line_tag": "",
@@ -1200,13 +1219,18 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("biasmonitoring")
+
         return "Bias monitoring dashboard generation initiated"
 
     def get_model_performance_dashboard(
-        self, payload: ModelPerformancePayload = {}
+        self, payload: ModelPerformancePayload = {}, run_in_background: bool = False
     ) -> Dashboard:
         """get model performance dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param payload: model performance payload
                 {
                     "base_line_tag": "",
@@ -1273,6 +1297,10 @@ class Project(BaseModel):
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
+
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("performance")
 
         return "Model performance dashboard generation initiated"
 
