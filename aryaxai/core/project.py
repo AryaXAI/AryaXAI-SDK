@@ -1352,12 +1352,12 @@ class Project(BaseModel):
             type,
             ["data_drift", "target_drift", "performance", "biasmonitoring"],
         )
-
+        self.refresh_bearer_token()
         auth_token = self.api_client.get_auth_token()
         query_params = f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
 
         uri =  f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}"
-        response = self.api_client.base_request("GET", uri)
+        res = self.api_client.base_request("GET", uri)
 
         if res.status_code != 200:
             raise Exception(
