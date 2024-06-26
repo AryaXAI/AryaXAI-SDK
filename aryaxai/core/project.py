@@ -1313,7 +1313,6 @@ class Project(BaseModel):
         """get all dashboard
 
         :param type: type of the dashboard
-        :page: page number defaults to 1
         """
         Validate.value_against_list(
             "type",
