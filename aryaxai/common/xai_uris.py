@@ -18,6 +18,8 @@ AVAILABLE_CUSTOM_SERVERS_URI = f"{API_VERSION_V2}/project/server_types"
 START_CUSTOM_SERVER_URI = f"{API_VERSION_V2}/project/start_server"
 STOP_CUSTOM_SERVER_URI = f"{API_VERSION_V2}/project/stop_server"
 
+# Batch Server
+AVAILABLE_BATCH_SERVERS_URI = f"{API_VERSION_V2}/users/automl_custom_servers"
 
 # Notifications
 GET_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/fetch"

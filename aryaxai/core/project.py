@@ -40,6 +40,7 @@ import pandas as pd
 
 from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
+    AVAILABLE_BATCH_SERVERS_URI,
     AVAILABLE_CUSTOM_SERVERS_URI,
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
@@ -913,9 +914,12 @@ class Project(BaseModel):
             "Cannot retrieve default dashboard, please create new dashboard"
         )
 
-    def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
+    def get_data_drift_dashboard(
+        self, payload: DataDriftPayload = {}, instance_type: Optional[str] = None
+    ) -> Dashboard:
         """get data drift dashboard
 
+        :param instance_type: instance type for running on custom server
         :param payload: data drift payload
             {
                 "base_line_tag": "",
@@ -973,12 +977,6 @@ class Project(BaseModel):
         if not payload:
             return self.get_default_dashboard("data_drift")
 
-        events = self.events(status=["running"])
-
-        if events:
-            print('Generating One More Dashboard')
-            #raise Exception("Please wait for your existing tasks to be complete")
-
         payload["project_name"] = self.project_name
 
         # validate required fields
@@ -1004,20 +1002,33 @@ class Project(BaseModel):
             "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
         )
 
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
         res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=data_drift", payload)
 
         if not res["success"]:
-            print("res", res)
             error_details = res.get("details", "Failed to generate dashboard")
             raise Exception(error_details)
 
-        poll_events(self.api_client, self.project_name, res["task_id"])
+        return "Data Drift dashboard generation initiated"
 
-        return self.get_default_dashboard("data_drift")
-
-    def get_target_drift_dashboard(self, payload: TargetDriftPayload = {}) -> Dashboard:
+    def get_target_drift_dashboard(
+        self, payload: TargetDriftPayload = {}, instance_type: Optional[str] = None
+    ) -> Dashboard:
         """get target drift dashboard
 
+        :param instance_type: instance type for running on custom server
         :param payload: target drift payload
                 {
                     "base_line_tag": "",
@@ -1066,11 +1077,6 @@ class Project(BaseModel):
         if not payload:
             return self.get_default_dashboard("target_drift")
 
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
-
         payload["project_name"] = self.project_name
 
         # validate required fields
@@ -1105,6 +1111,19 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
         res = self.api_client.post(
             f"{GENERATE_DASHBOARD_URI}?type=target_drift", payload
         )
@@ -1113,9 +1132,7 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        poll_events(self.api_client, self.project_name, res["task_id"])
-
-        return self.get_default_dashboard("target_drift")
+        return "Target drift dashboard generation initiated"
 
     def get_bias_monitoring_dashboard(
         self, payload: BiasMonitoringPayload = {}
@@ -1138,11 +1155,6 @@ class Project(BaseModel):
         """
         if not payload:
             return self.get_default_dashboard("biasmonitoring")
-
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
@@ -1188,9 +1200,7 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        poll_events(self.api_client, self.project_name, res["task_id"])
-
-        return self.get_default_dashboard("biasmonitoring")
+        return "Bias monitoring dashboard generation initiated"
 
     def get_model_performance_dashboard(
         self, payload: ModelPerformancePayload = {}
@@ -1215,11 +1225,6 @@ class Project(BaseModel):
         """
         if not payload:
             return self.get_default_dashboard("performance")
-
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         payload["project_name"] = self.project_name
 
@@ -1269,9 +1274,7 @@ class Project(BaseModel):
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        poll_events(self.api_client, self.project_name, res["task_id"])
-
-        return self.get_default_dashboard("performance")
+        return "Model performance dashboard generation initiated"
 
     def get_all_dashboards(self, type: str, page: Optional[int] = 1):
         """get all dashboard
@@ -1304,11 +1307,13 @@ class Project(BaseModel):
                 "type",
                 "date_feature",
                 "stat_test_threshold",
+                "project_name",
+                "file_id",
             ],
             inplace=True,
         )
         return logs
-    
+
     def get_dasboard_log_data(self, type: str):
         """get all dashboard
 
@@ -1325,9 +1330,13 @@ class Project(BaseModel):
         res = self.api_client.get(
             f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}",
         )
-        
+
         if res.status_code != 200:
-            raise Exception(res.get("details", f"Error Downloading Dasboard Logs, {res.status_code}"))
+            raise Exception(
+                res.get(
+                    "details", f"Error Downloading Dasboard Logs, {res.status_code}"
+                )
+            )
 
         df = pd.read_csv(io.StringIO(res.text))
 
