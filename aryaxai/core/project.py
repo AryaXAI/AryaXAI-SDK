@@ -1342,7 +1342,7 @@ class Project(BaseModel):
         )
         return logs
 
-    def get_dasboard_log_data(self, type: str):
+    def get_dashboard_log_data(self, type: str):
         """get all dashboard
 
         :param type: type of the dashboard
@@ -1354,7 +1354,7 @@ class Project(BaseModel):
         )
 
         auth_token = self.api_client.get_auth_token()
-        query_params = f"?project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
+        query_params = f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
         res = self.api_client.get(
             f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}",
         )
