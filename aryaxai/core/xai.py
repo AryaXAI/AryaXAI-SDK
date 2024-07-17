@@ -1,19 +1,16 @@
 import os
-from typing import Optional
 import pandas as pd
 from pydantic import BaseModel
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
-from aryaxai.common.validation import Validate
-from aryaxai.core.workspace import Workspace
+from aryaxai.core.organization import Organization
 from aryaxai.common.xai_uris import (
     AVAILABLE_CUSTOM_SERVERS_URI,
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     CLEAR_NOTIFICATIONS_URI,
-    CREATE_WORKSPACE_URI,
     GET_NOTIFICATIONS_URI,
     LOGIN_URI,
-    GET_WORKSPACES_URI,
+    USER_ORGANIZATION_URI,
 )
 import getpass
 
@@ -50,84 +47,76 @@ class XAI(BaseModel):
 
         print("Authenticated successfully.")
 
-    def workspaces(self) -> pd.DataFrame:
-        """get user workspaces
-
-        :return: workspace details dataframe
+    def organizations(self) -> pd.DataFrame:
+        """Get all organizations associated with user
         """
-        workspaces = self.api_client.get(GET_WORKSPACES_URI)
 
-        workspace_df = pd.DataFrame(
-            workspaces["details"],
+        res = self.api_client.get(USER_ORGANIZATION_URI)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get organizations"))
+  
+        res["details"].insert(0,{
+            "name":"Personal",
+            "organization_owner":True,
+            "organization_admin":True,
+            "current_users":1,
+            "created_by": "you",
+        })
+        
+        organization_df = pd.DataFrame(
+            res["details"],
             columns=[
-                "user_workspace_name",
-                "access_type",
+                "name",
+                "organization_owner",
+                "organization_admin",
+                "current_users",
                 "created_by",
                 "created_at",
-                "updated_at",
-                "instance_type",
-                "instance_status",
-            ],
+            ]
         )
+    
+        return organization_df
+    
+    def organization(self, organization_name: str): 
+        """Select specific organization
 
-        return workspace_df
-
-    def workspace(self, workspace_name) -> Workspace:
-        """select specific workspace
-
-        :param workspace_name: Name of the workspace to be used
-        :return: Workspace
+        :param organization_name: Name of the organization to be used
         """
-        workspaces = self.api_client.get(GET_WORKSPACES_URI)
-        user_workspaces = [
-            Workspace(api_client=self.api_client, **workspace)
-            for workspace in workspaces["details"]
+        if organization_name == "personal":
+            return Organization(
+                api_client=self.api_client, 
+                **{
+                    "name":"Personal",
+                    "organization_owner":True,
+                    "organization_admin":True,
+                    "current_users":1,
+                    "created_by": "you",
+                }
+            )
+        
+        organizations = self.api_client.get(USER_ORGANIZATION_URI)
+
+        if not organizations["success"]:
+            raise Exception(organizations.get("details", "Failed to get organizations"))
+        
+        user_organization = [
+            Organization(api_client=self.api_client, **organization)
+            for organization in organizations["details"]
         ]
 
-        workspace = next(
+        organization = next(
             filter(
-                lambda workspace: workspace.user_workspace_name == workspace_name,
-                user_workspaces,
+                lambda organization: organization.name == organization_name,
+                user_organization,
             ),
             None,
         )
 
-        if workspace is None:
-            raise Exception("Workspace Not Found")
-
-        return workspace
-
-    def create_workspace(
-        self, workspace_name: str, server_type: Optional[str] = None
-    ) -> Workspace:
-        """create user workspace
-
-        :param workspace_name: name for the workspace
-        :param server_type: dedicated instance to run workloads
-            for all available instances check xai.available_custom_servers()
-            defaults to shared
-        :return: response
-        """
-        payload = {"workspace_name": workspace_name}
-
-        if server_type:
-            custom_servers = self.available_custom_servers()
-            Validate.value_against_list(
-                "server_type",
-                server_type,
-                [server["name"] for server in custom_servers],
-            )
-
-            payload["instance_type"] = server_type
-
-        res = self.api_client.post(CREATE_WORKSPACE_URI, payload)
-
-        if not res["success"]:
-            raise Exception(res.get("details"))
-
-        workspace = Workspace(api_client=self.api_client, **res["workspace_details"])
-
-        return workspace
+        if organization is None:
+            raise Exception("Organization Not Found")
+        
+        return organization
 
     def get_notifications(self) -> pd.DataFrame:
         """get user notifications

@@ -45,6 +45,7 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
+    CASE_LOGS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_OBSERVATION_URI,
     CREATE_POLICY_URI,
@@ -83,6 +84,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
+    GET_VIEWED_CASE_URI,
     HOSTED_DASHBOARD_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
@@ -122,6 +124,7 @@ from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPr
 
 
 class Project(BaseModel):
+    organization_id: Optional[str] = None
     created_by: str
     project_name: str
     user_project_name: str
@@ -563,11 +566,6 @@ class Project(BaseModel):
 
             return uploaded_path
 
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
-
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -708,11 +706,6 @@ class Project(BaseModel):
 
             return uploaded_path
 
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
-
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -758,11 +751,6 @@ class Project(BaseModel):
             uploaded_path = res.get("metadata").get("filepath")
 
             return uploaded_path
-
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         model_types = self.api_client.get(GET_MODEL_TYPES_URI)
         valid_model_architecture = model_types.get("model_architecture").keys()
@@ -1723,10 +1711,6 @@ class Project(BaseModel):
         :param model_config: config with hyper parameters for the model, defaults to None
         :return: response
         """
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         project_config = self.config()
 
@@ -1923,7 +1907,9 @@ class Project(BaseModel):
         return res.get("details")
 
     def model_inference(
-        self, tag: str, model_name: Optional[str] = None
+        self, tag: str, 
+        model_name: Optional[str] = None,
+        instance_tye: Optional[str] = "shared"
     ) -> pd.DataFrame:
         """Run model inference on data
 
@@ -1931,10 +1917,6 @@ class Project(BaseModel):
         :param model_name: name of the model, defaults to active model for the project
         :return: model inference dataframe
         """
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         available_tags = self.tags()
         if tag not in available_tags:
@@ -1958,12 +1940,19 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "model_name": model,
             "tags": tag,
+            "instance_type": instance_tye
         }
 
         run_model_res = self.api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
 
         if not run_model_res["success"]:
             raise Exception(run_model_res["details"])
+        
+        poll_events(
+            api_client = self.api_client,
+            project_name = self.project_name,
+            event_id = run_model_res["event_id"]
+        )
 
         download_tag_payload = {
             "project_name": self.project_name,
@@ -2143,6 +2132,62 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res["details"]
+    
+    def case_logs(
+        self,
+        page: Optional[int] = 1
+    ) -> pd.DataFrame:
+        """Get already viewed case logs
+
+        :param page: page number, defaults to 1
+        :return: Case object with details
+        """
+        
+        res = self.api_client.get(f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}")
+        
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get case logs"))
+        
+        case_logs_df = pd.DataFrame(
+            res["details"]["logs"],
+            columns=[
+                "case_id",
+                "unique_identifier",
+                "tag",
+                "model_name",
+                "time_taken",
+                "created_at"
+            ]
+        )
+
+        return case_logs_df
+    
+    def get_viewed_case(
+        self,
+        case_id: str
+    ) -> Case:
+        """Get already viewed case
+
+        :param case_id: case id
+        :return: Case object with details
+        """
+        
+        res = self.api_client.get(f"{GET_VIEWED_CASE_URI}?project_name={self.project_name}&case_id={case_id}")
+
+        if not res["success"]:
+            raise Exception(res.get("details","Failed to get viewed case"))
+        
+        case = Case(**{
+            **res["details"]["result"],
+            **res["details"],
+            "observation_checklist": [],
+            "policy_checklist": [],
+            "final_decision": "",
+            "similar_cases_data": res["details"]["similar_case_data"]
+        })
+
+        return case
+
 
     def get_notifications(self) -> pd.DataFrame:
         """get user project notifications
@@ -2804,10 +2849,6 @@ class Project(BaseModel):
 
         :return: response
         """
-        events = self.events(status=["running"])
-
-        if events:
-            raise Exception("Please wait for your existing tasks to be complete")
 
         project_config = self.config()
 

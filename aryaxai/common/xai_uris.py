@@ -63,7 +63,7 @@ TRAIN_MODEL_URI = f"{API_VERSION_V2}/users/xai_config_update"
 GET_MODELS_URI = f"{API_VERSION}/ai-models/get_all_models"
 UPDATE_ACTIVE_MODEL_URI = f"{API_VERSION}/ai-models/update_active_model"
 REMOVE_MODEL_URI = f"{API_VERSION}/ai-models/remove_model"
-RUN_MODEL_ON_DATA_URI = f"{API_VERSION}/ai-models/run_model_on_data"
+RUN_MODEL_ON_DATA_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
 MODEL_SUMMARY_URI = f"{API_VERSION}/project/get_model_perfermance"
 MODEL_SVG_URI = f"{API_VERSION}/project/get_model_svg_plot"
@@ -74,6 +74,8 @@ GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"
 SEARCH_CASE_URI = f"{API_VERSION}/ai-models/search_case"
 CASE_INFO_URI = f"{API_VERSION}/ai-models/get_case_info"
 DELETE_CASE_URI = f"{API_VERSION}/project/delete_data_with_filter"
+CASE_LOGS_URI = f"{API_VERSION_V2}/ai-models/explainability_logs"
+GET_VIEWED_CASE_URI = f"{API_VERSION_V2}/ai-models/get_viewed_case"
 
 # Observations
 GET_OBSERVATIONS_URI = f"{API_VERSION}/observations/get_observations"
@@ -121,3 +123,6 @@ GET_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/get_synthetics_promts"
 # Events
 POLL_EVENTS = f"{API_VERSION_V2}/events/poll"
 FETCH_EVENTS = f"{API_VERSION_V2}/events/fetch"
+
+# Organization
+USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/user_organization"

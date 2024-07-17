@@ -20,6 +20,7 @@ from aryaxai.core.project import Project
 class Workspace(BaseModel):
     """Class to work with AryaXAI workspaces"""
 
+    organization_id: Optional[str] = None
     created_by: str
     user_workspace_name: str
     workspace_name: str
@@ -172,6 +173,9 @@ class Workspace(BaseModel):
             "project_name": project_name,
             "workspace_name": self.workspace_name,
         }
+
+        if self.organization_id:
+            payload["organization_id"] = self.organization_id
 
         if server_type:
             custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
