@@ -6,6 +6,9 @@ from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
     CREATE_WORKSPACE_URI,
     GET_WORKSPACES_URI,
+    INVITE_USER_ORGANIZATION_URI,
+    ORGANIZATION_MEMBERS_URI,
+    REMOVE_USER_ORGANIZATION_URI,
 )
 from aryaxai.core.workspace import Workspace
 
@@ -15,9 +18,6 @@ class Organization(BaseModel):
 
     organization_id: Optional[str] = None
     name: str
-    organization_owner: bool
-    organization_admin: bool
-    current_users: int
     created_by: str
     created_at: Optional[str] = None
 
@@ -27,15 +27,78 @@ class Organization(BaseModel):
         super().__init__(**kwargs)
         self.api_client = kwargs.get("api_client")
 
-    
+    def add_user_to_organization(self, user_email: str) -> str:
+        """Add user to Organization
+
+        :param user_email: Email of user to be added to organization.
+        :return: response
+        """
+        payload = {
+            "email": user_email,
+            "organization_id": self.organization_id,
+        }
+        res = self.api_client.post(INVITE_USER_ORGANIZATION_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to add user to organization"))
+
+        return res.get("details", "User added successfully")
+
+    def remove_user_from_organization(self, user_email: str) -> str:
+        """Remove user from Organization
+
+        :param user_email: Email of user to be removed from organization.
+        :return: response
+        """
+        payload = {
+            "organization_user_email": user_email,
+            "organization_id": self.organization_id,
+        }
+        res = self.api_client.post(REMOVE_USER_ORGANIZATION_URI, payload)
+
+        if not res["success"]:
+            raise Exception(
+                res.get("details", "Failed to remove user from organization")
+            )
+
+        return res.get("details", "User removed successfully")
+
+    def member_details(self) -> pd.DataFrame:
+        """Organization Member details
+
+        :return: member details dataframe
+        """
+        res = self.api_client.get(
+            f"{ORGANIZATION_MEMBERS_URI}?organization_id={self.organization_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(
+                res.get("details", "Failed to get organization member details")
+            )
+
+        member_details_df = pd.DataFrame(
+            res.get("details"),
+            columns=[
+                "full_name",
+                "email",
+                "organization_owner",
+                "organization_admin",
+                "created_at",
+            ],
+        )
+
+        return member_details_df
+
     def workspaces(self) -> pd.DataFrame:
         """get user workspaces
 
         :return: workspace details dataframe
         """
-        
+
         url = GET_WORKSPACES_URI
-        if self.organization_id: url = url + f"?organization_id={self.organization_id}"
+        if self.organization_id:
+            url = url + f"?organization_id={self.organization_id}"
         workspaces = self.api_client.get(url)
 
         workspace_df = pd.DataFrame(
@@ -61,7 +124,8 @@ class Organization(BaseModel):
         """
 
         url = GET_WORKSPACES_URI
-        if self.organization_id: url = url + f"?organization_id={self.organization_id}"
+        if self.organization_id:
+            url = url + f"?organization_id={self.organization_id}"
         workspaces = self.api_client.get(url)
         user_workspaces = [
             Workspace(api_client=self.api_client, **workspace)
@@ -115,7 +179,6 @@ class Organization(BaseModel):
         workspace = Workspace(api_client=self.api_client, **res["workspace_details"])
 
         return workspace
-
 
     def __print__(self) -> str:
         return f"Organization(name='{self.name}', created_by='{self.created_by}', created_at='{self.created_at}')"

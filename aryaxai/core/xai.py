@@ -8,6 +8,7 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_CUSTOM_SERVERS_URI,
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     CLEAR_NOTIFICATIONS_URI,
+    CREATE_ORGANIZATION_URI,
     GET_NOTIFICATIONS_URI,
     LOGIN_URI,
     USER_ORGANIZATION_URI,
@@ -49,21 +50,26 @@ class XAI(BaseModel):
 
     def organizations(self) -> pd.DataFrame:
         """Get all organizations associated with user
+
+        :return: Organization details dataframe
         """
 
         res = self.api_client.get(USER_ORGANIZATION_URI)
 
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get organizations"))
-  
-        res["details"].insert(0,{
-            "name":"Personal",
-            "organization_owner":True,
-            "organization_admin":True,
-            "current_users":1,
-            "created_by": "you",
-        })
-        
+
+        res["details"].insert(
+            0,
+            {
+                "name": "Personal",
+                "organization_owner": True,
+                "organization_admin": True,
+                "current_users": 1,
+                "created_by": "you",
+            },
+        )
+
         organization_df = pd.DataFrame(
             res["details"],
             columns=[
@@ -73,33 +79,34 @@ class XAI(BaseModel):
                 "current_users",
                 "created_by",
                 "created_at",
-            ]
+            ],
         )
-    
+
         return organization_df
-    
-    def organization(self, organization_name: str): 
+
+    def organization(self, organization_name: str) -> Organization:
         """Select specific organization
 
         :param organization_name: Name of the organization to be used
+        :return: Organization object
         """
         if organization_name == "personal":
             return Organization(
-                api_client=self.api_client, 
+                api_client=self.api_client,
                 **{
-                    "name":"Personal",
-                    "organization_owner":True,
-                    "organization_admin":True,
-                    "current_users":1,
+                    "name": "Personal",
+                    "organization_owner": True,
+                    "organization_admin": True,
+                    "current_users": 1,
                     "created_by": "you",
                 }
             )
-        
+
         organizations = self.api_client.get(USER_ORGANIZATION_URI)
 
         if not organizations["success"]:
             raise Exception(organizations.get("details", "Failed to get organizations"))
-        
+
         user_organization = [
             Organization(api_client=self.api_client, **organization)
             for organization in organizations["details"]
@@ -115,8 +122,22 @@ class XAI(BaseModel):
 
         if organization is None:
             raise Exception("Organization Not Found")
-        
+
         return organization
+
+    def create_organization(self, organization_name: str) -> Organization:
+        """Create New Organization
+
+        :param organization_name: Name of the new organization
+        :return: Organization object
+        """
+        payload = {"organization_name": organization_name}
+        res = self.api_client.post(CREATE_ORGANIZATION_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to create organization"))
+
+        return Organization(api_client=self.api_client, **res["organization_details"])
 
     def get_notifications(self) -> pd.DataFrame:
         """get user notifications
