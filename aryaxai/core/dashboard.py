@@ -28,7 +28,9 @@ class Dashboard(BaseModel):
         """
         get the dashboard config
         """
-        return self.config
+        config_copy = {**self.config}
+        config_copy.pop("metadata", None)
+        return config_copy
 
     def get_raw_data(self) -> dict:
         """
@@ -92,12 +94,12 @@ class Dashboard(BaseModel):
         pretty print the cdashboard config
         """
         config = {k: v for k, v in self.config.items() if v is not None}
-
+        config.pop("metadata", None)
         print("Using config: ", end="")
         print(json.dumps(config, indent=4))
 
     def __print__(self) -> str:
-        return f"Dashboard(config='{self.config}')"
+        return f"Dashboard(config='{self.get_config()}')"
 
     def __str__(self) -> str:
         return self.__print__()

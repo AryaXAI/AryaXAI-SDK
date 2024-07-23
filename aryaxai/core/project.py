@@ -2177,16 +2177,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get viewed case"))
 
-        case = Case(
-            **{
-                **res["details"]["result"],
-                **res["details"],
-                "observation_checklist": [],
-                "policy_checklist": [],
-                "final_decision": "",
-                "similar_cases_data": res["details"]["similar_case_data"],
-            }
-        )
+        case = Case(**res["details"])
 
         return case
 
