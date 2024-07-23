@@ -795,9 +795,8 @@ class Project(BaseModel):
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data observations dataframe
         """
-        res = self.api_client.post(
-            f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=false"
-        )
+        payload = {"project_name": self.project_name, "refresh": "false"}
+        res = self.api_client.post(f"{GET_DATA_SUMMARY_URI}", payload)
         valid_tags = res["data"]["data"].keys()
 
         if not valid_tags:
@@ -1342,9 +1341,11 @@ class Project(BaseModel):
         )
         self.api_client.refresh_bearer_token()
         auth_token = self.api_client.get_auth_token()
-        query_params = f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
+        query_params = (
+            f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
+        )
 
-        uri =  f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}"
+        uri = f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}"
         res = self.api_client.base_request("GET", uri)
 
         if res.status_code != 200:
@@ -1907,9 +1908,10 @@ class Project(BaseModel):
         return res.get("details")
 
     def model_inference(
-        self, tag: str, 
+        self,
+        tag: str,
         model_name: Optional[str] = None,
-        instance_tye: Optional[str] = "shared"
+        instance_tye: Optional[str] = "shared",
     ) -> pd.DataFrame:
         """Run model inference on data
 
@@ -1940,18 +1942,18 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "model_name": model,
             "tags": tag,
-            "instance_type": instance_tye
+            "instance_type": instance_tye,
         }
 
         run_model_res = self.api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
 
         if not run_model_res["success"]:
             raise Exception(run_model_res["details"])
-        
+
         poll_events(
-            api_client = self.api_client,
-            project_name = self.project_name,
-            event_id = run_model_res["event_id"]
+            api_client=self.api_client,
+            project_name=self.project_name,
+            event_id=run_model_res["event_id"],
         )
 
         download_tag_payload = {
@@ -2132,22 +2134,21 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res["details"]
-    
-    def case_logs(
-        self,
-        page: Optional[int] = 1
-    ) -> pd.DataFrame:
+
+    def case_logs(self, page: Optional[int] = 1) -> pd.DataFrame:
         """Get already viewed case logs
 
         :param page: page number, defaults to 1
         :return: Case object with details
         """
-        
-        res = self.api_client.get(f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}")
-        
+
+        res = self.api_client.get(
+            f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
+        )
+
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get case logs"))
-        
+
         case_logs_df = pd.DataFrame(
             res["details"]["logs"],
             columns=[
@@ -2156,38 +2157,38 @@ class Project(BaseModel):
                 "tag",
                 "model_name",
                 "time_taken",
-                "created_at"
-            ]
+                "created_at",
+            ],
         )
 
         return case_logs_df
-    
-    def get_viewed_case(
-        self,
-        case_id: str
-    ) -> Case:
+
+    def get_viewed_case(self, case_id: str) -> Case:
         """Get already viewed case
 
         :param case_id: case id
         :return: Case object with details
         """
-        
-        res = self.api_client.get(f"{GET_VIEWED_CASE_URI}?project_name={self.project_name}&case_id={case_id}")
+
+        res = self.api_client.get(
+            f"{GET_VIEWED_CASE_URI}?project_name={self.project_name}&case_id={case_id}"
+        )
 
         if not res["success"]:
-            raise Exception(res.get("details","Failed to get viewed case"))
-        
-        case = Case(**{
-            **res["details"]["result"],
-            **res["details"],
-            "observation_checklist": [],
-            "policy_checklist": [],
-            "final_decision": "",
-            "similar_cases_data": res["details"]["similar_case_data"]
-        })
+            raise Exception(res.get("details", "Failed to get viewed case"))
+
+        case = Case(
+            **{
+                **res["details"]["result"],
+                **res["details"],
+                "observation_checklist": [],
+                "policy_checklist": [],
+                "final_decision": "",
+                "similar_cases_data": res["details"]["similar_case_data"],
+            }
+        )
 
         return case
-
 
     def get_notifications(self) -> pd.DataFrame:
         """get user project notifications
