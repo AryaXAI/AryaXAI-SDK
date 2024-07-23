@@ -1697,6 +1697,7 @@ class Project(BaseModel):
         model_type: str,
         data_config: Optional[DataConfig] = None,
         model_config: Optional[dict] = None,
+        instance_type: Optional[str] = None,
     ) -> str:
         """Train new model
 
@@ -1721,6 +1722,17 @@ class Project(BaseModel):
         available_models = self.available_models()
 
         Validate.value_against_list("model_type", model_type, available_models)
+
+        if instance_type:
+            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+            Validate.value_against_list(
+                "instance_type",
+                instance_type,
+                [
+                    server["instance_name"]
+                    for server in custom_batch_servers.get("details", [])
+                ],
+            )
 
         if data_config:
             if data_config.get("feature_exclude"):
@@ -1818,6 +1830,9 @@ class Project(BaseModel):
                 "tags": tags,
             },
         }
+
+        if instance_type:
+            payload["instance_type"] = instance_type
 
         print("Config :-")
         print(json.dumps(payload["metadata"], indent=1))
