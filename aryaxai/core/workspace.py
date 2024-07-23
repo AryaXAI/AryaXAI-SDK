@@ -1,11 +1,15 @@
 import pandas as pd
 from pydantic import BaseModel
-from typing import List
+from typing import Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.enums import UserRole
+from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
+    AVAILABLE_CUSTOM_SERVERS_URI,
     CREATE_PROJECT_URI,
-    GET_WORKSPACES_URI,
+    GET_WORKSPACES_DETAILS_URI,
+    START_CUSTOM_SERVER_URI,
+    STOP_CUSTOM_SERVER_URI,
     UPDATE_WORKSPACE_URI,
     GET_NOTIFICATIONS_URI,
     CLEAR_NOTIFICATIONS_URI,
@@ -16,6 +20,7 @@ from aryaxai.core.project import Project
 class Workspace(BaseModel):
     """Class to work with AryaXAI workspaces"""
 
+    organization_id: Optional[str] = None
     created_by: str
     user_workspace_name: str
     workspace_name: str
@@ -36,7 +41,9 @@ class Workspace(BaseModel):
         payload = {
             "workspace_name": self.workspace_name,
             "modify_req": {
-                "rename_workspace": new_workspace_name,
+                "update_workspace": {
+                    "workspace_name": new_workspace_name,
+                }
             },
         }
         res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
@@ -112,21 +119,19 @@ class Workspace(BaseModel):
 
         :return: Projects details dataframe
         """
-        workspaces = self.api_client.get(GET_WORKSPACES_URI)
-        current_workspace = next(
-            filter(
-                lambda workspace: workspace["workspace_name"] == self.workspace_name,
-                workspaces["details"],
-            )
+        workspace = self.api_client.get(
+            f"{GET_WORKSPACES_DETAILS_URI}?workspace_name={self.workspace_name}"
         )
         projects_df = pd.DataFrame(
-            current_workspace["projects"],
+            workspace.get("data", {}).get("projects", []),
             columns=[
                 "user_project_name",
                 "access_type",
                 "created_by",
                 "created_at",
                 "updated_at",
+                "instance_type",
+                "instance_status",
             ],
         )
         return projects_df
@@ -137,16 +142,13 @@ class Workspace(BaseModel):
         :param project_name: Name of the project
         :return: Project
         """
-        workspaces = self.api_client.get(GET_WORKSPACES_URI)
-        current_workspace = next(
-            filter(
-                lambda workspace: workspace["workspace_name"] == self.workspace_name,
-                workspaces["details"],
-            )
+        workspace = self.api_client.get(
+            f"{GET_WORKSPACES_DETAILS_URI}?workspace_name={self.workspace_name}"
         )
+
         projects = [
             Project(api_client=self.api_client, **project)
-            for project in current_workspace["projects"]
+            for project in workspace.get("data", {}).get("projects", [])
         ]
 
         project = next(
@@ -159,7 +161,9 @@ class Workspace(BaseModel):
 
         return project
 
-    def create_project(self, project_name: str) -> Project:
+    def create_project(
+        self, project_name: str, server_type: Optional[str] = None
+    ) -> Project:
         """creates new project in the current workspace
 
         :param project_name: name for the project
@@ -169,6 +173,20 @@ class Workspace(BaseModel):
             "project_name": project_name,
             "workspace_name": self.workspace_name,
         }
+
+        if self.organization_id:
+            payload["organization_id"] = self.organization_id
+
+        if server_type:
+            custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
+            Validate.value_against_list(
+                "server_type",
+                server_type,
+                [server["name"] for server in custom_servers],
+            )
+
+            payload["instance_type"] = server_type
+
         res = self.api_client.post(CREATE_PROJECT_URI, payload)
 
         if not res["success"]:
@@ -213,6 +231,66 @@ class Workspace(BaseModel):
             raise Exception("Error while clearing workspace notifications.")
 
         return res["details"]
+
+    def start_server(self) -> str:
+        """start dedicated workspace server
+
+        :return: response
+        """
+
+        res = self.api_client.post(
+            f"{START_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
+        )
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+
+    def stop_server(self) -> str:
+        """stop dedicated workspace server
+
+        :return: response
+        """
+        res = self.api_client.post(
+            f"{STOP_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
+        )
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+
+    def update_server(self, server_type: str) -> str:
+        """update dedicated workspace server
+        :param server_type: dedicated instance to run workloads
+            for all available instances check xai.available_custom_servers()
+
+        :return: response
+        """
+        custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
+        Validate.value_against_list(
+            "server_type",
+            server_type,
+            [server["name"] for server in custom_servers],
+        )
+
+        payload = {
+            "workspace_name": self.workspace_name,
+            "modify_req": {
+                "update_workspace": {
+                    "workspace_name": self.user_workspace_name,
+                    "instance_type": server_type,
+                }
+            },
+        }
+
+        res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Server Updated"
 
     def __print__(self) -> str:
         return f"Workspace(user_workspace_name='{self.user_workspace_name}', created_by='{self.created_by}', created_at='{self.created_at}')"

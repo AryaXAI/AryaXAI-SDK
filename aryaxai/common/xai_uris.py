@@ -2,59 +2,71 @@ import os
 
 # API version
 API_VERSION = os.getenv("XAI_API_VERSION", "v1")
+API_VERSION_V2 = "v2"
 
 # URIs of XAI base service starts here
 # Auth
 LOGIN_URI = f"{API_VERSION}/access-token/authorize"
 
 # User
-GET_WORKSPACES_URI = f"{API_VERSION}/users/workspaces"
-CREATE_WORKSPACE_URI = f"{API_VERSION}/users/create_workspace"
-AVAILABLE_CUSTOM_SERVERS = f"{API_VERSION}/users/custom_servers"
+GET_WORKSPACES_URI = f"{API_VERSION_V2}/users/workspaces"
+GET_WORKSPACES_DETAILS_URI = f"{API_VERSION_V2}/project/details/workspace"
+CREATE_WORKSPACE_URI = f"{API_VERSION_V2}/users/create_workspace"
+
+# Custom Server
+AVAILABLE_CUSTOM_SERVERS_URI = f"{API_VERSION_V2}/project/server_types"
+START_CUSTOM_SERVER_URI = f"{API_VERSION_V2}/project/start_server"
+STOP_CUSTOM_SERVER_URI = f"{API_VERSION_V2}/project/stop_server"
+
+# Batch Server
+AVAILABLE_BATCH_SERVERS_URI = f"{API_VERSION_V2}/users/automl_custom_servers"
 
 # Notifications
 GET_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/fetch"
 CLEAR_NOTIFICATIONS_URI = f"{API_VERSION}/notifications/clear"
 
 # Workspace
-UPDATE_WORKSPACE_URI = f"{API_VERSION}/users/workspace_config_update"
-CREATE_PROJECT_URI = f"{API_VERSION}/users/create_project"
+UPDATE_WORKSPACE_URI = f"{API_VERSION_V2}/users/workspace_config_update"
+CREATE_PROJECT_URI = f"{API_VERSION_V2}/users/create_project"
 
 # Project
-UPDATE_PROJECT_URI = f"{API_VERSION}/users/project_config_update"
+UPDATE_PROJECT_URI = f"{API_VERSION_V2}/users/project_config_update"
 UPLOAD_DATA_FILE_URI = f"{API_VERSION}/project/uploadfile_with_info"
 UPLOAD_DATA_FILE_INFO_URI = f"{API_VERSION}/project/get_Uploaded_file_info"
 DELETE_DATA_FILE_URI = f"{API_VERSION}/project/delete_data"
 ALL_DATA_FILE_URI = f"{API_VERSION}/project/get_all_uploaded_files"
-UPLOAD_DATA_URI = f"{API_VERSION}/project/upload_data"
-UPLOAD_DATA_WITH_CHECK_URI = f"{API_VERSION}/project/upload_data_with_check"
-UPLOAD_MODEL_URI = f"{API_VERSION}/project/upload_model"
+UPLOAD_DATA_URI = f"{API_VERSION_V2}/project/upload_data"
+UPLOAD_DATA_WITH_CHECK_URI = f"{API_VERSION_V2}/project/upload_data_with_check"
+UPLOAD_MODEL_URI = f"{API_VERSION_V2}/project/upload_model"
 GET_MODEL_TYPES_URI = f"{API_VERSION}/project/get_model_types"
 GET_DATA_SUMMARY_URI = f"{API_VERSION}/project/data_summary"
 GET_DATA_DIAGNOSIS_URI = f"{API_VERSION}/project/get_data_diagnosis"
-DATA_DRFIT_DIAGNOSIS_URI = f"{API_VERSION}/project/run_data_drift_diagnosis"
+RUN_DATA_DRIFT_DIAGNOSIS_URI = f"{API_VERSION_V2}/project/run_data_drift_diagnosis"
+GET_DATA_DRIFT_DIAGNOSIS_URI = f"{API_VERSION_V2}/project/get_data_drift_diagnosis"
 GET_PROJECT_CONFIG = f"{API_VERSION}/users/get_xai_config"
-AVAILABLE_TAGS_URI = f"{API_VERSION}/project/get_all_available_tags_info"
+AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
 
 # Monitoring
-DATA_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/data_drift_dashboard"
-TARGET_DRIFT_DASHBOARD_URI = f"{API_VERSION}/dashboard/target_drift_dashboard"
-BIAS_MONITORING_DASHBOARD_URI = f"{API_VERSION}/dashboard/bias_monitoring_dashboard"
-MODEL_PERFORMANCE_DASHBOARD_URI = f"{API_VERSION}/dashboard/model_performance_dashboard"
-
-GET_LABELS_URI = f"{API_VERSION}/triggers/get_label_classes"
+HOSTED_DASHBOARD_URI = "https://beta.aryaxai.com/sdk/dashboard"
+GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"
+DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
+MODEL_PERFORMANCE_DASHBOARD_URI = (
+    f"{API_VERSION_V2}/dashboard/model_performance_dashboard"
+)
+DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_logs"
+GET_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/get_dashboard"
+DOWNLOAD_DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/download_dashboard_logs"
 
 # Auto ML
 MODEL_PARAMETERS_URI = f"{API_VERSION}/users/get_xai_model_parameters"
-TRAIN_MODEL_URI = f"{API_VERSION}/users/xai_config_update"
+TRAIN_MODEL_URI = f"{API_VERSION_V2}/users/xai_config_update"
 GET_MODELS_URI = f"{API_VERSION}/ai-models/get_all_models"
 UPDATE_ACTIVE_MODEL_URI = f"{API_VERSION}/ai-models/update_active_model"
 REMOVE_MODEL_URI = f"{API_VERSION}/ai-models/remove_model"
-RUN_MODEL_ON_DATA_URI = f"{API_VERSION}/ai-models/run_model_on_data"
+RUN_MODEL_ON_DATA_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION}/ai-models/download_tag_data"
 MODEL_SUMMARY_URI = f"{API_VERSION}/project/get_model_perfermance"
 MODEL_SVG_URI = f"{API_VERSION}/project/get_model_svg_plot"
-GET_MODEL_PERFORMANCE_URI = f"{API_VERSION}/dashboard/model_performance"
 MODEL_INFERENCES_URI = f"{API_VERSION}/ai-models/get_all_tags_for_models"
 
 # Explainability
@@ -62,6 +74,8 @@ GET_CASES_URI = f"{API_VERSION}/ai-models/get_cases"
 SEARCH_CASE_URI = f"{API_VERSION}/ai-models/search_case"
 CASE_INFO_URI = f"{API_VERSION}/ai-models/get_case_info"
 DELETE_CASE_URI = f"{API_VERSION}/project/delete_data_with_filter"
+CASE_LOGS_URI = f"{API_VERSION_V2}/ai-models/explainability_logs"
+GET_VIEWED_CASE_URI = f"{API_VERSION_V2}/ai-models/get_viewed_case"
 
 # Observations
 GET_OBSERVATIONS_URI = f"{API_VERSION}/observations/get_observations"
@@ -76,13 +90,15 @@ CREATE_POLICY_URI = f"{API_VERSION}/policies/create_policy"
 UPDATE_POLICY_URI = f"{API_VERSION}/policies/policy_config_update"
 
 # Alerts
-GET_TRIGGERS_URI = f"{API_VERSION}/triggers/get_triggers"
-CREATE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
-DELETE_TRIGGER_URI = f"{API_VERSION}/triggers/update_triggers"
-EXECUTED_TRIGGER_URI = f"{API_VERSION}/triggers/get_executed_triggers"
-GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION}/triggers/get_trigger_details"
+GET_TRIGGERS_URI = f"{API_VERSION_V2}/triggers/get_triggers"
+CREATE_TRIGGER_URI = f"{API_VERSION_V2}/triggers/update_triggers"
+DELETE_TRIGGER_URI = f"{API_VERSION_V2}/triggers/update_triggers"
+EXECUTED_TRIGGER_URI = f"{API_VERSION_V2}/triggers/get_executed_triggers"
+GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION_V2}/triggers/get_trigger_details"
+GET_LABELS_URI = f"{API_VERSION}/triggers/get_label_classes"
 
 # Synthetic AI
+AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI = f"{API_VERSION}/synthetics/custom_servers"
 GET_SYNTHETIC_MODEL_PARAMS_URI = (
     f"{API_VERSION}/synthetics/get_synthetic_model_parameters"
 )
@@ -92,7 +108,6 @@ DELETE_SYNTHETIC_MODEL_URI = f"{API_VERSION}/synthetics/delete_synthetic_model"
 GET_SYNTHETIC_MODEL_DETAILS_URI = (
     f"{API_VERSION}/synthetics/get_synthetic_model_details"
 )
-GET_SYNTHETIC_TRAINING_LOGS_URI = f"{API_VERSION}/synthetics/get_training_logs"
 GENERATE_SYNTHETIC_DATA_URI = f"{API_VERSION}/synthetics/generate_synthetic_data"
 GENERATE_ANONYMITY_SCORE_URI = f"{API_VERSION}/synthetics/generate_anonimity_score"
 GET_ANONYMITY_SCORE_URI = f"{API_VERSION}/synthetics/get_anonimity_score"
@@ -106,4 +121,12 @@ UPDATE_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/synthetic_prompts_updat
 GET_SYNTHETIC_PROMPT_URI = f"{API_VERSION}/synthetics/get_synthetics_promts"
 
 # Events
-POLL_EVENTS = f"{API_VERSION}/events/poll"
+POLL_EVENTS = f"{API_VERSION_V2}/events/poll"
+FETCH_EVENTS = f"{API_VERSION_V2}/events/fetch"
+
+# Organization
+USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/user_organization"
+CREATE_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/create_organization"
+INVITE_USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/invite_user"
+REMOVE_USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/organization_user_delete"
+ORGANIZATION_MEMBERS_URI = f"{API_VERSION_V2}/organization/organization_users"

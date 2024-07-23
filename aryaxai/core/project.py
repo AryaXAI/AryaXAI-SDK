@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Dict, List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
     DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
@@ -40,15 +40,20 @@ import pandas as pd
 
 from aryaxai.common.xai_uris import (
     ALL_DATA_FILE_URI,
-    AVAILABLE_CUSTOM_SERVERS,
+    AVAILABLE_BATCH_SERVERS_URI,
+    AVAILABLE_CUSTOM_SERVERS_URI,
+    AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
+    CASE_LOGS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_OBSERVATION_URI,
     CREATE_POLICY_URI,
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
-    DATA_DRFIT_DIAGNOSIS_URI,
+    DASHBOARD_CONFIG_URI,
+    DASHBOARD_LOGS_URI,
+    DOWNLOAD_DASHBOARD_LOGS_URI,
     DELETE_CASE_URI,
     DELETE_DATA_FILE_URI,
     DELETE_SYNTHETIC_MODEL_URI,
@@ -57,12 +62,15 @@ from aryaxai.common.xai_uris import (
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
     EXECUTED_TRIGGER_URI,
+    FETCH_EVENTS,
+    GENERATE_DASHBOARD_URI,
     GET_CASES_URI,
+    GET_DASHBOARD_URI,
     GET_DATA_DIAGNOSIS_URI,
+    GET_DATA_DRIFT_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_EXECUTED_TRIGGER_INFO,
     GET_LABELS_URI,
-    GET_MODEL_PERFORMANCE_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
     GET_NOTIFICATIONS_URI,
@@ -76,12 +84,17 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODEL_PARAMS_URI,
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
+    GET_VIEWED_CASE_URI,
+    HOSTED_DASHBOARD_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
     REMOVE_MODEL_URI,
+    RUN_DATA_DRIFT_DIAGNOSIS_URI,
     RUN_MODEL_ON_DATA_URI,
     SEARCH_CASE_URI,
+    START_CUSTOM_SERVER_URI,
+    STOP_CUSTOM_SERVER_URI,
     TRAIN_MODEL_URI,
     TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
@@ -94,10 +107,6 @@ from aryaxai.common.xai_uris import (
     UPLOAD_DATA_FILE_URI,
     UPLOAD_DATA_URI,
     UPLOAD_DATA_WITH_CHECK_URI,
-    DATA_DRIFT_DASHBOARD_URI,
-    TARGET_DRIFT_DASHBOARD_URI,
-    BIAS_MONITORING_DASHBOARD_URI,
-    MODEL_PERFORMANCE_DASHBOARD_URI,
     UPLOAD_MODEL_URI,
 )
 import json
@@ -115,6 +124,7 @@ from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPr
 
 
 class Project(BaseModel):
+    organization_id: Optional[str] = None
     created_by: str
     project_name: str
     user_project_name: str
@@ -136,7 +146,9 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "modify_req": {
-                "rename_project": new_project_name,
+                "update_project": {
+                    "project_name": new_project_name,
+                }
             },
         }
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
@@ -207,6 +219,65 @@ class Project(BaseModel):
         }
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         return res.get("details")
+
+    def start_server(self) -> str:
+        """start dedicated project server
+
+        :return: response
+        """
+        res = self.api_client.post(
+            f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}"
+        )
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+
+    def stop_server(self) -> str:
+        """stop dedicated project server
+
+        :return: response
+        """
+        res = self.api_client.post(
+            f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}"
+        )
+
+        if not res["status"]:
+            raise Exception(res.get("message"))
+
+        return res["message"]
+
+    def update_server(self, server_type: str) -> str:
+        """update dedicated project server
+        :param server_type: dedicated instance to run workloads
+            for all available instances check xai.available_custom_servers()
+
+        :return: response
+        """
+        custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
+        Validate.value_against_list(
+            "server_type",
+            server_type,
+            [server["name"] for server in custom_servers],
+        )
+
+        payload = {
+            "project_name": self.project_name,
+            "modify_req": {
+                "update_project": {
+                    "project_name": self.user_project_name,
+                    "instance_type": server_type,
+                }
+            },
+        }
+
+        res = self.api_client.post(UPDATE_PROJECT_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details"))
+
+        return "Server Updated"
 
     def config(self) -> str:
         """returns config for the project
@@ -350,6 +421,105 @@ class Project(BaseModel):
         res = self.api_client.post(DELETE_DATA_FILE_URI, payload)
         return res.get("details")
 
+    def update_config(self, config: DataConfig):
+        """updates config for the project
+
+        :param config: updated config
+                    {
+                        "tags": List[str]
+                        "feature_exclude": List[str]
+                        "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
+                        "drop_duplicate_uid": bool
+                    },
+
+        :return: response
+        """
+        if not config:
+            raise Exception("Please upload config")
+
+        project_config = self.config()
+
+        if project_config == "Not Found":
+            raise Exception("Config does not exist, please upload files first")
+
+        available_tags = self.available_tags()
+
+        if config.get("tags"):
+            Validate.value_against_list(
+                "tags", config["tags"], available_tags.get("user_tags")
+            )
+
+        all_unique_features = [
+            *project_config["metadata"]["feature_exclude"],
+            *project_config["metadata"]["feature_include"],
+        ]
+
+        if config.get("feature_exclude"):
+            Validate.value_against_list(
+                "feature_exclude",
+                config["feature_exclude"],
+                all_unique_features,
+            )
+
+        if config.get("feature_encodings"):
+            Validate.value_against_list(
+                "feature_encodings_feature",
+                list(config["feature_encodings"].keys()),
+                list(project_config["metadata"]["feature_encodings"].keys()),
+            )
+            Validate.value_against_list(
+                "feature_encodings_feature",
+                list(config["feature_encodings"].values()),
+                ["labelencode", "countencode"],
+            )
+
+        if config.get("feature_exclude") is None:
+            feature_exclude = project_config["metadata"]["feature_exclude"]
+        else:
+            feature_exclude = config.get("feature_exclude", [])
+
+        feature_include = [
+            feature for feature in all_unique_features if feature not in feature_exclude
+        ]
+
+        feature_encodings = (
+            config.get("feature_encodings")
+            or project_config["metadata"]["feature_encodings"]
+        )
+
+        drop_duplicate_uid = (
+            config.get("drop_duplicate_uid")
+            or project_config["metadata"]["drop_duplicate_uid"]
+        )
+
+        tags = config.get("tags") or project_config["metadata"]["tags"]
+
+        payload = {
+            "project_name": self.project_name,
+            "project_type": project_config["project_type"],
+            "unique_identifier": project_config["unique_identifier"],
+            "true_label": project_config["true_label"],
+            "pred_label": project_config.get("pred_label"),
+            "config_update": True,
+            "metadata": {
+                "feature_include": feature_include,
+                "feature_exclude": feature_exclude,
+                "feature_encodings": feature_encodings,
+                "drop_duplicate_uid": drop_duplicate_uid,
+                "tags": tags,
+            },
+        }
+
+        print("Config :-")
+        print(json.dumps(payload["metadata"], indent=1))
+
+        res = self.api_client.post(TRAIN_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to update config"))
+
+        poll_events(self.api_client, self.project_name, res.get("event_id"))
+
     def upload_data(
         self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
@@ -481,6 +651,9 @@ class Project(BaseModel):
 
             return res.get("details")
 
+        if project_config != "Not Found" and config:
+            raise Exception("Config already exists, please remove config")
+
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -555,6 +728,7 @@ class Project(BaseModel):
         model_type: str,
         model_name: str,
         model_data_tags: List[str],
+        model_test_tags: Optional[List[str]],
     ):
         """Uploads your custom model on AryaXAI
 
@@ -568,7 +742,7 @@ class Project(BaseModel):
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data_description",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model",
                 files,
             )
 
@@ -587,6 +761,10 @@ class Project(BaseModel):
         valid_model_types = model_types.get("model_architecture")[model_architecture]
         Validate.value_against_list("model_type", model_type, valid_model_types)
 
+        tags = self.tags()
+        Validate.value_against_list("model_data_tags", model_data_tags, tags)
+        Validate.value_against_list("model_test_tags", model_test_tags, tags)
+
         uploaded_path = upload_file_and_return_path()
 
         payload = {
@@ -596,6 +774,7 @@ class Project(BaseModel):
             "model_type": model_type,
             "model_path": uploaded_path,
             "model_data_tags": model_data_tags,
+            "model_test_tags": model_test_tags,
         }
 
         res = self.api_client.post(UPLOAD_MODEL_URI, payload)
@@ -616,9 +795,8 @@ class Project(BaseModel):
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data observations dataframe
         """
-        res = self.api_client.post(
-            f"{GET_DATA_SUMMARY_URI}?project_name={self.project_name}&refresh=true"
-        )
+        payload = {"project_name": self.project_name, "refresh": "false"}
+        res = self.api_client.post(f"{GET_DATA_SUMMARY_URI}", payload)
         valid_tags = res["data"]["data"].keys()
 
         if not valid_tags:
@@ -667,55 +845,72 @@ class Project(BaseModel):
         return data_warnings
 
     def data_drift_diagnosis(
-        self, baseline_tags: List[str], current_tags: List[str]
+        self,
+        baseline_tags: Optional[List[str]] = None,
+        current_tags: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Data Drift Diagnosis for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data drift diagnosis dataframe
         """
-        payload = {
-            "project_name": self.project_name,
-            "baseline_tags": baseline_tags,
-            "current_tags": current_tags,
-        }
-        res = self.api_client.post(DATA_DRFIT_DIAGNOSIS_URI, payload)
+        if baseline_tags and current_tags:
+            payload = {
+                "project_name": self.project_name,
+                "baseline_tags": baseline_tags,
+                "current_tags": current_tags,
+            }
+            res = self.api_client.post(RUN_DATA_DRIFT_DIAGNOSIS_URI, payload)
 
-        if not res["success"]:
-            raise Exception(res.get("details").get("reason"))
+            if not res["success"]:
+                raise Exception(res.get("details").get("reason"))
 
-        data_drift_diagnosis = pd.DataFrame(
-            res["details"]["results"]["detailed_report"]
-        ).drop(["current_small_hist", "ref_small_hist"], axis=1)
+            poll_events(self.api_client, self.project_name, res["task_id"])
+
+        res = self.api_client.post(
+            f"{GET_DATA_DRIFT_DIAGNOSIS_URI}?project_name={self.project_name}"
+        )
+        data_drift_diagnosis = pd.DataFrame(res["details"]["detailed_report"]).drop(
+            ["current_small_hist", "ref_small_hist"], axis=1
+        )
 
         return data_drift_diagnosis
 
-    def get_default_dashboard(self, uri: str) -> Dashboard:
+    def get_default_dashboard(self, type: str) -> Dashboard:
         """get default dashboard
 
-        :param uri: uri of the dashboard
+        :param type: type of the dashboard
         :return: Dashboard
         """
-        config = {"project_name": self.project_name}
 
-        res = self.api_client.post(uri, config)
+        res = self.api_client.get(
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}"
+        )
 
-        if not res["success"]:
-            if "hosted_path" in res:
-                dashboard_url = res.get("hosted_path")
-                auth_token = self.api_client.get_auth_token()
-                query_params = f"?id={auth_token}"
-                return Dashboard(
-                    config=res["config"], url=f"{dashboard_url}{query_params}"
-                )
+        if res["success"]:
+            auth_token = self.api_client.get_auth_token()
+            query_params = f"?project_name={self.project_name}&type={type}&access_token={auth_token}"
+
+            return Dashboard(
+                config=res.get("config"),
+                raw_data=res.get("details"),
+                url=f"{HOSTED_DASHBOARD_URI}{query_params}",
+            )
 
         raise Exception(
             "Cannot retrieve default dashboard, please create new dashboard"
         )
 
-    def get_data_drift_dashboard(self, payload: DataDriftPayload = {}) -> Dashboard:
+    def get_data_drift_dashboard(
+        self,
+        payload: DataDriftPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
         """get data drift dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
+        :param instance_type: instance type for running on custom server
         :param payload: data drift payload
             {
                 "base_line_tag": "",
@@ -771,7 +966,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(DATA_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard("data_drift")
 
         payload["project_name"] = self.project_name
 
@@ -798,21 +993,41 @@ class Project(BaseModel):
             "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
         )
 
-        res = self.api_client.post(DATA_DRIFT_DASHBOARD_URI, payload)
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(f"{GENERATE_DASHBOARD_URI}?type=data_drift", payload)
 
         if not res["success"]:
-            error_details = res.get("details", "Failed to get dashboard url")
+            error_details = res.get("details", "Failed to generate dashboard")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("data_drift")
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return "Data Drift dashboard generation initiated"
 
-    def get_target_drift_dashboard(self, payload: TargetDriftPayload = {}) -> Dashboard:
+    def get_target_drift_dashboard(
+        self,
+        payload: TargetDriftPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
         """get target drift dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
+        :param instance_type: instance type for running on custom server
         :param payload: target drift payload
                 {
                     "base_line_tag": "",
@@ -859,7 +1074,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(TARGET_DRIFT_DASHBOARD_URI)
+            return self.get_default_dashboard("target_drift")
 
         payload["project_name"] = self.project_name
 
@@ -895,23 +1110,41 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(TARGET_DRIFT_DASHBOARD_URI, payload)
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=target_drift", payload
+        )
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("target_drift")
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return "Target drift dashboard generation initiated"
 
     def get_bias_monitoring_dashboard(
-        self, payload: BiasMonitoringPayload = {}
+        self,
+        payload: BiasMonitoringPayload = {},
+        run_in_background: bool = False,
     ) -> Dashboard:
         """get bias monitoring dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param payload: bias monitoring payload
                 {
                     "base_line_tag": "",
@@ -927,7 +1160,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(BIAS_MONITORING_DASHBOARD_URI)
+            return self.get_default_dashboard("biasmonitoring")
 
         payload["project_name"] = self.project_name
 
@@ -965,23 +1198,26 @@ class Project(BaseModel):
                 tags_info["alluniquefeatures"],
             )
 
-        res = self.api_client.post(BIAS_MONITORING_DASHBOARD_URI, payload)
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=biasmonitoring", payload
+        )
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("biasmonitoring")
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return "Bias monitoring dashboard generation initiated"
 
     def get_model_performance_dashboard(
-        self, payload: ModelPerformancePayload = {}
+        self, payload: ModelPerformancePayload = {}, run_in_background: bool = False
     ) -> Dashboard:
         """get model performance dashboard
 
+        :param run_in_background: runs in background without waiting for dashboard generation to complete
         :param payload: model performance payload
                 {
                     "base_line_tag": "",
@@ -999,7 +1235,7 @@ class Project(BaseModel):
         :return: Dashboard
         """
         if not payload:
-            return self.get_default_dashboard(MODEL_PERFORMANCE_DASHBOARD_URI)
+            return self.get_default_dashboard("performance")
 
         payload["project_name"] = self.project_name
 
@@ -1041,17 +1277,119 @@ class Project(BaseModel):
             tags_info["alluniquefeatures"],
         )
 
-        res = self.api_client.post(MODEL_PERFORMANCE_DASHBOARD_URI, payload)
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=performance", payload
+        )
 
         if not res["success"]:
             error_details = res.get("details", "Failed to get dashboard url")
             raise Exception(error_details)
 
-        dashboard_url = res.get("hosted_path", None)
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?id={auth_token}"
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("performance")
 
-        return Dashboard(config=res["config"], url=f"{dashboard_url}{query_params}")
+        return "Model performance dashboard generation initiated"
+
+    def get_all_dashboards(self, type: str, page: Optional[int] = 1):
+        """get all dashboard
+
+        :param type: type of the dashboard
+        :page: page number defaults to 1
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{DASHBOARD_LOGS_URI}?project_name={self.project_name}&type={type}&page={page}",
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get all dashboard"))
+
+        logs = pd.DataFrame(res.get("details").get("dashboards"))
+        logs.drop(
+            columns=[
+                "max_features",
+                "limit_features",
+                "time_taken",
+                "baseline_date",
+                "current_date",
+                "task_id",
+                "type",
+                "date_feature",
+                "stat_test_threshold",
+                "project_name",
+                "file_id",
+            ],
+            inplace=True,
+        )
+        return logs
+
+    def get_dashboard_log_data(self, type: str):
+        """get all dashboard
+
+        :param type: type of the dashboard
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+        self.api_client.refresh_bearer_token()
+        auth_token = self.api_client.get_auth_token()
+        query_params = (
+            f"project_name={self.project_name}&dashboard_type={type}&token={auth_token}"
+        )
+
+        uri = f"{DOWNLOAD_DASHBOARD_LOGS_URI}?{query_params}"
+        res = self.api_client.base_request("GET", uri)
+
+        if res.status_code != 200:
+            raise Exception(
+                res.get(
+                    "details", f"Error Downloading Dasboard Logs, {res.status_code}"
+                )
+            )
+
+        try:
+            df = pd.read_csv(io.StringIO(res.text))
+        except:
+            df = pd.DataFrame()
+
+        return df
+
+    def get_dashboard(self, type: str, dashboard_id: str) -> Dashboard:
+        """get dashboard
+
+        :param type: type of the dashboard
+        :param dashboard_id: id of dashboard
+        :return: Dashboard
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}&dashboard_id={dashboard_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get dashboard"))
+
+        auth_token = self.api_client.get_auth_token()
+        query_params = f"?project_name={self.project_name}&type={type}&dashboard_id={dashboard_id}&access_token={auth_token}"
+
+        return Dashboard(
+            config=res.get("config"),
+            raw_data=res.get("details"),
+            url=f"{HOSTED_DASHBOARD_URI}{query_params}",
+        )
 
     def monitoring_triggers(self) -> pd.DataFrame:
         """get monitoring triggers of project
@@ -1086,6 +1424,7 @@ class Project(BaseModel):
                     "stat_test_name": "",
                     "stat_test_threshold": 0,
                     "datadrift_features_per": 7,
+                    "dataset_drift_percentage": 50,
                     "features_to_use": [],
                     "date_feature": "",
                     "baseline_date": { "start_date": "", "end_date": ""},
@@ -1154,6 +1493,10 @@ class Project(BaseModel):
                     "features_to_use",
                     payload.get("features_to_use", []),
                     tags_info["alluniquefeatures"],
+                )
+            if payload.get("dataset_drift_percentage"):
+                payload["datadrift_features_per"] = payload.get(
+                    "dataset_drift_percentage"
                 )
         elif payload["trigger_type"] == "Target Drift":
             Validate.check_for_missing_keys(
@@ -1341,11 +1684,8 @@ class Project(BaseModel):
         """
         get model performance dashboard
         """
-        url = self.api_client.get_url(GET_MODEL_PERFORMANCE_URI)
-
-        # append params
         auth_token = self.api_client.get_auth_token()
-        url = f"{url}/{self.project_name}?id={auth_token}"
+        url = f"{HOSTED_DASHBOARD_URI}?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
 
         if model_name:
             url = f"{url}&model_name={model_name}"
@@ -1372,6 +1712,7 @@ class Project(BaseModel):
         :param model_config: config with hyper parameters for the model, defaults to None
         :return: response
         """
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -1481,9 +1822,6 @@ class Project(BaseModel):
         print("Config :-")
         print(json.dumps(payload["metadata"], indent=1))
 
-        print("Config :-")
-        print(json.dumps(payload["metadata"], indent=1))
-
         res = self.api_client.post(TRAIN_MODEL_URI, payload)
 
         if not res["success"]:
@@ -1570,7 +1908,10 @@ class Project(BaseModel):
         return res.get("details")
 
     def model_inference(
-        self, tag: str, model_name: Optional[str] = None
+        self,
+        tag: str,
+        model_name: Optional[str] = None,
+        instance_tye: Optional[str] = "shared",
     ) -> pd.DataFrame:
         """Run model inference on data
 
@@ -1578,6 +1919,7 @@ class Project(BaseModel):
         :param model_name: name of the model, defaults to active model for the project
         :return: model inference dataframe
         """
+
         available_tags = self.tags()
         if tag not in available_tags:
             raise Exception(
@@ -1600,12 +1942,19 @@ class Project(BaseModel):
             "project_name": self.project_name,
             "model_name": model,
             "tags": tag,
+            "instance_type": instance_tye,
         }
 
         run_model_res = self.api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
 
         if not run_model_res["success"]:
             raise Exception(run_model_res["details"])
+
+        poll_events(
+            api_client=self.api_client,
+            project_name=self.project_name,
+            event_id=run_model_res["event_id"],
+        )
 
         download_tag_payload = {
             "project_name": self.project_name,
@@ -1786,6 +2135,61 @@ class Project(BaseModel):
 
         return res["details"]
 
+    def case_logs(self, page: Optional[int] = 1) -> pd.DataFrame:
+        """Get already viewed case logs
+
+        :param page: page number, defaults to 1
+        :return: Case object with details
+        """
+
+        res = self.api_client.get(
+            f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get case logs"))
+
+        case_logs_df = pd.DataFrame(
+            res["details"]["logs"],
+            columns=[
+                "case_id",
+                "unique_identifier",
+                "tag",
+                "model_name",
+                "time_taken",
+                "created_at",
+            ],
+        )
+
+        return case_logs_df
+
+    def get_viewed_case(self, case_id: str) -> Case:
+        """Get already viewed case
+
+        :param case_id: case id
+        :return: Case object with details
+        """
+
+        res = self.api_client.get(
+            f"{GET_VIEWED_CASE_URI}?project_name={self.project_name}&case_id={case_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get viewed case"))
+
+        case = Case(
+            **{
+                **res["details"]["result"],
+                **res["details"],
+                "observation_checklist": [],
+                "policy_checklist": [],
+                "final_decision": "",
+                "similar_cases_data": res["details"]["similar_case_data"],
+            }
+        )
+
+        return case
+
     def get_notifications(self) -> pd.DataFrame:
         """get user project notifications
 
@@ -1914,9 +2318,11 @@ class Project(BaseModel):
         )
 
         observation_df["updated_expression"] = observation_df["updated_keys"].apply(
-            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
-            if data
-            else None
+            lambda data: (
+                generate_expression(data.get("metadata", {}).get("expression"))
+                if data
+                else None
+            )
         )
 
         observation_df = observation_df.drop(
@@ -2195,9 +2601,11 @@ class Project(BaseModel):
         )
 
         policy_df["updated_expression"] = policy_df["updated_keys"].apply(
-            lambda data: generate_expression(data.get("metadata", {}).get("expression"))
-            if data
-            else None
+            lambda data: (
+                generate_expression(data.get("metadata", {}).get("expression"))
+                if data
+                else None
+            )
         )
 
         policy_df = policy_df.drop(
@@ -2437,11 +2845,12 @@ class Project(BaseModel):
             }
             defaults to {}
         :param instance_type: type of instance to run training
-            for all available instances check xai.available_custom_servers()
+            for all available instances check xai.available_synthetic_custom_servers()
             defaults to shared
 
         :return: response
         """
+
         project_config = self.config()
 
         if project_config == "Not Found":
@@ -2450,7 +2859,9 @@ class Project(BaseModel):
         project_config = project_config["metadata"]
 
         if instance_type != "shared":
-            available_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS)["details"]
+            available_servers = self.api_client.get(
+                AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI
+            )["details"]
             servers = list(
                 map(lambda instance: instance["instance_name"], available_servers)
             )
@@ -2850,6 +3261,30 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
+
+    def events(
+        self,
+        event_id: Optional[str] = None,
+        event_names: Optional[List[str]] = None,
+        status: Optional[List[str]] = None,
+    ) -> List[Dict]:
+        """get info about events
+
+        :return: event details
+        """
+        payload = {
+            "project_name": self.project_name,
+            "event_id": event_id,
+            "event_names": event_names,
+            "status": status,
+        }
+
+        res = self.api_client.post(FETCH_EVENTS, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res.get("details")
 
     def __print__(self) -> str:
         return f"Project(user_project_name='{self.user_project_name}', created_by='{self.created_by}')"
