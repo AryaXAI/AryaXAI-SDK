@@ -45,6 +45,7 @@ RUN_DATA_DRIFT_DIAGNOSIS_URI = f"{API_VERSION_V2}/project/run_data_drift_diagnos
 GET_DATA_DRIFT_DIAGNOSIS_URI = f"{API_VERSION_V2}/project/get_data_drift_diagnosis"
 GET_PROJECT_CONFIG = f"{API_VERSION}/users/get_xai_config"
 AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
+TAG_DATA_URI = f"{API_VERSION_V2}/project/tag_data"
 
 # Monitoring
 HOSTED_DASHBOARD_URI = "https://beta.aryaxai.com/sdk/dashboard"

@@ -95,6 +95,7 @@ from aryaxai.common.xai_uris import (
     SEARCH_CASE_URI,
     START_CUSTOM_SERVER_URI,
     STOP_CUSTOM_SERVER_URI,
+    TAG_DATA_URI,
     TRAIN_MODEL_URI,
     TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
@@ -721,6 +722,15 @@ class Project(BaseModel):
 
         return res.get("details", "Data description upload successful")
 
+    def upload_model_types(self) -> dict:
+        """Model types which can be uploaded using upload_model()
+
+        :return: response
+        """
+        model_types = self.api_client.get(GET_MODEL_TYPES_URI)
+
+        return model_types
+
     def upload_model(
         self,
         model_path: str,
@@ -734,7 +744,8 @@ class Project(BaseModel):
 
         :param model_path: path of the model
         :param model_architecture: architecture of model ["machine_learning", "deep_learning"]
-        :param model_type: type of the model based on the architecture
+        :param model_type: type of the model based on the architecture ["Xgboost","Lgboost","CatBoost","Random_forest","Linear_Regression","Logistic_Regression","Gaussian_NaiveBayes","SGD"]
+                use upload_model_types() method to get all allowed model_types
         :param model_name: name of the model
         :param model_data_tags: data tags for model
         """
@@ -1140,11 +1151,13 @@ class Project(BaseModel):
     def get_bias_monitoring_dashboard(
         self,
         payload: BiasMonitoringPayload = {},
+        instance_type: Optional[str] = None,
         run_in_background: bool = False,
     ) -> Dashboard:
         """get bias monitoring dashboard
 
         :param run_in_background: runs in background without waiting for dashboard generation to complete
+        :param instance_type: instance type for running on custom server
         :param payload: bias monitoring payload
                 {
                     "base_line_tag": "",
@@ -1198,6 +1211,19 @@ class Project(BaseModel):
                 tags_info["alluniquefeatures"],
             )
 
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
         res = self.api_client.post(
             f"{GENERATE_DASHBOARD_URI}?type=biasmonitoring", payload
         )
@@ -1213,11 +1239,15 @@ class Project(BaseModel):
         return "Bias monitoring dashboard generation initiated"
 
     def get_model_performance_dashboard(
-        self, payload: ModelPerformancePayload = {}, run_in_background: bool = False
+        self,
+        payload: ModelPerformancePayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
     ) -> Dashboard:
         """get model performance dashboard
 
         :param run_in_background: runs in background without waiting for dashboard generation to complete
+        :param instance_type: instance type for running on custom server
         :param payload: model performance payload
                 {
                     "base_line_tag": "",
@@ -1276,6 +1306,19 @@ class Project(BaseModel):
             [payload["current_pred_label"]],
             tags_info["alluniquefeatures"],
         )
+
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
 
         res = self.api_client.post(
             f"{GENERATE_DASHBOARD_URI}?type=performance", payload
@@ -1690,7 +1733,17 @@ class Project(BaseModel):
         if model_name:
             url = f"{url}&model_name={model_name}"
 
-        return Dashboard(config={}, url=url)
+        return Dashboard(config={}, url=url, raw_data={})
+
+    def model_parameters(self) -> dict:
+        """Model Parameters
+
+        :return: response
+        """
+
+        model_params = self.api_client.get(MODEL_PARAMETERS_URI)
+
+        return model_params
 
     def train_model(
         self,
@@ -1707,10 +1760,13 @@ class Project(BaseModel):
                             "tags": List[str]
                             "feature_exclude": List[str]
                             "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
-                            "drop_duplicate_uid": bool
+                            "drop_duplicate_uid": bool,
+                            "sample_percentage": float   # Data sample percentage to be used to train
+                            "explainability_sample_percentage": float  # Explainability sample percentage to be used
                         },
                         defaults to None
         :param model_config: config with hyper parameters for the model, defaults to None
+        :param instance_type: instance to be used for model training
         :return: response
         """
 
@@ -1722,6 +1778,11 @@ class Project(BaseModel):
         available_models = self.available_models()
 
         Validate.value_against_list("model_type", model_type, available_models)
+
+        all_unique_features = [
+            *project_config["metadata"]["feature_exclude"],
+            *project_config["metadata"]["feature_include"],
+        ]
 
         if instance_type:
             custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
@@ -1739,7 +1800,7 @@ class Project(BaseModel):
                 Validate.value_against_list(
                     "feature_exclude",
                     data_config["feature_exclude"],
-                    project_config["metadata"]["feature_include"],
+                    all_unique_features,
                 )
 
             if data_config.get("tags"):
@@ -1757,6 +1818,24 @@ class Project(BaseModel):
                     list(data_config["feature_encodings"].values()),
                     ["labelencode", "countencode"],
                 )
+
+            if data_config.get("sample_percentage"):
+                if (
+                    data_config["sample_percentage"] < 0
+                    or data_config["sample_percentage"] > 1
+                ):
+                    raise Exception(
+                        "Data sample percentage is invalid, select between 0 and 1"
+                    )
+
+            if data_config.get("explainability_sample_percentage"):
+                if (
+                    data_config["explainability_sample_percentage"] < 0
+                    or data_config["explainability_sample_percentage"] > 1
+                ):
+                    raise Exception(
+                        "Explainability sample percentage is invalid, select between 0 and 1"
+                    )
 
         if model_config:
             model_params = self.api_client.get(MODEL_PARAMETERS_URI)
@@ -1793,14 +1872,11 @@ class Project(BaseModel):
         data_conf = data_config or {}
 
         feature_exclude = [
-            *project_config["metadata"]["feature_exclude"],
             *data_conf.get("feature_exclude", []),
         ]
 
         feature_include = [
-            feature
-            for feature in project_config["metadata"]["feature_include"]
-            if feature not in feature_exclude
+            feature for feature in all_unique_features if feature not in feature_exclude
         ]
 
         feature_encodings = (
@@ -1829,6 +1905,10 @@ class Project(BaseModel):
                 "drop_duplicate_uid": drop_duplicate_uid,
                 "tags": tags,
             },
+            "sample_percentage": data_conf.get("sample_percentage"),
+            "explainability_sample_percentage": data_conf.get(
+                "explainability_sample_percentage"
+            ),
         }
 
         if instance_type:
@@ -2038,6 +2118,25 @@ class Project(BaseModel):
         tags = available_tags.get("alltags")
 
         return tags
+
+    def tag_data(self, tag: str, page: Optional[int] = 1) -> pd.DataFrame:
+        """Tag Data
+
+        :return: tag data dataframe
+        """
+        tags = self.all_tags()
+
+        Validate.value_against_list("tag", tag, tags)
+
+        payload = {"page": page, "project_name": self.project_name, "tag": tag}
+        res = self.api_client.post(TAG_DATA_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Tag data Not Found"))
+
+        tag_data_df = pd.DataFrame(res["details"]["data"])
+
+        return tag_data_df
 
     def cases(
         self,
@@ -2398,7 +2497,7 @@ class Project(BaseModel):
         Validate.value_against_list(
             "linked_feature",
             linked_features,
-            observation_params["details"]["eng_features"],
+            list(observation_params["details"]["features"].keys()),
         )
         configuration, expression = build_expression(expression)
 
@@ -2473,7 +2572,7 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "linked_feature",
                 linked_features,
-                observation_params["details"]["eng_features"],
+                list(observation_params["details"]["features"].keys()),
             )
             payload["update_keys"]["linked_features"] = linked_features
 
@@ -3404,7 +3503,9 @@ def validate_configuration(configuration, params):
         if isinstance(expression, dict):
             # validate column name
             Validate.value_against_list(
-                "feature", expression.get("column"), params.get("eng_features")
+                "feature",
+                expression.get("column"),
+                list(params.get("features", {}).keys()),
             )
 
             # validate operator
