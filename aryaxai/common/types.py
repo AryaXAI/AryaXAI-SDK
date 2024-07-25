@@ -16,6 +16,8 @@ class DataConfig(TypedDict):
     feature_exclude: List[str]
     feature_encodings: Dict[str, str]
     drop_duplicate_uid: bool
+    sample_percentage: float
+    explainability_sample_percentage: float
 
 
 class SyntheticDataConfig(TypedDict):
