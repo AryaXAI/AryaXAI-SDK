@@ -1473,7 +1473,8 @@ class Project(BaseModel):
                     "baseline_date": { "start_date": "", "end_date": ""},
                     "current_date": { "start_date": "", "end_date": ""},
                     "base_line_tag": "",
-                    "current_tag": ""
+                    "current_tag": "",
+                    "instance_type": ""  #Instance type to used for running trigger
                 } OR Target Drift Trigger Payload
                 {
                     "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
@@ -1489,7 +1490,8 @@ class Project(BaseModel):
                     "base_line_tag": "",
                     "current_tag": "",
                     "baseline_true_label": "",
-                    "current_true_label": ""
+                    "current_true_label": "",
+                    "instance_type": ""  #Instance type to used for running trigger
                 } OR Model Performance Trigger Payload
                 {
                     "trigger_type": ""  #["Data Drift", "Target Drift", "Model Performance"]
@@ -1504,7 +1506,8 @@ class Project(BaseModel):
                     "current_date": { "start_date": "", "end_date": ""},
                     "base_line_tag": "",
                     "baseline_true_label": "",
-                    "baseline_pred_label": ""
+                    "baseline_pred_label": "",
+                    "instance_type": ""  #Instance type to used for running trigger
                 }
         :return: response
         """
@@ -1635,6 +1638,17 @@ class Project(BaseModel):
         Validate.value_against_list("frequency", payload["frequency"], MAIL_FREQUENCIES)
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
+
+        if payload.get("instance_type"):
+            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+            Validate.value_against_list(
+                "instance_type",
+                payload["instance_type"],
+                [
+                    server["instance_name"]
+                    for server in custom_batch_servers.get("details", [])
+                ],
+            )
 
         payload = {
             "project_name": self.project_name,
@@ -2006,7 +2020,7 @@ class Project(BaseModel):
         self,
         tag: str,
         model_name: Optional[str] = None,
-        instance_tye: Optional[str] = "shared",
+        instance_type: Optional[str] = None,
     ) -> pd.DataFrame:
         """Run model inference on data
 
@@ -2033,11 +2047,22 @@ class Project(BaseModel):
             or models.loc[models["status"] == "active"]["model_name"].values[0]
         )
 
+        if instance_type:
+            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+            Validate.value_against_list(
+                "instance_type",
+                instance_type,
+                [
+                    server["instance_name"]
+                    for server in custom_batch_servers.get("details", [])
+                ],
+            )
+
         run_model_payload = {
             "project_name": self.project_name,
             "model_name": model,
             "tags": tag,
-            "instance_type": instance_tye,
+            "instance_type": instance_type,
         }
 
         run_model_res = self.api_client.post(RUN_MODEL_ON_DATA_URI, run_model_payload)
