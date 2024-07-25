@@ -173,7 +173,7 @@ class Project(BaseModel):
         """Adds new user to project
 
         :param email: user email
-        :param role: user role ["admin", "user"]
+        :param role: user role ["admin", "manager", "user"]
         :return: response
         """
         payload = {

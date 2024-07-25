@@ -61,11 +61,11 @@ class Workspace(BaseModel):
         res = self.api_client.post(UPDATE_WORKSPACE_URI, payload)
         return res.get("details")
 
-    def add_user_to_workspace(self, email: str, role: UserRole) -> str:
+    def add_user_to_workspace(self, email: str, role: str) -> str:
         """adds user to current workspace
 
         :param email: user email
-        :param role: user role ["admin", "user"]
+        :param role: user role ["admin", "manager", "user"]
         :return: response
         """
         payload = {
