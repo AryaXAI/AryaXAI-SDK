@@ -739,6 +739,7 @@ class Project(BaseModel):
         model_name: str,
         model_data_tags: List[str],
         model_test_tags: Optional[List[str]],
+        instance_type: Optional[str] = None,
     ):
         """Uploads your custom model on AryaXAI
 
@@ -748,6 +749,8 @@ class Project(BaseModel):
                 use upload_model_types() method to get all allowed model_types
         :param model_name: name of the model
         :param model_data_tags: data tags for model
+        :param model_test_tags: test tags for model
+        :param instance_type: instance to be used for uploading model
         """
 
         def upload_file_and_return_path() -> str:
@@ -778,6 +781,17 @@ class Project(BaseModel):
 
         uploaded_path = upload_file_and_return_path()
 
+        if instance_type:
+            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+            Validate.value_against_list(
+                "instance_type",
+                instance_type,
+                [
+                    server["instance_name"]
+                    for server in custom_batch_servers.get("details", [])
+                ],
+            )
+
         payload = {
             "project_name": self.project_name,
             "model_name": model_name,
@@ -787,6 +801,9 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
         }
+
+        if instance_type:
+            payload["instance_type"] = instance_type
 
         res = self.api_client.post(UPLOAD_MODEL_URI, payload)
 
