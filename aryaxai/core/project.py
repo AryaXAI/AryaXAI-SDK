@@ -1375,7 +1375,6 @@ class Project(BaseModel):
             columns=[
                 "max_features",
                 "limit_features",
-                "time_taken",
                 "baseline_date",
                 "current_date",
                 "task_id",
@@ -1384,8 +1383,12 @@ class Project(BaseModel):
                 "stat_test_threshold",
                 "project_name",
                 "file_id",
+                "metadata",
+                "updated_at",
+                "features_to_use",
             ],
             inplace=True,
+            errors="ignore",
         )
         return logs
 

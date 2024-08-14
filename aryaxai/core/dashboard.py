@@ -7,7 +7,7 @@ from IPython.display import IFrame, display
 class Dashboard(BaseModel):
     config: dict
     url: str
-    raw_data: dict
+    raw_data: dict | list
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
