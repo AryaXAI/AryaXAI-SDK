@@ -78,7 +78,7 @@ class Organization(BaseModel):
             )
 
         member_details_df = pd.DataFrame(
-            res.get("details"),
+            res.get("details").get("users"),
             columns=[
                 "full_name",
                 "email",
