@@ -1,12 +1,15 @@
+import os
 from typing import Any
 from pydantic import BaseModel
 import json
 from IPython.display import IFrame, display
 
+from aryaxai.common.xai_uris import XAI_APP_URI
+
 
 class Dashboard(BaseModel):
     config: dict
-    url: str
+    query_params: str
     raw_data: dict | list
 
     def __init__(self, **kwargs):
@@ -22,7 +25,9 @@ class Dashboard(BaseModel):
             width (int, optional): _description_. Defaults to 100%.
             height (int, optional): _description_. Defaults to 650.
         """
-        display(IFrame(src=f"{self.url}", width=width, height=height))
+        uri = os.environ.get("XAI_APP_URL", XAI_APP_URI)
+        url = f"{uri}/sdk/dashboard{self.query_params}"
+        display(IFrame(src=f"{url}", width=width, height=height))
 
     def get_config(self) -> dict:
         """

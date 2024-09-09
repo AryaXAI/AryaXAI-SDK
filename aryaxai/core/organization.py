@@ -4,6 +4,7 @@ from typing import Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.validation import Validate
 from aryaxai.common.xai_uris import (
+    AVAILABLE_CUSTOM_SERVERS_URI,
     CREATE_WORKSPACE_URI,
     GET_WORKSPACES_URI,
     INVITE_USER_ORGANIZATION_URI,
@@ -159,7 +160,7 @@ class Organization(BaseModel):
         payload = {"workspace_name": workspace_name}
 
         if server_type:
-            custom_servers = self.available_custom_servers()
+            custom_servers = self.api_client.get(AVAILABLE_CUSTOM_SERVERS_URI)
             Validate.value_against_list(
                 "server_type",
                 server_type,
