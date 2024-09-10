@@ -4,6 +4,9 @@ import os
 API_VERSION = os.getenv("XAI_API_VERSION", "v1")
 API_VERSION_V2 = "v2"
 
+# APP
+XAI_APP_URI = "https://beta.aryaxai.com"
+
 # URIs of XAI base service starts here
 # Auth
 LOGIN_URI = f"{API_VERSION}/access-token/authorize"
@@ -48,7 +51,6 @@ AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
 TAG_DATA_URI = f"{API_VERSION_V2}/project/tag_data"
 
 # Monitoring
-HOSTED_DASHBOARD_URI = "https://beta.aryaxai.com/sdk/dashboard"
 GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"
 DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
 MODEL_PERFORMANCE_DASHBOARD_URI = (

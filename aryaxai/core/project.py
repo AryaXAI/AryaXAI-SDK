@@ -13,7 +13,6 @@ from aryaxai.common.constants import (
     DATA_DRIFT_STAT_TESTS,
     SYNTHETIC_MODELS_DEFAULT_HYPER_PARAMS,
     TARGET_DRIFT_DASHBOARD_REQUIRED_FIELDS,
-    TARGET_DRIFT_MODEL_TYPES,
     TARGET_DRIFT_STAT_TESTS,
     BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
@@ -85,7 +84,6 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
     GET_VIEWED_CASE_URI,
-    HOSTED_DASHBOARD_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
@@ -918,11 +916,10 @@ class Project(BaseModel):
         if res["success"]:
             auth_token = self.api_client.get_auth_token()
             query_params = f"?project_name={self.project_name}&type={type}&access_token={auth_token}"
-
             return Dashboard(
                 config=res.get("config"),
                 raw_data=res.get("details"),
-                url=f"{HOSTED_DASHBOARD_URI}{query_params}",
+                query_params=query_params,
             )
 
         raise Exception(
@@ -1118,9 +1115,7 @@ class Project(BaseModel):
 
         Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-        Validate.value_against_list(
-            "model_type", payload["model_type"], TARGET_DRIFT_MODEL_TYPES
-        )
+        Validate.value_against_list("model_type", payload["model_type"], MODEL_TYPES)
 
         Validate.value_against_list(
             "stat_test_name", payload["stat_test_name"], TARGET_DRIFT_STAT_TESTS
@@ -1451,7 +1446,7 @@ class Project(BaseModel):
         return Dashboard(
             config=res.get("config"),
             raw_data=res.get("details"),
-            url=f"{HOSTED_DASHBOARD_URI}{query_params}",
+            query_params=query_params,
         )
 
     def monitoring_triggers(self) -> pd.DataFrame:
@@ -1762,12 +1757,12 @@ class Project(BaseModel):
         get model performance dashboard
         """
         auth_token = self.api_client.get_auth_token()
-        url = f"{HOSTED_DASHBOARD_URI}?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
+        query_params = f"?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
 
         if model_name:
-            url = f"{url}&model_name={model_name}"
+            query_params = f"{query_params}&model_name={model_name}"
 
-        return Dashboard(config={}, url=url, raw_data={})
+        return Dashboard(config={}, query_params=query_params, raw_data={})
 
     def model_parameters(self) -> dict:
         """Model Parameters
