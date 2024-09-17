@@ -1845,7 +1845,7 @@ class Project(BaseModel):
                 Validate.value_against_list(
                     "feature_encodings_feature",
                     list(data_config["feature_encodings"].values()),
-                    ["labelencode", "countencode"],
+                    ["labelencode", "countencode", "onehotencode"],
                 )
 
             if data_config.get("sample_percentage"):
