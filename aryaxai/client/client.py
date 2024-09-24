@@ -88,7 +88,7 @@ class APIClient(BaseModel):
             if 400 <= response.status_code < 500:
                 raise Exception(response.json())
             elif 500 <= response.status_code < 600:
-                raise Exception(response.json())
+                raise Exception(response.text)
             else:
                 return response
         except Exception as e:
