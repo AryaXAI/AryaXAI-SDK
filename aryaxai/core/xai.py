@@ -5,6 +5,7 @@ from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
 from aryaxai.core.organization import Organization
 from aryaxai.common.xai_uris import (
+    AVAILABLE_BATCH_SERVERS_URI,
     AVAILABLE_CUSTOM_SERVERS_URI,
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     CLEAR_NOTIFICATIONS_URI,
@@ -168,6 +169,14 @@ class XAI(BaseModel):
         if not res["success"]:
             raise Exception("Error while clearing user notifications.")
 
+        return res["details"]
+
+    def available_batch_servers(self) -> dict:
+        """available custom batch servers
+
+        :return: response
+        """
+        res = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
         return res["details"]
 
     def available_custom_servers(self) -> dict:
