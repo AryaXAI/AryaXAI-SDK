@@ -532,7 +532,8 @@ class Project(BaseModel):
                     "true_label": "",
                     "pred_label": "",
                     "feature_exclude": [],
-                    "drop_duplicate_uid: ""
+                    "drop_duplicate_uid: "",
+                    "handle_errors": False
                 },
                 defaults to None
         :return: response
@@ -576,6 +577,7 @@ class Project(BaseModel):
                     "pred_label": "",
                     "feature_exclude": [],
                     "drop_duplicate_uid": False,
+                    "handle_errors": False
                 }
                 raise Exception(
                     f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
@@ -633,6 +635,7 @@ class Project(BaseModel):
                     "tag": tag,
                     "tags": [tag],
                     "drop_duplicate_uid": config.get("drop_duplicate_uid"),
+                    "handle_errors": config.get("handle_errors", False),
                     "feature_exclude": feature_exclude,
                     "feature_include": feature_include,
                     "feature_encodings": {},

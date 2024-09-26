@@ -9,6 +9,7 @@ class ProjectConfig(TypedDict):
     pred_label: Optional[str]
     feature_exclude: Optional[List[str]]
     drop_duplicate_uid: Optional[bool]
+    handle_errors: Optional[bool]
 
 
 class DataConfig(TypedDict):
