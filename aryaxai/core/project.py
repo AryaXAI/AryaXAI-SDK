@@ -739,7 +739,7 @@ class Project(BaseModel):
         model_type: str,
         model_name: str,
         model_data_tags: List[str],
-        model_test_tags: Optional[List[str]],
+        model_test_tags: Optional[List[str]] = None,
         instance_type: Optional[str] = None,
     ):
         """Uploads your custom model on AryaXAI
@@ -750,8 +750,8 @@ class Project(BaseModel):
                 use upload_model_types() method to get all allowed model_types
         :param model_name: name of the model
         :param model_data_tags: data tags for model
-        :param model_test_tags: test tags for model
-        :param instance_type: instance to be used for uploading model
+        :param model_test_tags: test tags for model (optional)
+        :param instance_type: instance to be used for uploading model (optional)
         """
 
         def upload_file_and_return_path() -> str:
@@ -778,7 +778,9 @@ class Project(BaseModel):
 
         tags = self.tags()
         Validate.value_against_list("model_data_tags", model_data_tags, tags)
-        Validate.value_against_list("model_test_tags", model_test_tags, tags)
+
+        if model_test_tags is not None:
+            Validate.value_against_list("model_test_tags", model_test_tags, tags)
 
         uploaded_path = upload_file_and_return_path()
 
