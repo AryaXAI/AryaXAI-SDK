@@ -85,10 +85,15 @@ class APIClient(BaseModel):
                 files=files,
                 stream=stream,
             )
+            res = None
+            try:
+                res = response.json().get("details") or response.json()
+            except Exception:
+                res = response.text
             if 400 <= response.status_code < 500:
-                raise Exception(response.json())
+                raise Exception(res)
             elif 500 <= response.status_code < 600:
-                raise Exception(response.text)
+                raise Exception(res)
             else:
                 return response
         except Exception as e:
