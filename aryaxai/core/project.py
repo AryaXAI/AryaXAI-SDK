@@ -44,6 +44,7 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
     CASE_INFO_URI,
+    CASE_DTREE_URI,
     CASE_LOGS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_OBSERVATION_URI,
@@ -2256,6 +2257,18 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
+        prediction_path_payload = {
+            "project_name": self.project_name,
+            "unique_identifier": unique_identifer,
+            "case_id": case_id,
+            "model_name": res["details"]["model_name"],
+            "data_id": res["details"]["data_id"],
+        }
+        dtree_res = self.api_client.post(CASE_DTREE_URI, prediction_path_payload)
+        if dtree_res["success"]:
+            res["details"]["case_prediction_svg"] = dtree_res["details"]["case_prediction_svg"]
+            res["details"]["case_prediction_path"] = dtree_res["details"]["case_prediction_path"]
+        
         case = Case(**res["details"])
 
         return case
