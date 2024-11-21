@@ -534,7 +534,8 @@ class Project(BaseModel):
                     "pred_label": "",
                     "feature_exclude": [],
                     "drop_duplicate_uid: "",
-                    "handle_errors": False
+                    "handle_errors": False,
+                    "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode | onehotencode"}
                 },
                 defaults to None
         :return: response
@@ -625,6 +626,19 @@ class Project(BaseModel):
                 feature for feature in column_names if feature not in feature_exclude
             ]
 
+            feature_encodings = config.get("feature_encodings", None)
+            if feature_encodings:
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.keys()),
+                    column_names,
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.values()),
+                    ["labelencode", "countencode", "onehotencode"],
+                )
+
             payload = {
                 "project_name": self.project_name,
                 "project_type": config["project_type"],
@@ -639,7 +653,7 @@ class Project(BaseModel):
                     "handle_errors": config.get("handle_errors", False),
                     "feature_exclude": feature_exclude,
                     "feature_include": feature_include,
-                    "feature_encodings": {},
+                    "feature_encodings": feature_encodings,
                     "feature_actual_used": [],
                 },
             }
@@ -2097,13 +2111,12 @@ class Project(BaseModel):
             event_id=run_model_res["event_id"],
         )
 
-        download_tag_payload = {
-            "project_name": self.project_name,
-            "tag": f"{tag}_{model}_Inference",
-        }
+        auth_token = self.api_client.get_auth_token()
 
-        tag_data = self.api_client.request(
-            "POST", DOWNLOAD_TAG_DATA_URI, download_tag_payload
+        uri = f"{DOWNLOAD_TAG_DATA_URI}?project_name={self.project_name}&tag={tag}_{model}_Inference&token={auth_token}"
+
+        tag_data = self.api_client.base_request(
+            "GET", uri
         )
 
         tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
