@@ -10,7 +10,7 @@ class ProjectConfig(TypedDict):
     feature_exclude: Optional[List[str]]
     drop_duplicate_uid: Optional[bool]
     handle_errors: Optional[bool]
-
+    feature_encodings: Optional[dict]
 
 class DataConfig(TypedDict):
     tags: List[str]
