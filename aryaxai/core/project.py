@@ -2115,11 +2115,11 @@ class Project(BaseModel):
         """
         payload = {
             "project_name": self.project_name,
-            "model_name": model_name
+            "model_name": model_name,
+            "activate": activate
         }
 
-        url = f"{UPDATE_ACTIVE_INFERENCE_MODEL_URI}?activate={activate}"
-        res = self.api_client.post(url, payload)
+        res = self.api_client.post(UPDATE_ACTIVE_INFERENCE_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
