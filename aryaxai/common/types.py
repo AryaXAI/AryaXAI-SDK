@@ -19,7 +19,7 @@ class DataConfig(TypedDict):
     drop_duplicate_uid: bool
     sample_percentage: float
     explainability_sample_percentage: float
-
+    explainability_method: List[str]
 
 class SyntheticDataConfig(TypedDict):
     model_name: str
