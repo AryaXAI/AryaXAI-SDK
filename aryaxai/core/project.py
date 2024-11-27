@@ -627,7 +627,7 @@ class Project(BaseModel):
                 feature for feature in column_names if feature not in feature_exclude
             ]
 
-            feature_encodings = config.get("feature_encodings", None)
+            feature_encodings = config.get("feature_encodings", {})
             if feature_encodings:
                 Validate.value_against_list(
                     "feature_encodings_feature",
