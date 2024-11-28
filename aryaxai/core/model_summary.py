@@ -43,7 +43,11 @@ class ModelSummary(BaseModel):
 
     def feature_importance(self):
         """Global features plot"""
-        global_features = self.model_results.get("GFI")
+        global_features = self.model_results.get("GFI", {}).get("shap_gfi", None)
+        if not global_features:
+            global_features = self.model_results.get("GFI", {}).get("lime_gfi", None)
+        if not global_features:
+            global_features = self.model_results.get("GFI")
         fig = go.Figure()
 
         fig.add_trace(

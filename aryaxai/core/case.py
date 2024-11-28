@@ -11,7 +11,8 @@ class Case(BaseModel):
     pred_value: str
     pred_category: str
     observations: List
-    feature_importance: Dict
+    shap_feature_importance: Dict
+    lime_feature_importance: Dict
     similar_cases: List
     is_automl_prediction: bool
     model_name: str
@@ -28,16 +29,19 @@ class Case(BaseModel):
 
     model_config = ConfigDict(protected_namespaces=())
 
-    def explainability_feature_importance(self):
-        """Plots Feature Importance chart"""
+    def explainability_shap_feature_importance(self):
+        """Plots Shap Feature Importance chart"""
         fig = go.Figure()
 
-        if isinstance(list(self.feature_importance.values())[0], dict):
-            for col in self.feature_importance.keys():
+        if len(list(self.shap_feature_importance.values())) < 1:
+            return "No Shap Feature Importance for the case"
+
+        if isinstance(list(self.shap_feature_importance.values())[0], dict):
+            for col in self.shap_feature_importance.keys():
                 fig.add_trace(
                     go.Bar(
-                        x=list(self.feature_importance[col].values()),
-                        y=list(self.feature_importance[col].keys()),
+                        x=list(self.shap_feature_importance[col].values()),
+                        y=list(self.shap_feature_importance[col].keys()),
                         orientation="h",
                         name=col,
                     )
@@ -45,8 +49,45 @@ class Case(BaseModel):
         else:
             fig.add_trace(
                 go.Bar(
-                    x=list(self.feature_importance.values()),
-                    y=list(self.feature_importance.keys()),
+                    x=list(self.shap_feature_importance.values()),
+                    y=list(self.shap_feature_importance.keys()),
+                    orientation="h",
+                )
+            )
+        fig.update_layout(
+            barmode="relative",
+            height=800,
+            width=800,
+            yaxis_autorange="reversed",
+            bargap=0.01,
+            legend_orientation="h",
+            legend_x=0.1,
+            legend_y=1.1,
+        )
+        fig.show(config={"displaylogo": False})
+    
+    def explainability_lime_feature_importance(self):
+        """Plots Lime Feature Importance chart"""
+        fig = go.Figure()
+
+        if len(list(self.lime_feature_importance.values())) < 1:
+            return "No Lime Feature Importance for the case"
+
+        if isinstance(list(self.lime_feature_importance.values())[0], dict):
+            for col in self.lime_feature_importance.keys():
+                fig.add_trace(
+                    go.Bar(
+                        x=list(self.lime_feature_importance[col].values()),
+                        y=list(self.lime_feature_importance[col].keys()),
+                        orientation="h",
+                        name=col,
+                    )
+                )
+        else:
+            fig.add_trace(
+                go.Bar(
+                    x=list(self.lime_feature_importance.values()),
+                    y=list(self.lime_feature_importance.keys()),
                     orientation="h",
                 )
             )

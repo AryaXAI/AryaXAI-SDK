@@ -98,6 +98,7 @@ from aryaxai.common.xai_uris import (
     TRAIN_MODEL_URI,
     TRAIN_SYNTHETIC_MODEL_URI,
     UPDATE_ACTIVE_MODEL_URI,
+    UPDATE_ACTIVE_INFERENCE_MODEL_URI,
     GET_TRIGGERS_URI,
     UPDATE_OBSERVATION_URI,
     UPDATE_POLICY_URI,
@@ -626,7 +627,7 @@ class Project(BaseModel):
                 feature for feature in column_names if feature not in feature_exclude
             ]
 
-            feature_encodings = config.get("feature_encodings", None)
+            feature_encodings = config.get("feature_encodings", {})
             if feature_encodings:
                 Validate.value_against_list(
                     "feature_encodings_feature",
@@ -686,6 +687,58 @@ class Project(BaseModel):
             raise Exception(res.get("details"))
 
         return res.get("details")
+
+    def upload_feature_mapping(self, data: str | dict) -> str:
+        """uploads feature mapping for the project
+
+        :param data: response
+        :return: response
+        """
+
+        def build_upload_data():
+            if isinstance(data, str):
+                file = open(data, "rb")
+                return file
+            elif isinstance(data, dict):
+                json_buffer = io.BytesIO()
+                json_str = json.dumps(data, ensure_ascii=False, indent=4)
+                json_buffer.write(json_str.encode("utf-8"))
+                json_buffer.seek(0)
+                file_name = (
+                    f"feature_mapping_sdk_{datetime.now().replace(microsecond=0)}.json"
+                )
+                file = (file_name, json_buffer.getvalue())
+                return file
+            else:
+                raise Exception("Invalid Data Type")
+
+        def upload_file_and_return_path() -> str:
+            files = {"in_file": build_upload_data()}
+            res = self.api_client.file(
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=feature_mapping",
+                files,
+            )
+
+            if not res["success"]:
+                raise Exception(res.get("details"))
+            uploaded_path = res.get("metadata").get("filepath")
+
+            return uploaded_path
+
+        uploaded_path = upload_file_and_return_path()
+
+        payload = {
+            "path": uploaded_path,
+            "type": "feature_mapping",
+            "project_name": self.project_name,
+        }
+        res = self.api_client.post(UPLOAD_DATA_URI, payload)
+
+        if not res["success"]:
+            self.delete_file(uploaded_path)
+            raise Exception(res.get("details"))
+
+        return res.get("details", "Feature mapping upload successful")
 
     def upload_data_description(self, data: str | pd.DataFrame) -> str:
         """uploads data description for the project
@@ -756,6 +809,7 @@ class Project(BaseModel):
         model_data_tags: List[str],
         model_test_tags: Optional[List[str]] = None,
         instance_type: Optional[str] = None,
+        explainability_method: Optional[List[str]] = ["shap"]
     ):
         """Uploads your custom model on AryaXAI
 
@@ -767,6 +821,7 @@ class Project(BaseModel):
         :param model_data_tags: data tags for model
         :param model_test_tags: test tags for model (optional)
         :param instance_type: instance to be used for uploading model (optional)
+        :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional) 
         """
 
         def upload_file_and_return_path() -> str:
@@ -809,6 +864,9 @@ class Project(BaseModel):
                     for server in custom_batch_servers.get("details", [])
                 ],
             )
+        
+        if explainability_method:
+            Validate.value_against_list("explainability_method", explainability_method, ["shap", "lime"])
 
         payload = {
             "project_name": self.project_name,
@@ -818,6 +876,7 @@ class Project(BaseModel):
             "model_path": uploaded_path,
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
+            "explainability_method": explainability_method
         }
 
         if instance_type:
@@ -1812,6 +1871,7 @@ class Project(BaseModel):
                             "drop_duplicate_uid": bool,
                             "sample_percentage": float   # Data sample percentage to be used to train
                             "explainability_sample_percentage": float  # Explainability sample percentage to be used
+                            "explainability_method": str # List of explainability method ["shap", "lime"]
                         },
                         defaults to None
         :param model_config: config with hyper parameters for the model, defaults to None
@@ -1885,6 +1945,13 @@ class Project(BaseModel):
                     raise Exception(
                         "Explainability sample percentage is invalid, select between 0 and 1"
                     )
+                
+            if data_config.get("explainability_method"):
+                Validate.value_against_list(
+                    "explainability_method",
+                    data_config["explainability_method"],
+                    ["shap", "lime"],
+                )
 
         if model_config:
             model_params = self.api_client.get(MODEL_PARAMETERS_URI)
@@ -1938,6 +2005,11 @@ class Project(BaseModel):
             or project_config["metadata"]["drop_duplicate_uid"]
         )
 
+        explainability_method = (
+            data_conf.get("explainability_method")
+            or project_config["metadata"]["explainability_method"]
+        )
+
         tags = data_conf.get("tags") or project_config["metadata"]["tags"]
 
         payload = {
@@ -1953,6 +2025,7 @@ class Project(BaseModel):
                 "feature_encodings": feature_encodings,
                 "drop_duplicate_uid": drop_duplicate_uid,
                 "tags": tags,
+                "explainability_method": explainability_method
             },
             "sample_percentage": data_conf.get("sample_percentage"),
             "explainability_sample_percentage": data_conf.get(
@@ -2028,6 +2101,25 @@ class Project(BaseModel):
             "model_name": model_name,
         }
         res = self.api_client.post(UPDATE_ACTIVE_MODEL_URI, payload)
+
+        if not res["success"]:
+            raise Exception(res["details"])
+
+        return res.get("details")
+    
+    def update_inference_model_status(self, model_name: str, activate: bool) -> str:
+        """Sets the model to active for inferencing
+
+        :param model_name: name of the model
+        :return: response
+        """
+        payload = {
+            "project_name": self.project_name,
+            "model_name": model_name,
+            "activate": activate
+        }
+
+        res = self.api_client.post(UPDATE_ACTIVE_INFERENCE_MODEL_URI, payload)
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -2251,12 +2343,14 @@ class Project(BaseModel):
         unique_identifer: str,
         case_id: Optional[str] = None,
         tag: Optional[str] = None,
+        model_name: Optional[str] = None
     ) -> Case:
         """Case Info
 
         :param unique_identifer: unique identifer of case
         :param case_id: case id, defaults to None
         :param tag: case tag, defaults to None
+        :param model_name: trained model name, defaults to None
         :return: Case object with details
         """
         payload = {
@@ -2264,6 +2358,7 @@ class Project(BaseModel):
             "case_id": case_id,
             "unique_identifier": unique_identifer,
             "tag": tag,
+            "model_name": model_name
         }
         res = self.api_client.post(CASE_INFO_URI, payload)
 
