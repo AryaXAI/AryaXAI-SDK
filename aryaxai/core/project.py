@@ -1871,6 +1871,7 @@ class Project(BaseModel):
                             "drop_duplicate_uid": bool,
                             "sample_percentage": float   # Data sample percentage to be used to train
                             "explainability_sample_percentage": float  # Explainability sample percentage to be used
+                            "lime_explainability_iterations": int # Lime Explainability iterations to be used
                             "explainability_method": str # List of explainability method ["shap", "lime"]
                         },
                         defaults to None
@@ -1944,6 +1945,15 @@ class Project(BaseModel):
                 ):
                     raise Exception(
                         "Explainability sample percentage is invalid, select between 0 and 1"
+                    )
+            
+            if data_config.get("lime_explainability_iterations"):
+                if (
+                    data_config["lime_explainability_iterations"] < 1
+                    or data_config["lime_explainability_iterations"] > 10000
+                ):
+                    raise Exception(
+                        "Lime explainability iterations is invalid, select between 1 and 10000"
                     )
                 
             if data_config.get("explainability_method"):
@@ -2031,6 +2041,9 @@ class Project(BaseModel):
             "explainability_sample_percentage": data_conf.get(
                 "explainability_sample_percentage"
             ),
+            "lime_explainability_iterations": data_conf.get(
+                "lime_explainability_iterations"
+            )
         }
 
         if instance_type:
