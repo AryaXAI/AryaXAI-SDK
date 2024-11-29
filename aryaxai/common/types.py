@@ -45,3 +45,23 @@ class SyntheticModelHyperParams(TypedDict):
     # CTGAN hyper params
     epochs: Optional[int]
     test_ratio: Optional[float]
+
+class GCSConfig(TypedDict):
+    project_id: str
+    gcp_project_name: str
+    type: str
+    private_key_id: str
+    private_key: str
+    client_email: str
+    client_id: str
+    auth_uri: str
+    token_uri: str
+
+class S3Config(TypedDict):
+    region: Optional[str] = None
+    access_key: str
+    secret_key: str
+
+class GDriveConfig(TypedDict):
+    gdrive_file_id: str
+    gdrive_file_name: str

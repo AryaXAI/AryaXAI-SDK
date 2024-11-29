@@ -135,3 +135,12 @@ CREATE_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/create_organization"
 INVITE_USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/invite_user"
 REMOVE_USER_ORGANIZATION_URI = f"{API_VERSION_V2}/organization/organization_user_delete"
 ORGANIZATION_MEMBERS_URI = f"{API_VERSION_V2}/organization/organization_users"
+
+# Data Connectors
+CREATE_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/create"
+TEST_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/test_connection"
+LIST_BUCKETS = f"{API_VERSION_V2}/linkservices/list_buckets"
+LIST_FILEPATHS = f"{API_VERSION_V2}/linkservices/list_filepath"
+LIST_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/list"
+DELETE_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/delete"
+UPLOAD_FILE_DATA_CONNECTORS = f"{API_VERSION_V2}/project/uploadfile_with_linkservices"

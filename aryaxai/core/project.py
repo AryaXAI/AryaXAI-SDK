@@ -25,6 +25,9 @@ from aryaxai.common.types import (
     ProjectConfig,
     SyntheticDataConfig,
     SyntheticModelHyperParams,
+    GCSConfig,
+    S3Config,
+    GDriveConfig
 )
 from aryaxai.common.utils import parse_datetime, parse_float, poll_events
 from aryaxai.common.validation import Validate
@@ -109,6 +112,13 @@ from aryaxai.common.xai_uris import (
     UPLOAD_DATA_URI,
     UPLOAD_DATA_WITH_CHECK_URI,
     UPLOAD_MODEL_URI,
+    CREATE_DATA_CONNECTORS,
+    LIST_DATA_CONNECTORS,
+    DELETE_DATA_CONNECTORS,
+    TEST_DATA_CONNECTORS,
+    LIST_BUCKETS,
+    LIST_FILEPATHS,
+    UPLOAD_FILE_DATA_CONNECTORS
 )
 import json
 import io
@@ -2301,6 +2311,354 @@ class Project(BaseModel):
         tag_data_df = pd.DataFrame(res["details"]["data"])
 
         return tag_data_df
+    
+    def create_data_connectors(
+        self,
+        data_connector_name: str,
+        data_connector_type: str,
+        gcs_config: Optional[GCSConfig] = None,
+        s3_config: Optional[S3Config] = None,
+        gdrive_config: Optional[GDriveConfig] = None,
+    ) -> str:
+        """Create Data Connectors for project
+
+        :param data_connector_name: str # name for data connector
+        :param data_connector_type: str # type of data connector (s3 | gcs | gdrive)
+        :param gcs_config: dict # credentials from service account json
+        :param s3_config: dict # credentials of s3 storage
+        :param gdrive_config: dict # file_id and name for gdrive file
+        :return: response
+        """
+        if data_connector_type.lower() == "s3":
+            if not s3_config:
+                return "No configuration for S3 found"
+
+            Validate.value_against_list("s3 config", list(s3_config.keys()), ["region", "access_key", "secret_key"])
+            
+            payload = {
+                "link_service": {
+                    "service_name": data_connector_name,
+                    "region": s3_config.get("region", "ap-south-1"),
+                    "access_key": s3_config.get("access_key"),
+                    "secret_key": s3_config.get("secret_key")
+                },
+                "link_service_type": data_connector_type
+            }
+        
+        if data_connector_type.lower() == "gcs":
+            if not gcs_config:
+                return "No configuration for GCS found"
+            
+            Validate.value_against_list(
+                "gcs config", 
+                list(gcs_config.keys()), 
+                ["project_id", "gcp_project_name", "type", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri"]
+            )
+            
+            payload = {
+                "link_service": {
+                    "service_name": data_connector_name,
+                    "project_id": gcs_config.get("project_id"),
+                    "gcp_project_name": gcs_config.get("gcp_project_name"),
+                    "service_account_json": {
+                        "type": gcs_config.get("type"),
+                        "project_id": gcs_config.get("project_id"),
+                        "private_key_id": gcs_config.get("private_key_id"),
+                        "private_key": gcs_config.get("private_key"),
+                        "client_email": gcs_config.get("client_email"),
+                        "client_id": gcs_config.get("client_id"),
+                        "auth_uri": gcs_config.get("auth_uri"),
+                        "token_uri": gcs_config.get("token_uri")
+                    }
+                },
+                "link_service_type": data_connector_type
+            }
+
+        if data_connector_type == "gdrive":
+            if not gdrive_config:
+                return "No configuration for Google Drive found"
+            
+            Validate.value_against_list(
+                "gdrive config", 
+                list(gdrive_config.keys()), 
+                ["gdrive_file_id", "gdrive_file_name"]
+            )
+
+            payload = payload = {
+                "link_service": {
+                    "service_name": data_connector_name,
+                    "gdrive_file_id": gdrive_config.get("gdrive_file_id"),
+                    "gdrive_file_name": gdrive_config.get("gdrive_file_name")
+                },
+                "link_service_type": data_connector_type
+            }
+
+        url = f"{CREATE_DATA_CONNECTORS}?project_name={self.project_name}"
+        res = self.api_client.post(url, payload)
+        return res["details"]
+    
+    def test_data_connectors(
+            self,
+            data_connector_name
+    ) -> str:
+        """Test connection for the data connectors
+        
+        :param data_connector_name: str
+        """
+        if not data_connector_name:
+            return "Missing argument data_connector_name"
+        
+        url = f"{TEST_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        res = self.api_client.post(url)
+        return res["details"]
+    
+    def delete_data_connectors(
+        self,
+        data_connector_name
+    ) -> str:
+        """Delete the data connectors
+        
+        :param data_connector_name: str
+        """
+        if not data_connector_name:
+            return "Missing argument data_connector_name"
+        
+        url = f"{DELETE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        res = self.api_client.post(url)
+        return res["details"]
+    
+    def list_data_connectors(self) -> str | pd.DataFrame:
+        """List the data connectors"""
+        url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+        res = self.api_client.post(url)
+
+        if res["success"]:
+            df = pd.DataFrame(res["details"])
+            df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1)
+            return df
+
+        return res["details"]
+    
+    def list_data_connectors_buckets(
+        self,
+        data_connector_name
+    ) -> str | List:
+        """List the buckets in data connectors
+        
+        :param data_connector_name: str
+        """
+        if not data_connector_name:
+            return "Missing argument data_connector_name"
+        
+        url = f"{LIST_BUCKETS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        res = self.api_client.get(url)
+
+        return res["details"]
+    
+    def list_data_connectors_filepath(
+        self,
+        data_connector_name,
+        bucket_name
+    ) -> str | Dict:
+        """List the filepaths in data connectors
+        
+        :param data_connector_name: str
+        :param bucket_name: str
+        """
+        if not data_connector_name:
+            return "Missing argument data_connector_name"
+        
+        if not bucket_name:
+            return "Missing argument bucket_name"
+        
+        url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}"
+        res = self.api_client.get(url)
+
+        return res["details"]
+    
+    def upload_data_dataconnectors(
+            self, 
+            data_connector_name: str,
+            tag: str,
+            bucket_name: Optional[str] = None,
+            file_path: Optional[str] = None,
+            config: Optional[ProjectConfig] = None
+    ) -> str:
+        """Uploads data for the current project with data connectors
+        :param data_connector_name: name of the data connector
+        :param tag: tag for data
+        :param bucket_name: if data connector has buckets # Example: s3/gcs buckets
+        :param file_path: filepath from the bucket for the data to read
+        :param config: project config
+                {
+                    "project_type": "",
+                    "unique_identifier": "",
+                    "true_label": "",
+                    "pred_label": "",
+                    "feature_exclude": [],
+                    "drop_duplicate_uid: "",
+                    "handle_errors": False,
+                    "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode | onehotencode"}
+                },
+                defaults to None
+        :return: response
+        """
+        def get_connector() -> str | pd.DataFrame:
+            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            res = self.api_client.post(url)
+
+            if res["success"]:
+                df = pd.DataFrame(res["details"])
+                df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1)
+                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                if filtered_df.empty:
+                    return "No data connector found"
+                return filtered_df
+
+            return res["details"]
+        
+        connectors = get_connector()
+        if isinstance(connectors, pd.DataFrame):
+            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            ds_type = value
+
+            if ds_type == "s3" or ds_type == "gcs":
+                if not bucket_name:
+                    return "Missing argument bucket_name"
+                if not file_path:
+                    return "Missing argument file_path"
+        else:
+            return connectors
+
+        def upload_file_and_return_path() -> str:
+            res = self.api_client.post(
+                f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+
+            print(res)
+            if not res["success"]:
+                raise Exception(res.get("details"))
+            uploaded_path = res.get("metadata").get("filepath")
+
+            return uploaded_path
+
+        project_config = self.config()
+
+        if project_config == "Not Found":
+            if not config:
+                config = {
+                    "project_type": "",
+                    "unique_identifier": "",
+                    "true_label": "",
+                    "pred_label": "",
+                    "feature_exclude": [],
+                    "drop_duplicate_uid": False,
+                    "handle_errors": False
+                }
+                raise Exception(
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
+                )
+
+            Validate.check_for_missing_keys(
+                config, ["project_type", "unique_identifier", "true_label"]
+            )
+
+            Validate.value_against_list(
+                "project_type", config, ["classification", "regression"]
+            )
+
+            uploaded_path = upload_file_and_return_path()
+
+            file_info = self.api_client.post(
+                UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
+            )
+
+            column_names = file_info.get("details").get("column_names")
+
+            Validate.value_against_list(
+                "unique_identifier",
+                config["unique_identifier"],
+                column_names,
+                lambda: self.delete_file(uploaded_path),
+            )
+
+            if config.get("feature_exclude"):
+                Validate.value_against_list(
+                    "feature_exclude",
+                    config["feature_exclude"],
+                    column_names,
+                    lambda: self.delete_file(uploaded_path),
+                )
+
+            feature_exclude = [
+                config["unique_identifier"],
+                config["true_label"],
+                *config.get("feature_exclude", []),
+            ]
+
+            feature_include = [
+                feature for feature in column_names if feature not in feature_exclude
+            ]
+
+            feature_encodings = config.get("feature_encodings", {})
+            if feature_encodings:
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.keys()),
+                    column_names,
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.values()),
+                    ["labelencode", "countencode", "onehotencode"],
+                )
+
+            payload = {
+                "project_name": self.project_name,
+                "project_type": config["project_type"],
+                "unique_identifier": config["unique_identifier"],
+                "true_label": config["true_label"],
+                "pred_label": config.get("pred_label"),
+                "metadata": {
+                    "path": uploaded_path,
+                    "tag": tag,
+                    "tags": [tag],
+                    "drop_duplicate_uid": config.get("drop_duplicate_uid"),
+                    "handle_errors": config.get("handle_errors", False),
+                    "feature_exclude": feature_exclude,
+                    "feature_include": feature_include,
+                    "feature_encodings": feature_encodings,
+                    "feature_actual_used": [],
+                },
+            }
+
+            res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
+
+            if not res["success"]:
+                self.delete_file(uploaded_path)
+                raise Exception(res.get("details"))
+
+            poll_events(self.api_client, self.project_name, res["event_id"])
+
+            return res.get("details")
+
+        if project_config != "Not Found" and config:
+            raise Exception("Config already exists, please remove config")
+
+        uploaded_path = upload_file_and_return_path()
+
+        payload = {
+            "path": uploaded_path,
+            "tag": tag,
+            "type": "data",
+            "project_name": self.project_name,
+        }
+        res = self.api_client.post(UPLOAD_DATA_URI, payload)
+
+        if not res["success"]:
+            self.delete_file(uploaded_path)
+            raise Exception(res.get("details"))
+
+        return res.get("details")
 
     def cases(
         self,
