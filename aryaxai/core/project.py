@@ -2434,7 +2434,6 @@ class Project(BaseModel):
 
         if res["success"]:
             df = pd.DataFrame(res["details"])
-            df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1)
             return df
 
         return res["details"]
@@ -2509,7 +2508,6 @@ class Project(BaseModel):
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1)
                 filtered_df = df.loc[df['link_service_name'] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
