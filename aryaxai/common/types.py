@@ -63,5 +63,11 @@ class S3Config(TypedDict):
     secret_key: str
 
 class GDriveConfig(TypedDict):
-    gdrive_file_id: str
-    gdrive_file_name: str
+    project_id: str
+    type: str
+    private_key_id: str
+    private_key: str
+    client_email: str
+    client_id: str
+    auth_uri: str
+    token_uri: str
