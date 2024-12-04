@@ -591,7 +591,7 @@ class Project(BaseModel):
                     "pred_label": "",
                     "feature_exclude": [],
                     "drop_duplicate_uid": False,
-                    "handle_errors": False
+                    "handle_errors": False,
                 }
                 raise Exception(
                     f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
@@ -952,7 +952,7 @@ class Project(BaseModel):
         model_data_tags: List[str],
         model_test_tags: Optional[List[str]] = None,
         instance_type: Optional[str] = None,
-        explainability_method: Optional[List[str]] = ["shap"]
+        explainability_method: Optional[List[str]] = ["shap"],
     ):
         """Uploads your custom model on AryaXAI
 
@@ -964,7 +964,7 @@ class Project(BaseModel):
         :param model_data_tags: data tags for model
         :param model_test_tags: test tags for model (optional)
         :param instance_type: instance to be used for uploading model (optional)
-        :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional) 
+        :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional)
         """
 
         def upload_file_and_return_path() -> str:
@@ -1007,9 +1007,11 @@ class Project(BaseModel):
                     for server in custom_batch_servers.get("details", [])
                 ],
             )
-        
+
         if explainability_method:
-            Validate.value_against_list("explainability_method", explainability_method, ["shap", "lime"])
+            Validate.value_against_list(
+                "explainability_method", explainability_method, ["shap", "lime"]
+            )
 
         payload = {
             "project_name": self.project_name,
@@ -1019,7 +1021,7 @@ class Project(BaseModel):
             "model_path": uploaded_path,
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
-            "explainability_method": explainability_method
+            "explainability_method": explainability_method,
         }
 
         if instance_type:
@@ -2300,7 +2302,7 @@ class Project(BaseModel):
                 "feature_encodings": feature_encodings,
                 "drop_duplicate_uid": drop_duplicate_uid,
                 "tags": tags,
-                "explainability_method": explainability_method
+                "explainability_method": explainability_method,
             },
             "sample_percentage": data_conf.get("sample_percentage"),
             "explainability_sample_percentage": data_conf.get(
@@ -2384,7 +2386,7 @@ class Project(BaseModel):
             raise Exception(res["details"])
 
         return res.get("details")
-    
+
     def update_inference_model_status(self, model_name: str, activate: bool) -> str:
         """Sets the model to active for inferencing
 
@@ -2394,7 +2396,7 @@ class Project(BaseModel):
         payload = {
             "project_name": self.project_name,
             "model_name": model_name,
-            "activate": activate
+            "activate": activate,
         }
 
         res = self.api_client.post(UPDATE_ACTIVE_INFERENCE_MODEL_URI, payload)
@@ -2485,9 +2487,7 @@ class Project(BaseModel):
 
         uri = f"{DOWNLOAD_TAG_DATA_URI}?project_name={self.project_name}&tag={tag}_{model}_Inference&token={auth_token}"
 
-        tag_data = self.api_client.base_request(
-            "GET", uri
-        )
+        tag_data = self.api_client.base_request("GET", uri)
 
         tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
 
@@ -2976,7 +2976,8 @@ class Project(BaseModel):
         unique_identifer: str,
         case_id: Optional[str] = None,
         tag: Optional[str] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        instance_type: Optional[str] = None,
     ) -> Case:
         """Case Info
 
@@ -2984,6 +2985,8 @@ class Project(BaseModel):
         :param case_id: case id, defaults to None
         :param tag: case tag, defaults to None
         :param model_name: trained model name, defaults to None
+        :param instance_type: instance to be used for case
+                Eg:- nova-0.5, nova-1, nova-1.5
         :return: Case object with details
         """
         payload = {
@@ -2991,10 +2994,11 @@ class Project(BaseModel):
             "case_id": case_id,
             "unique_identifier": unique_identifer,
             "tag": tag,
-            "model_name": model_name
+            "model_name": model_name,
+            "instance_type": instance_type,
         }
-        res = self.api_client.post(CASE_INFO_URI, payload)
 
+        res = self.api_client.post(CASE_INFO_URI, payload)
         if not res["success"]:
             raise Exception(res["details"])
 
@@ -3004,12 +3008,18 @@ class Project(BaseModel):
             "case_id": case_id,
             "model_name": res["details"]["model_name"],
             "data_id": res["details"]["data_id"],
+            "instance_type": instance_type,
         }
+
         dtree_res = self.api_client.post(CASE_DTREE_URI, prediction_path_payload)
         if dtree_res["success"]:
-            res["details"]["case_prediction_svg"] = dtree_res["details"]["case_prediction_svg"]
-            res["details"]["case_prediction_path"] = dtree_res["details"]["case_prediction_path"]
-        
+            res["details"]["case_prediction_svg"] = dtree_res["details"][
+                "case_prediction_svg"
+            ]
+            res["details"]["case_prediction_path"] = dtree_res["details"][
+                "case_prediction_path"
+            ]
+
         case = Case(**res["details"])
 
         return case
