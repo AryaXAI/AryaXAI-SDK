@@ -2636,14 +2636,22 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "gdrive config", 
                 list(gdrive_config.keys()), 
-                ["gdrive_file_id", "gdrive_file_name"]
+                ["project_id", "type", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri"]
             )
 
             payload = payload = {
                 "link_service": {
                     "service_name": data_connector_name,
-                    "gdrive_file_id": gdrive_config.get("gdrive_file_id"),
-                    "gdrive_file_name": gdrive_config.get("gdrive_file_name")
+                    "service_account_json": {
+                        "type": gdrive_config.get("type"),
+                        "project_id": gdrive_config.get("project_id"),
+                        "private_key_id": gdrive_config.get("private_key_id"),
+                        "private_key": gdrive_config.get("private_key"),
+                        "client_email": gdrive_config.get("client_email"),
+                        "client_id": gdrive_config.get("client_id"),
+                        "auth_uri": gdrive_config.get("auth_uri"),
+                        "token_uri": gdrive_config.get("token_uri")
+                    }
                 },
                 "link_service_type": data_connector_type
             }
