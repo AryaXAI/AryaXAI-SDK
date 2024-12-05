@@ -2639,7 +2639,7 @@ class Project(BaseModel):
                 ["project_id", "type", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri"]
             )
 
-            payload = payload = {
+            payload = {
                 "link_service": {
                     "service_name": data_connector_name,
                     "service_account_json": {
@@ -2721,7 +2721,7 @@ class Project(BaseModel):
     def list_data_connectors_filepath(
         self,
         data_connector_name,
-        bucket_name
+        bucket_name: Optional[str] = None
     ) -> str | Dict:
         """List the filepaths in data connectors
         
@@ -2731,8 +2731,27 @@ class Project(BaseModel):
         if not data_connector_name:
             return "Missing argument data_connector_name"
         
-        if not bucket_name:
-            return "Missing argument bucket_name"
+        def get_connector() -> str | pd.DataFrame:
+            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            res = self.api_client.post(url)
+
+            if res["success"]:
+                df = pd.DataFrame(res["details"])
+                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                if filtered_df.empty:
+                    return "No data connector found"
+                return filtered_df
+
+            return res["details"]
+        
+        connectors = get_connector()
+        if isinstance(connectors, pd.DataFrame):
+            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            ds_type = value
+
+            if ds_type == "s3" or ds_type == "gcs":
+                if not bucket_name:
+                    return "Missing argument bucket_name"
         
         url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}"
         res = self.api_client.get(url)
