@@ -27,7 +27,8 @@ from aryaxai.common.types import (
     SyntheticModelHyperParams,
     GCSConfig,
     S3Config,
-    GDriveConfig
+    GDriveConfig,
+    SFTPConfig
 )
 from aryaxai.common.utils import parse_datetime, parse_float, poll_events
 from aryaxai.common.validation import Validate
@@ -118,7 +119,8 @@ from aryaxai.common.xai_uris import (
     TEST_DATA_CONNECTORS,
     LIST_BUCKETS,
     LIST_FILEPATHS,
-    UPLOAD_FILE_DATA_CONNECTORS
+    UPLOAD_FILE_DATA_CONNECTORS,
+    DROPBOX_OAUTH
 )
 import json
 import io
@@ -553,6 +555,7 @@ class Project(BaseModel):
         :return: response
         """
 
+        print("Preparing Data Upload")
         def build_upload_data():
             if isinstance(data, str):
                 file = open(data, "rb")
@@ -2574,6 +2577,7 @@ class Project(BaseModel):
         gcs_config: Optional[GCSConfig] = None,
         s3_config: Optional[S3Config] = None,
         gdrive_config: Optional[GDriveConfig] = None,
+        sftp_config: Optional[SFTPConfig] = None
     ) -> str:
         """Create Data Connectors for project
 
@@ -2581,7 +2585,8 @@ class Project(BaseModel):
         :param data_connector_type: str # type of data connector (s3 | gcs | gdrive)
         :param gcs_config: dict # credentials from service account json
         :param s3_config: dict # credentials of s3 storage
-        :param gdrive_config: dict # file_id and name for gdrive file
+        :param gdrive_config: dict # credentials from service account json
+        :param sftp_config: dict # hostname, port, username and password for sftp connection
         :return: response
         """
         if data_connector_type.lower() == "s3":
@@ -2656,6 +2661,47 @@ class Project(BaseModel):
                 "link_service_type": data_connector_type
             }
 
+        if data_connector_type == "sftp":
+            if not sftp_config:
+                return "No configuration for Google Drive found"
+            
+            Validate.value_against_list(
+                "sftp config", 
+                list(sftp_config.keys()), 
+                ["hostname", "port", "username", "password"]
+            )
+
+            payload = {
+                "link_service": {
+                    "service_name": data_connector_name,
+                    "sftp_json": {
+                        "hostname": sftp_config.get("hostname"),
+                        "port": sftp_config.get("port"),
+                        "username": sftp_config.get("username"),
+                        "password": sftp_config.get("password")
+                    }
+                },
+                "link_service_type": data_connector_type
+            }
+
+        if data_connector_type == "dropbox":
+            url_data = self.api_client.get(f"{DROPBOX_OAUTH}?project_name={self.project_name}")
+            print(f"Url: {url_data['details']['url']}")
+            code = input(f"{url_data['details']['message']}: ")
+
+            if not code:
+                return "No authentication code provided."
+
+            payload = {
+                "link_service": {
+                    "service_name": data_connector_name,
+                    "dropbox_json": {
+                        "code": code
+                    }
+                },
+                "link_service_type": data_connector_type
+            }
+
         url = f"{CREATE_DATA_CONNECTORS}?project_name={self.project_name}"
         res = self.api_client.post(url, payload)
         return res["details"]
@@ -2716,17 +2762,21 @@ class Project(BaseModel):
         url = f"{LIST_BUCKETS}?project_name={self.project_name}&link_service_name={data_connector_name}"
         res = self.api_client.get(url)
 
+        if res.get("message", None):
+            print(res["message"])
         return res["details"]
     
     def list_data_connectors_filepath(
         self,
         data_connector_name,
-        bucket_name: Optional[str] = None
+        bucket_name: Optional[str] = None,
+        root_folder: Optional[str] = None
     ) -> str | Dict:
         """List the filepaths in data connectors
         
         :param data_connector_name: str
-        :param bucket_name: str
+        :param bucket_name: str | Required for S3 & GCS
+        :param root_folder: str | Root folder of SFTP
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
@@ -2752,10 +2802,16 @@ class Project(BaseModel):
             if ds_type == "s3" or ds_type == "gcs":
                 if not bucket_name:
                     return "Missing argument bucket_name"
+                
+            if ds_type == "sftp":
+                if not root_folder:
+                    return "Missing argument root_folder"
         
-        url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}"
+        url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}&root_folder={root_folder}"
         res = self.api_client.get(url)
 
+        if res.get("message", None):
+            print(res["message"])
         return res["details"]
     
     def upload_data_dataconnectors(
@@ -2785,6 +2841,7 @@ class Project(BaseModel):
                 defaults to None
         :return: response
         """
+        print("Preparing Data Upload")
         def get_connector() -> str | pd.DataFrame:
             url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
             res = self.api_client.post(url)
@@ -2815,7 +2872,6 @@ class Project(BaseModel):
             res = self.api_client.post(
                 f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
 
-            print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
             uploaded_path = res.get("metadata").get("filepath")
