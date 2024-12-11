@@ -71,3 +71,9 @@ class GDriveConfig(TypedDict):
     client_id: str
     auth_uri: str
     token_uri: str
+
+class SFTPConfig(TypedDict):
+    hostname: str
+    port: str
+    username: str
+    password: str
