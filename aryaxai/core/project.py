@@ -2136,9 +2136,11 @@ class Project(BaseModel):
         :param data_config: config for the data
                         {
                             "tags": List[str]
+                            "test_tags": List[str]
                             "feature_exclude": List[str]
                             "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode"}
-                            "drop_duplicate_uid": bool,
+                            "drop_duplicate_uid": bool
+                            "use_optuna": bool # Allow using Optuna Framework for hyperparameter optimization
                             "sample_percentage": float   # Data sample percentage to be used to train
                             "explainability_sample_percentage": float  # Explainability sample percentage to be used
                             "lime_explainability_iterations": int # Lime Explainability iterations to be used
@@ -2186,6 +2188,10 @@ class Project(BaseModel):
             if data_config.get("tags"):
                 available_tags = self.tags()
                 Validate.value_against_list("tags", data_config["tags"], available_tags)
+            
+            if data_config.get("test_tags"):
+                available_tags = self.tags()
+                Validate.value_against_list("test_tags", data_config["test_tags"], available_tags)
 
             if data_config.get("feature_encodings"):
                 Validate.value_against_list(
@@ -2291,6 +2297,8 @@ class Project(BaseModel):
         )
 
         tags = data_conf.get("tags") or project_config["metadata"]["tags"]
+        test_tags = data_conf.get("test_tags") or project_config["metadata"]["test_tags"] or []
+        use_optuna = data_conf.get("use_optuna") or project_config["metadata"]["use_optuna"] or False
 
         payload = {
             "project_name": self.project_name,
@@ -2305,6 +2313,8 @@ class Project(BaseModel):
                 "feature_encodings": feature_encodings,
                 "drop_duplicate_uid": drop_duplicate_uid,
                 "tags": tags,
+                "test_tags": test_tags,
+                "use_optuna": use_optuna,
                 "explainability_method": explainability_method,
             },
             "sample_percentage": data_conf.get("sample_percentage"),

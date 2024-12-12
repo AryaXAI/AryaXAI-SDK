@@ -14,6 +14,8 @@ class ProjectConfig(TypedDict):
 
 class DataConfig(TypedDict):
     tags: List[str]
+    test_tags: Optional[List[str]]
+    use_optuna: Optional[bool] = False
     feature_exclude: List[str]
     feature_encodings: Dict[str, str]
     drop_duplicate_uid: bool
