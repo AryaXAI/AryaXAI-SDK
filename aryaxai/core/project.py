@@ -2590,7 +2590,8 @@ class Project(BaseModel):
         :return: dataframe
         """
 
-        available_tags = self.tags()
+        tags = self.available_tags()
+        available_tags = tags['alltags']
         if tag not in available_tags:
             raise Exception(
                 f"{tag} tag is not valid, select valid tag from :\n{available_tags}"
