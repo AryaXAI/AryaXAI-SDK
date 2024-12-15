@@ -2580,6 +2580,32 @@ class Project(BaseModel):
 
         return tag_data_df
     
+    def get_tag_data(
+        self,
+        tag: str,
+    ) -> pd.DataFrame:
+        """Run model inference on data
+
+        :param tag: data tag for downloading
+        :return: dataframe
+        """
+
+        available_tags = self.tags()
+        if tag not in available_tags:
+            raise Exception(
+                f"{tag} tag is not valid, select valid tag from :\n{available_tags}"
+            )
+
+        auth_token = self.api_client.get_auth_token()
+
+        uri = f"{DOWNLOAD_TAG_DATA_URI}?project_name={self.project_name}&tag={tag}&token={auth_token}"
+
+        tag_data = self.api_client.base_request("GET", uri)
+
+        tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
+
+        return tag_data_df
+    
     def create_data_connectors(
         self,
         data_connector_name: str,
