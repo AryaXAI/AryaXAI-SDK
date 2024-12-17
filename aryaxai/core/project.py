@@ -1815,6 +1815,7 @@ class Project(BaseModel):
             return "No monitoring triggers found."
 
         monitoring_triggers = pd.DataFrame(monitoring_triggers)
+        monitoring_triggers = monitoring_triggers[monitoring_triggers['deleted'] == False]
         monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
 
         return monitoring_triggers
