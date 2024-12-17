@@ -3090,6 +3090,7 @@ class Project(BaseModel):
         tag: Optional[str] = None,
         model_name: Optional[str] = None,
         instance_type: Optional[str] = None,
+        components: Optional[list] = None,
     ) -> Case:
         """Case Info
 
@@ -3099,6 +3100,8 @@ class Project(BaseModel):
         :param model_name: trained model name, defaults to None
         :param instance_type: instance to be used for case
                 Eg:- nova-0.5, nova-1, nova-1.5
+        :param components: various components to be generated with predictions
+                Eg:- ['feature_importance', 'similar_cases', 'policies']
         :return: Case object with details
         """
         payload = {
@@ -3108,6 +3111,7 @@ class Project(BaseModel):
             "tag": tag,
             "model_name": model_name,
             "instance_type": instance_type,
+            "components": components
         }
 
         res = self.api_client.post(CASE_INFO_URI, payload)
