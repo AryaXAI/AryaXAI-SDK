@@ -153,10 +153,13 @@ class Case(BaseModel):
 
         return decision_df
 
-    def explainability_similar_cases(self) -> pd.DataFrame:
+    def explainability_similar_cases(self) -> pd.DataFrame | str:
         """Similar Cases
 
         :return: similar cases dataframe
         """
+        if not self.similar_cases_data:
+            return "No similar cases found. Or add 'similar_cases' in components case_info()"
+
         similar_cases_df = pd.DataFrame(self.similar_cases_data)
         return similar_cases_df
