@@ -11,6 +11,7 @@ class ProjectConfig(TypedDict):
     drop_duplicate_uid: Optional[bool]
     handle_errors: Optional[bool]
     feature_encodings: Optional[dict]
+    handle_data_imbalance: Optional[bool]
 
 class DataConfig(TypedDict):
     tags: List[str]
@@ -23,6 +24,7 @@ class DataConfig(TypedDict):
     explainability_sample_percentage: float
     lime_explainability_iterations: int
     explainability_method: List[str]
+    handle_data_imbalance: Optional[bool]
 
 class SyntheticDataConfig(TypedDict):
     model_name: str
