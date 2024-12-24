@@ -549,6 +549,7 @@ class Project(BaseModel):
                     "feature_exclude": [],
                     "drop_duplicate_uid: "",
                     "handle_errors": False,
+                    "handle_data_imbalance": False, # SMOTE sampling
                     "feature_encodings": Dict[str, str]   # {"feature_name":"labelencode | countencode | onehotencode"}
                 },
                 defaults to None
@@ -595,6 +596,7 @@ class Project(BaseModel):
                     "feature_exclude": [],
                     "drop_duplicate_uid": False,
                     "handle_errors": False,
+                    "handle_data_imbalance": False
                 }
                 raise Exception(
                     f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
@@ -670,6 +672,7 @@ class Project(BaseModel):
                     "feature_include": feature_include,
                     "feature_encodings": feature_encodings,
                     "feature_actual_used": [],
+                    "handle_data_imbalance": config.get("handle_data_imbalance", False)
                 },
             }
 
@@ -2146,6 +2149,7 @@ class Project(BaseModel):
                             "explainability_sample_percentage": float  # Explainability sample percentage to be used
                             "lime_explainability_iterations": int # Lime Explainability iterations to be used
                             "explainability_method": str # List of explainability method ["shap", "lime"]
+                            "handle_data_imbalance": bool # Handle data imbalance using SMOTE
                         },
                         defaults to None
         :param model_config: config with hyper parameters for the model, defaults to None
@@ -2300,6 +2304,7 @@ class Project(BaseModel):
         tags = data_conf.get("tags") or project_config["metadata"]["tags"]
         test_tags = data_conf.get("test_tags") or project_config["metadata"]["test_tags"] or []
         use_optuna = data_conf.get("use_optuna") or project_config["metadata"]["use_optuna"] or False
+        handle_data_imbalance = data_conf.get("handle_data_imbalance") or project_config["metadata"]["handle_data_imbalance"] or False
 
         payload = {
             "project_name": self.project_name,
@@ -2317,6 +2322,7 @@ class Project(BaseModel):
                 "test_tags": test_tags,
                 "use_optuna": use_optuna,
                 "explainability_method": explainability_method,
+                "handle_data_imbalance": handle_data_imbalance
             },
             "sample_percentage": data_conf.get("sample_percentage"),
             "explainability_sample_percentage": data_conf.get(
@@ -3678,6 +3684,7 @@ class Project(BaseModel):
         statement: str,
         decision: str,
         input: Optional[str] = None,
+        models: Optional[list] = []
     ) -> str:
         """Creates New Policy
 
@@ -3695,6 +3702,7 @@ class Project(BaseModel):
                 the content inside the curly brackets represents the feature name
         :param decision: decision of policy
         :param input: custom input for the decision if input selected for decision of policy
+        :param models: List of trained model names - The policy will only execute for the selected model. In case of empty list will execute for all models
         :return: response
         """
         configuration, expression = build_expression(expression)
@@ -3720,6 +3728,7 @@ class Project(BaseModel):
             "metadata": {"expression": expression},
             "statement": [statement],
             "decision": input if decision == "input" else decision,
+            "models": models
         }
 
         res = self.api_client.post(CREATE_POLICY_URI, payload)
