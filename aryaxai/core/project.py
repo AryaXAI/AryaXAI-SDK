@@ -132,14 +132,14 @@ from aryaxai.core.model_summary import ModelSummary
 from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
 import re
-
+from aryaxai.core.utils import build_url, build_list_data_connector_url
 from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPrompt
 
 
 class Project(BaseModel):
     organization_id: Optional[str] = None
     created_by: str
-    project_name: str
+    project_name: Optional[str] = None
     user_project_name: str
     user_workspace_name: str
     workspace_name: str
@@ -823,7 +823,7 @@ class Project(BaseModel):
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
             res = self.api_client.post(url)
 
             if res["success"]:
@@ -849,9 +849,12 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            res = self.api_client.post(
-                f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
-
+            if self.project_name:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
+            elif self.organization_id:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -889,7 +892,7 @@ class Project(BaseModel):
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
             res = self.api_client.post(url)
 
             if res["success"]:
@@ -915,9 +918,12 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            res = self.api_client.post(
-                f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
-
+            if self.project_name:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
+            elif self.organization_id:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -1074,7 +1080,7 @@ class Project(BaseModel):
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
             res = self.api_client.post(url)
 
             if res["success"]:
@@ -1100,9 +1106,12 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            res = self.api_client.post(
-                f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
-
+            if self.project_name:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
+            elif self.organization_id:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -2633,6 +2642,8 @@ class Project(BaseModel):
         :param sftp_config: dict # hostname, port, username and password for sftp connection
         :return: response
         """
+        if not self.organization_id and not self.project_name:
+            return "No Project Name or Organization id found"
         if data_connector_type.lower() == "s3":
             if not s3_config:
                 return "No configuration for S3 found"
@@ -2746,7 +2757,7 @@ class Project(BaseModel):
                 "link_service_type": data_connector_type
             }
 
-        url = f"{CREATE_DATA_CONNECTORS}?project_name={self.project_name}"
+        url = build_url(CREATE_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
         res = self.api_client.post(url, payload)
         return res["details"]
     
@@ -2760,8 +2771,9 @@ class Project(BaseModel):
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
-        
-        url = f"{TEST_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        if not self.organization_id and not self.project_name:
+            return "No Project Name or Organization id found"
+        url = build_url(TEST_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
         res = self.api_client.post(url)
         return res["details"]
     
@@ -2775,14 +2787,16 @@ class Project(BaseModel):
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
+        if not self.organization_id and not self.project_name:
+            return "No Project Name or Organization id found"
         
-        url = f"{DELETE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        url = build_url(DELETE_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
         res = self.api_client.post(url)
         return res["details"]
     
     def list_data_connectors(self) -> str | pd.DataFrame:
         """List the data connectors"""
-        url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+        url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
         res = self.api_client.post(url)
 
         if res["success"]:
@@ -2802,8 +2816,10 @@ class Project(BaseModel):
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
+        if not self.organization_id and not self.project_name:
+            return "No Project Name or Organization id found"
         
-        url = f"{LIST_BUCKETS}?project_name={self.project_name}&link_service_name={data_connector_name}"
+        url = build_url(LIST_BUCKETS, data_connector_name, self.project_name, self.organization_id)
         res = self.api_client.get(url)
 
         if res.get("message", None):
@@ -2824,9 +2840,10 @@ class Project(BaseModel):
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
-        
+        if not self.organization_id and not self.project_name:
+            return "No Project Name or Organization id found"
         def get_connector() -> str | pd.DataFrame:
-            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
             res = self.api_client.post(url)
 
             if res["success"]:
@@ -2851,7 +2868,10 @@ class Project(BaseModel):
                 if not root_folder:
                     return "Missing argument root_folder"
         
-        url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}&root_folder={root_folder}"
+        if self.project_name:
+            url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}&root_folder={root_folder}"
+        elif self.organization_id:
+            url = f"{LIST_FILEPATHS}?organization_id={self.organization_id}&link_service_name={data_connector_name}&bucket_name={bucket_name}&root_folder={root_folder}"
         res = self.api_client.get(url)
 
         if res.get("message", None):
@@ -2887,7 +2907,7 @@ class Project(BaseModel):
         """
         print("Preparing Data Upload")
         def get_connector() -> str | pd.DataFrame:
-            url = f"{LIST_DATA_CONNECTORS}?project_name={self.project_name}"
+            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
             res = self.api_client.post(url)
 
             if res["success"]:
@@ -2913,8 +2933,12 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            res = self.api_client.post(
-                f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+            if self.project_name:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+            elif self.organization_id:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
 
             if not res["success"]:
                 raise Exception(res.get("details"))
