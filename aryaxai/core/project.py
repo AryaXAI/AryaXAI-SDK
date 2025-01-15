@@ -853,7 +853,7 @@ class Project(BaseModel):
                 return "Missing Project Name"
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_i{self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
             else:
                 res = self.api_client.post(
                     f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
