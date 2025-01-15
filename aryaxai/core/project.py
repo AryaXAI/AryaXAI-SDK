@@ -849,12 +849,14 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            if self.project_name:
+            if not self.project_name:
+                return "Missing Project Name"
+            if self.organization_id:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_i{self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
+            else:
                 res = self.api_client.post(
                     f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
-            elif self.organization_id:
-                res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -918,12 +920,14 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            if self.project_name:
-                res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
-            elif self.organization_id:
+            if not self.project_name:
+                return "Missing Project Name"
+            if self.organization_id:
                 res = self.api_client.post(
                     f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
+            else:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -1106,12 +1110,14 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            if self.project_name:
-                res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
-            elif self.organization_id:
+            if not self.project_name:
+                return "Missing Project Name"
+            if self.organization_id:
                 res = self.api_client.post(
                     f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
+            else:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -2933,12 +2939,14 @@ class Project(BaseModel):
             return connectors
 
         def upload_file_and_return_path() -> str:
-            if self.project_name:
-                res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
-            elif self.organization_id:
+            if not self.project_name:
+                return "Missing Project Name"
+            if self.organization_id:
                 res = self.api_client.post(
                     f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+            else:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
 
             if not res["success"]:
                 raise Exception(res.get("details"))
