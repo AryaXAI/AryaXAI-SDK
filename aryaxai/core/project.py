@@ -987,7 +987,7 @@ class Project(BaseModel):
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model&tag={model_data_tags}",
                 files,
             )
 
@@ -1115,10 +1115,10 @@ class Project(BaseModel):
                 return "Missing Project Name"
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}")
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
