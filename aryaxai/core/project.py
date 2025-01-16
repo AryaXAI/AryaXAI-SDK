@@ -55,6 +55,7 @@ from aryaxai.common.xai_uris import (
     CREATE_POLICY_URI,
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
+    CLONE_MONITORS_URI,
     DASHBOARD_CONFIG_URI,
     DASHBOARD_LOGS_URI,
     DOWNLOAD_DASHBOARD_LOGS_URI,
@@ -139,7 +140,7 @@ from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPr
 class Project(BaseModel):
     organization_id: Optional[str] = None
     created_by: str
-    project_name: Optional[str] = None
+    project_name: str
     user_project_name: str
     user_workspace_name: str
     workspace_name: str
@@ -1837,6 +1838,15 @@ class Project(BaseModel):
         monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
 
         return monitoring_triggers
+    
+    def clone_monitoring_triggers(self) -> str:
+        url = f"{CLONE_MONITORS_URI}?project_name={self.project_name}"
+        res = self.api_client.post(url)
+
+        if not res["success"]:
+            return Exception(res.get("details", "Failed to clone triggers"))
+
+        return res["details"]
 
     def create_monitoring_trigger(self, payload: dict) -> str:
         """create monitoring trigger for project
