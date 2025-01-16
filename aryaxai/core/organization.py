@@ -457,4 +457,4 @@ class Organization(BaseModel):
 
         if res.get("message", None):
             print(res["message"])
-        return pd.DataFrame(res["details"])
+        return res["details"]
