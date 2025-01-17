@@ -323,7 +323,7 @@ class Organization(BaseModel):
             }
 
         if data_connector_type == "dropbox":
-            url_data = self.api_client.get(f"{DROPBOX_OAUTH}")
+            url_data = self.api_client.get(f"{DROPBOX_OAUTH}?organization_id={self.organization_id}")
             print(f"Url: {url_data['details']['url']}")
             code = input(f"{url_data['details']['message']}: ")
 
@@ -384,7 +384,7 @@ class Organization(BaseModel):
 
         if res["success"]:
             df = pd.DataFrame(res["details"])
-            df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1, errors = "ignore")
+            df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name", "project_name"], axis = 1, errors = "ignore")
             return df
 
         return res["details"]
