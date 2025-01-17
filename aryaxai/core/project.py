@@ -55,7 +55,7 @@ from aryaxai.common.xai_uris import (
     CREATE_POLICY_URI,
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
-    CLONE_MONITORS_URI,
+    DUPLICATE_MONITORS_URI,
     DASHBOARD_CONFIG_URI,
     DASHBOARD_LOGS_URI,
     DOWNLOAD_DASHBOARD_LOGS_URI,
@@ -1839,8 +1839,8 @@ class Project(BaseModel):
 
         return monitoring_triggers
     
-    def clone_monitoring_triggers(self) -> str:
-        url = f"{CLONE_MONITORS_URI}?project_name={self.project_name}"
+    def duplicate_monitoring_triggers(self) -> str:
+        url = f"{DUPLICATE_MONITORS_URI}?project_name={self.project_name}"
         res = self.api_client.post(url)
 
         if not res["success"]:
