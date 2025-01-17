@@ -1839,12 +1839,14 @@ class Project(BaseModel):
 
         return monitoring_triggers
     
-    def duplicate_monitoring_triggers(self) -> str:
-        url = f"{DUPLICATE_MONITORS_URI}?project_name={self.project_name}"
+    def duplicate_monitoring_triggers(self, trigger_name, new_trigger_name) -> str:
+        if trigger_name == new_trigger_name:
+            return "Duplicate trigger name can't be same"
+        url = f"{DUPLICATE_MONITORS_URI}?project_name={self.project_name}&trigger_name={trigger_name}&new_trigger_name={new_trigger_name}"
         res = self.api_client.post(url)
 
         if not res["success"]:
-            return Exception(res.get("details", "Failed to clone triggers"))
+            return res.get("details", "Failed to clone triggers")
 
         return res["details"]
 
