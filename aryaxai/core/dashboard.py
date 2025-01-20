@@ -1,9 +1,9 @@
+from __future__ import annotations
 import os
 from typing import Any
 from pydantic import BaseModel
 import json
 from IPython.display import IFrame, display
-
 from aryaxai.common.xai_uris import XAI_APP_URI
 
 
