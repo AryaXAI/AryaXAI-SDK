@@ -1924,7 +1924,12 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
-            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            if payload["current_tag"] != ["custom"]:
+                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            else:
+                if not payload.get("custom_tag"):
+                    raise Exception("custom_tag is mandatory for custom current tag.")
+                payload["current_tag"] = payload["custom_tag"]
 
             Validate.value_against_list(
                 "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
@@ -1947,7 +1952,12 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
-            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            if payload["current_tag"] != ["custom"]:
+                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            else:
+                if not payload.get("custom_tag"):
+                    raise Exception("custom_tag is mandatory for custom current tag.")
+                payload["current_tag"] = payload["custom_tag"]
 
             Validate.value_against_list(
                 "model_type", payload["model_type"], MODEL_TYPES
@@ -1974,7 +1984,7 @@ class Project(BaseModel):
             )
 
             Validate.value_against_list(
-                "current_true_label"[payload["current_true_label"]],
+                "current_true_label", [payload["current_true_label"]],
                 tags_info["alluniquefeatures"],
             )
         elif payload["trigger_type"] == "Model Performance":
@@ -2044,7 +2054,7 @@ class Project(BaseModel):
                     for server in custom_batch_servers.get("details", [])
                 ],
             )
-
+        print(payload)
         payload = {
             "project_name": self.project_name,
             "modify_req": {
