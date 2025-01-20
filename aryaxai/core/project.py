@@ -2054,7 +2054,7 @@ class Project(BaseModel):
                     for server in custom_batch_servers.get("details", [])
                 ],
             )
-        print(payload)
+
         payload = {
             "project_name": self.project_name,
             "modify_req": {
