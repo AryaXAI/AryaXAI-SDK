@@ -1925,6 +1925,10 @@ class Project(BaseModel):
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
 
+            try:
+                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
             Validate.value_against_list(
                 "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
             )
@@ -1946,6 +1950,10 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
+            try:
+                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
 
             Validate.value_against_list(
                 "model_type", payload["model_type"], MODEL_TYPES
