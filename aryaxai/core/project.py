@@ -967,8 +967,8 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: List[str],
-        model_test_tags: Optional[List[str]] = None,
+        model_data_tags: str,
+        model_test_tags: Optional[str] = None,
         instance_type: Optional[str] = None,
         explainability_method: Optional[List[str]] = ["shap"],
     ):
@@ -1037,8 +1037,8 @@ class Project(BaseModel):
             "model_architecture": model_architecture,
             "model_type": model_type,
             "model_path": uploaded_path,
-            "model_data_tags": model_data_tags[0],
-            "model_test_tags": model_test_tags[0] if model_test_tags else None,
+            "model_data_tags": model_data_tags,
+            "model_test_tags": model_test_tags,
             "explainability_method": explainability_method,
         }
 
