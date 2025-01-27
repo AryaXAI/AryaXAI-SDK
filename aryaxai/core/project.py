@@ -647,7 +647,7 @@ class Project(BaseModel):
                     "project_type", config, ["classification", "regression"]
                 )
 
-                uploaded_path = upload_file_and_return_path()
+                uploaded_path = upload_file_and_return_path(data, "data", tag)
 
                 file_info = self.api_client.post(
                     UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
@@ -1776,6 +1776,186 @@ class Project(BaseModel):
             return self.get_default_dashboard("performance")
 
         return "Model performance dashboard generation initiated"
+
+    def get_image_property_drift_dashboard(
+        self,
+        payload: ImageDashboardPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
+        if not payload:
+            return self.get_default_dashboard("image_property_drift")
+
+        payload["project_name"] = self.project_name
+
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info["alltags"]
+
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=image_property_drift", payload
+        )
+
+        if not res["success"]:
+            error_details = res.get("details", "Failed to generate dashboard")
+            raise Exception(error_details)
+
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("image_property_drift")
+
+        return "Image Property Drift dashboard generation initiated"
+
+    def get_label_drift_dashboard(
+        self,
+        payload: ImageDashboardPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
+        if not payload:
+            return self.get_default_dashboard("label_drift")
+
+        payload["project_name"] = self.project_name
+
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info["alltags"]
+
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=label_drift", payload
+        )
+
+        if not res["success"]:
+            error_details = res.get("details", "Failed to generate dashboard")
+            raise Exception(error_details)
+
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("label_drift")
+
+        return "Label Drift dashboard generation initiated"
+
+    def get_property_label_correlation_dashboard(
+        self,
+        payload: ImageDashboardPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
+        if not payload:
+            return self.get_default_dashboard("property_label_correlation")
+
+        payload["project_name"] = self.project_name
+
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info["alltags"]
+
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=property_label_correlation", payload
+        )
+
+        if not res["success"]:
+            error_details = res.get("details", "Failed to generate dashboard")
+            raise Exception(error_details)
+
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("property_label_correlation")
+
+        return "Property label correlation dashboard generation initiated"
+
+    def get_image_dataset_drift_dashboard(
+        self,
+        payload: ImageDashboardPayload = {},
+        instance_type: Optional[str] = None,
+        run_in_background: bool = False,
+    ) -> Dashboard:
+        if not payload:
+            return self.get_default_dashboard("image_dataset_drift")
+
+        payload["project_name"] = self.project_name
+
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info["alltags"]
+
+        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
+        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+
+        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+        Validate.value_against_list(
+            "instance_type",
+            instance_type,
+            [
+                server["instance_name"]
+                for server in custom_batch_servers.get("details", [])
+            ],
+        )
+
+        if instance_type:
+            payload["instance_type"] = instance_type
+
+        res = self.api_client.post(
+            f"{GENERATE_DASHBOARD_URI}?type=image_dataset_drift", payload
+        )
+
+        if not res["success"]:
+            error_details = res.get("details", "Failed to generate dashboard")
+            raise Exception(error_details)
+
+        if not run_in_background:
+            poll_events(self.api_client, self.project_name, res["task_id"])
+            return self.get_default_dashboard("image_dataset_drift")
+
+        return "Image Dataset Drift dashboard generation initiated"
 
     def get_all_dashboards(self, type: str, page: Optional[int] = 1):
         """get all dashboard
@@ -3321,7 +3501,7 @@ class Project(BaseModel):
                 res["details"]["case_prediction_path"] = dtree_res["details"][
                     "case_prediction_path"
                 ]
-        print(res["details"])
+
         case = Case(**res["details"])
 
         return case

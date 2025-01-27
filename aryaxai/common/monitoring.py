@@ -2,7 +2,6 @@ from typing import List, Optional, TypedDict
 
 
 class ImageDashboardPayload(TypedDict):
-    project_name: Optional[str]
     base_line_tag: List[str]
     current_tag: List[str]
 
