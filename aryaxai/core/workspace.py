@@ -162,7 +162,11 @@ class Workspace(BaseModel):
         return project
 
     def create_project(
-        self, project_name: str, server_type: Optional[str] = None
+        self,
+        project_name: str,
+        modality: str,
+        project_type: str,
+        server_type: Optional[str] = None,
     ) -> Project:
         """creates new project in the current workspace
 
@@ -171,6 +175,8 @@ class Workspace(BaseModel):
         """
         payload = {
             "project_name": project_name,
+            "modality": modality,
+            "project_type": project_type,
             "workspace_name": self.workspace_name,
         }
 
