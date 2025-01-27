@@ -1037,8 +1037,8 @@ class Project(BaseModel):
             "model_architecture": model_architecture,
             "model_type": model_type,
             "model_path": uploaded_path,
-            "model_data_tags": model_data_tags,
-            "model_test_tags": model_test_tags,
+            "model_data_tags": model_data_tags[0],
+            "model_test_tags": model_test_tags[0] if model_test_tags else None,
             "explainability_method": explainability_method,
         }
 
