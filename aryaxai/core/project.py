@@ -121,7 +121,8 @@ from aryaxai.common.xai_uris import (
     LIST_BUCKETS,
     LIST_FILEPATHS,
     UPLOAD_FILE_DATA_CONNECTORS,
-    DROPBOX_OAUTH
+    DROPBOX_OAUTH,
+    COMPUTE_CREDIT_URI
 )
 import json
 import io
@@ -4385,6 +4386,11 @@ class Project(BaseModel):
     def __repr__(self) -> str:
         return self.__print__()
 
+
+    def credits(self):
+        url = build_list_data_connector_url(COMPUTE_CREDIT_URI, self.project_name, self.organization_id)
+        res = self.api_client.get(url)
+        return res['details']
 
 def generate_expression(expression):
     if not expression:

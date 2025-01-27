@@ -27,6 +27,7 @@ from aryaxai.common.xai_uris import (
     DROPBOX_OAUTH,
     LIST_BUCKETS,
     LIST_FILEPATHS,
+    COMPUTE_CREDIT_URI
 )
 from aryaxai.core.utils import build_url, build_list_data_connector_url
 
@@ -458,3 +459,8 @@ class Organization(BaseModel):
         if res.get("message", None):
             print(res["message"])
         return res["details"]
+    
+    def credits(self):
+        url = build_list_data_connector_url(COMPUTE_CREDIT_URI, None, self.organization_id)
+        res = self.api_client.get(url)
+        return res['details']
