@@ -967,10 +967,10 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: str,
-        model_test_tags: Optional[str] = None,
+        model_data_tags: list,
+        model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
-        explainability_method: Optional[List[str]] = ["shap"],
+        explainability_method: Optional[list] = ["shap"],
     ):
         """Uploads your custom model on AryaXAI
 
