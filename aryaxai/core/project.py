@@ -1011,7 +1011,7 @@ class Project(BaseModel):
         tags = self.tags()
         Validate.value_against_list("model_data_tags", model_data_tags, tags)
 
-        if model_test_tags is not None:
+        if model_test_tags:
             Validate.value_against_list("model_test_tags", model_test_tags, tags)
 
         uploaded_path = upload_file_and_return_path()
@@ -1064,8 +1064,8 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: list[str],
-        model_test_tags: Optional[list[str]] = None,
+        model_data_tags: list,
+        model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
         explainability_method: Optional[List[str]] = ["shap"],
         bucket_name: Optional[str] = None,
@@ -1141,7 +1141,7 @@ class Project(BaseModel):
         tags = self.tags()
         Validate.value_against_list("model_data_tags", model_data_tags, tags)
 
-        if model_test_tags is not None:
+        if model_test_tags:
             Validate.value_against_list("model_test_tags", model_test_tags, tags)
 
         uploaded_path = upload_file_and_return_path()
