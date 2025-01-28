@@ -987,8 +987,9 @@ class Project(BaseModel):
 
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
+            model_data_tags_str = ",".join(model_data_tags)
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model&tag={model_data_tags}",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model&tag={model_data_tags_str}",
                 files,
             )
 
@@ -1063,8 +1064,8 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: str,
-        model_test_tags: Optional[str] = None,
+        model_data_tags: list[str],
+        model_test_tags: Optional[list[str]] = None,
         instance_type: Optional[str] = None,
         explainability_method: Optional[List[str]] = ["shap"],
         bucket_name: Optional[str] = None,
@@ -1114,12 +1115,13 @@ class Project(BaseModel):
         def upload_file_and_return_path() -> str:
             if not self.project_name:
                 return "Missing Project Name"
+            model_data_tags_str = ",".join(model_data_tags)
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}")
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}")
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -4387,10 +4389,6 @@ class Project(BaseModel):
         return self.__print__()
 
 
-    def credits(self):
-        url = build_list_data_connector_url(COMPUTE_CREDIT_URI, self.project_name, self.organization_id)
-        res = self.api_client.get(url)
-        return res['details']
 
 def generate_expression(expression):
     if not expression:
