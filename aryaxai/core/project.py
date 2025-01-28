@@ -1067,7 +1067,7 @@ class Project(BaseModel):
         model_data_tags: list,
         model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
-        explainability_method: Optional[List[str]] = ["shap"],
+        explainability_method: Optional[list] = ["shap"],
         bucket_name: Optional[str] = None,
         file_path: Optional[str] = None,
     ):
