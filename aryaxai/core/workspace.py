@@ -196,6 +196,7 @@ class Workspace(BaseModel):
             )
 
             payload["instance_type"] = server_type
+            payload["server_config"] = {}
 
         res = self.api_client.post(CREATE_PROJECT_URI, payload)
 
