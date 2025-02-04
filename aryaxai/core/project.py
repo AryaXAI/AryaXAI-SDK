@@ -28,7 +28,7 @@ from aryaxai.common.types import (
     GCSConfig,
     S3Config,
     GDriveConfig,
-    SFTPConfig
+    SFTPConfig,
 )
 from aryaxai.common.utils import parse_datetime, parse_float, poll_events
 from aryaxai.common.validation import Validate
@@ -122,7 +122,6 @@ from aryaxai.common.xai_uris import (
     LIST_FILEPATHS,
     UPLOAD_FILE_DATA_CONNECTORS,
     DROPBOX_OAUTH,
-    COMPUTE_CREDIT_URI
 )
 import json
 import io
@@ -244,7 +243,7 @@ class Project(BaseModel):
             f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -258,7 +257,7 @@ class Project(BaseModel):
             f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -360,7 +359,7 @@ class Project(BaseModel):
             .rename(columns={"filepath": "file_name"})
         )
 
-        files_df = files_df.loc[files_df['status'] == "active"]
+        files_df = files_df.loc[files_df["status"] == "active"]
         files_df["file_name"] = files_df["file_name"].apply(
             lambda file_path: file_path.split("/")[-1]
         )
@@ -559,6 +558,7 @@ class Project(BaseModel):
         """
 
         print("Preparing Data Upload")
+
         def build_upload_data():
             if isinstance(data, str):
                 file = open(data, "rb")
@@ -598,7 +598,7 @@ class Project(BaseModel):
                     "feature_exclude": [],
                     "drop_duplicate_uid": False,
                     "handle_errors": False,
-                    "handle_data_imbalance": False
+                    "handle_data_imbalance": False,
                 }
                 raise Exception(
                     f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
@@ -674,7 +674,7 @@ class Project(BaseModel):
                     "feature_include": feature_include,
                     "feature_encodings": feature_encodings,
                     "feature_actual_used": [],
-                    "handle_data_imbalance": config.get("handle_data_imbalance", False)
+                    "handle_data_imbalance": config.get("handle_data_imbalance", False),
                 },
             }
 
@@ -811,11 +811,11 @@ class Project(BaseModel):
         return res.get("details", "Data description upload successful")
 
     def upload_feature_mapping_dataconnectors(
-            self, 
-            data_connector_name: str,
-            bucket_name: Optional[str] = None,
-            file_path: Optional[str] = None
-        ) -> str:
+        self,
+        data_connector_name: str,
+        bucket_name: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ) -> str:
         """uploads feature mapping for the project
 
         :param data_connector_name: name of the data connector
@@ -825,21 +825,26 @@ class Project(BaseModel):
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+            url = build_list_data_connector_url(
+                LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+            )
             res = self.api_client.post(url)
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                filtered_df = df.loc[df["link_service_name"] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
                 return filtered_df
 
             return res["details"]
-        
+
         connectors = get_connector()
         if isinstance(connectors, pd.DataFrame):
-            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            value = connectors.loc[
+                connectors["link_service_name"] == data_connector_name,
+                "link_service_type",
+            ].values[0]
             ds_type = value
 
             if ds_type == "s3" or ds_type == "gcs":
@@ -855,10 +860,12 @@ class Project(BaseModel):
                 return "Missing Project Name"
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}"
+                )
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=feature_mapping&bucket_name={bucket_name}&file_path={file_path}"
+                )
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -882,11 +889,11 @@ class Project(BaseModel):
         return res.get("details", "Feature mapping upload successful")
 
     def upload_data_description_dataconnectors(
-            self,
-            data_connector_name: str,
-            bucket_name: Optional[str] = None,
-            file_path: Optional[str] = None,
-        ) -> str:
+        self,
+        data_connector_name: str,
+        bucket_name: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ) -> str:
         """uploads data description for the project
 
         :param data_connector_name: name of the data connector
@@ -896,21 +903,26 @@ class Project(BaseModel):
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+            url = build_list_data_connector_url(
+                LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+            )
             res = self.api_client.post(url)
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                filtered_df = df.loc[df["link_service_name"] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
                 return filtered_df
 
             return res["details"]
-        
+
         connectors = get_connector()
         if isinstance(connectors, pd.DataFrame):
-            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            value = connectors.loc[
+                connectors["link_service_name"] == data_connector_name,
+                "link_service_type",
+            ].values[0]
             ds_type = value
 
             if ds_type == "s3" or ds_type == "gcs":
@@ -926,10 +938,12 @@ class Project(BaseModel):
                 return "Missing Project Name"
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}"
+                )
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data_description&bucket_name={bucket_name}&file_path={file_path}"
+                )
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -1081,27 +1095,32 @@ class Project(BaseModel):
         :param model_data_tags: data tags for model
         :param model_test_tags: test tags for model (optional)
         :param instance_type: instance to be used for uploading model (optional)
-        :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional) 
+        :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional)
         :param bucket_name: if data connector has buckets # Example: s3/gcs buckets
         :param file_path: filepath from the bucket for the data to read
         """
 
         def get_connector() -> str | pd.DataFrame:
-            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+            url = build_list_data_connector_url(
+                LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+            )
             res = self.api_client.post(url)
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                filtered_df = df.loc[df["link_service_name"] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
                 return filtered_df
 
             return res["details"]
-        
+
         connectors = get_connector()
         if isinstance(connectors, pd.DataFrame):
-            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            value = connectors.loc[
+                connectors["link_service_name"] == data_connector_name,
+                "link_service_type",
+            ].values[0]
             ds_type = value
 
             if ds_type == "s3" or ds_type == "gcs":
@@ -1118,10 +1137,12 @@ class Project(BaseModel):
             model_data_tags_str = ",".join(model_data_tags)
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}"
+                )
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}"
+                )
             print(res)
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -1156,9 +1177,11 @@ class Project(BaseModel):
                     for server in custom_batch_servers.get("details", [])
                 ],
             )
-        
+
         if explainability_method:
-            Validate.value_against_list("explainability_method", explainability_method, ["shap", "lime"])
+            Validate.value_against_list(
+                "explainability_method", explainability_method, ["shap", "lime"]
+            )
 
         payload = {
             "project_name": self.project_name,
@@ -1168,7 +1191,7 @@ class Project(BaseModel):
             "model_path": uploaded_path,
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
-            "explainability_method": explainability_method
+            "explainability_method": explainability_method,
         }
 
         if instance_type:
@@ -1837,11 +1860,13 @@ class Project(BaseModel):
             return "No monitoring triggers found."
 
         monitoring_triggers = pd.DataFrame(monitoring_triggers)
-        monitoring_triggers = monitoring_triggers[monitoring_triggers['deleted'] == False]
+        monitoring_triggers = monitoring_triggers[
+            monitoring_triggers["deleted"] == False
+        ]
         monitoring_triggers = monitoring_triggers.drop("project_name", axis=1)
 
         return monitoring_triggers
-    
+
     def duplicate_monitoring_triggers(self, trigger_name, new_trigger_name) -> str:
         if trigger_name == new_trigger_name:
             return "Duplicate trigger name can't be same"
@@ -1929,7 +1954,9 @@ class Project(BaseModel):
             )
 
             try:
-                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
             except Exception as e:
                 print(f"monitor created for new tag {payload['current_tag']}")
             Validate.value_against_list(
@@ -1954,7 +1981,9 @@ class Project(BaseModel):
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
             try:
-                Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
             except Exception as e:
                 print(f"monitor created for new tag {payload['current_tag']}")
 
@@ -1983,7 +2012,8 @@ class Project(BaseModel):
             )
 
             Validate.value_against_list(
-                "current_true_label", [payload["current_true_label"]],
+                "current_true_label",
+                [payload["current_true_label"]],
                 tags_info["alluniquefeatures"],
             )
         elif payload["trigger_type"] == "Model Performance":
@@ -2229,10 +2259,12 @@ class Project(BaseModel):
             if data_config.get("tags"):
                 available_tags = self.tags()
                 Validate.value_against_list("tags", data_config["tags"], available_tags)
-            
+
             if data_config.get("test_tags"):
                 available_tags = self.tags()
-                Validate.value_against_list("test_tags", data_config["test_tags"], available_tags)
+                Validate.value_against_list(
+                    "test_tags", data_config["test_tags"], available_tags
+                )
 
             if data_config.get("feature_encodings"):
                 Validate.value_against_list(
@@ -2263,7 +2295,7 @@ class Project(BaseModel):
                     raise Exception(
                         "Explainability sample percentage is invalid, select between 0 and 1"
                     )
-            
+
             if data_config.get("lime_explainability_iterations"):
                 if (
                     data_config["lime_explainability_iterations"] < 1
@@ -2272,7 +2304,7 @@ class Project(BaseModel):
                     raise Exception(
                         "Lime explainability iterations is invalid, select between 1 and 10000"
                     )
-                
+
             if data_config.get("explainability_method"):
                 Validate.value_against_list(
                     "explainability_method",
@@ -2338,9 +2370,19 @@ class Project(BaseModel):
         )
 
         tags = data_conf.get("tags") or project_config["metadata"]["tags"]
-        test_tags = data_conf.get("test_tags") or project_config["metadata"]["test_tags"] or []
-        use_optuna = data_conf.get("use_optuna") or project_config["metadata"]["use_optuna"] or False
-        handle_data_imbalance = data_conf.get("handle_data_imbalance") or project_config["metadata"]["handle_data_imbalance"] or False
+        test_tags = (
+            data_conf.get("test_tags") or project_config["metadata"]["test_tags"] or []
+        )
+        use_optuna = (
+            data_conf.get("use_optuna")
+            or project_config["metadata"]["use_optuna"]
+            or False
+        )
+        handle_data_imbalance = (
+            data_conf.get("handle_data_imbalance")
+            or project_config["metadata"]["handle_data_imbalance"]
+            or False
+        )
 
         payload = {
             "project_name": self.project_name,
@@ -2358,7 +2400,7 @@ class Project(BaseModel):
                 "test_tags": test_tags,
                 "use_optuna": use_optuna,
                 "explainability_method": explainability_method,
-                "handle_data_imbalance": handle_data_imbalance
+                "handle_data_imbalance": handle_data_imbalance,
             },
             "sample_percentage": data_conf.get("sample_percentage"),
             "explainability_sample_percentage": data_conf.get(
@@ -2366,7 +2408,7 @@ class Project(BaseModel):
             ),
             "lime_explainability_iterations": data_conf.get(
                 "lime_explainability_iterations"
-            )
+            ),
         }
 
         if instance_type:
@@ -2622,7 +2664,7 @@ class Project(BaseModel):
         tag_data_df = pd.DataFrame(res["details"]["data"])
 
         return tag_data_df
-    
+
     def get_tag_data(
         self,
         tag: str,
@@ -2634,7 +2676,7 @@ class Project(BaseModel):
         """
 
         tags = self.available_tags()
-        available_tags = tags['alltags']
+        available_tags = tags["alltags"]
         if tag not in available_tags:
             raise Exception(
                 f"{tag} tag is not valid, select valid tag from :\n{available_tags}"
@@ -2649,7 +2691,7 @@ class Project(BaseModel):
         tag_data_df = pd.read_csv(io.StringIO(tag_data.text))
 
         return tag_data_df
-    
+
     def create_data_connectors(
         self,
         data_connector_name: str,
@@ -2657,7 +2699,7 @@ class Project(BaseModel):
         gcs_config: Optional[GCSConfig] = None,
         s3_config: Optional[S3Config] = None,
         gdrive_config: Optional[GDriveConfig] = None,
-        sftp_config: Optional[SFTPConfig] = None
+        sftp_config: Optional[SFTPConfig] = None,
     ) -> str:
         """Create Data Connectors for project
 
@@ -2675,28 +2717,42 @@ class Project(BaseModel):
             if not s3_config:
                 return "No configuration for S3 found"
 
-            Validate.value_against_list("s3 config", list(s3_config.keys()), ["region", "access_key", "secret_key"])
-            
+            Validate.value_against_list(
+                "s3 config",
+                list(s3_config.keys()),
+                ["region", "access_key", "secret_key"],
+            )
+
             payload = {
                 "link_service": {
                     "service_name": data_connector_name,
                     "region": s3_config.get("region", "ap-south-1"),
                     "access_key": s3_config.get("access_key"),
-                    "secret_key": s3_config.get("secret_key")
+                    "secret_key": s3_config.get("secret_key"),
                 },
-                "link_service_type": data_connector_type
+                "link_service_type": data_connector_type,
             }
-        
+
         if data_connector_type.lower() == "gcs":
             if not gcs_config:
                 return "No configuration for GCS found"
-            
+
             Validate.value_against_list(
-                "gcs config", 
-                list(gcs_config.keys()), 
-                ["project_id", "gcp_project_name", "type", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri"]
+                "gcs config",
+                list(gcs_config.keys()),
+                [
+                    "project_id",
+                    "gcp_project_name",
+                    "type",
+                    "private_key_id",
+                    "private_key",
+                    "client_email",
+                    "client_id",
+                    "auth_uri",
+                    "token_uri",
+                ],
             )
-            
+
             payload = {
                 "link_service": {
                     "service_name": data_connector_name,
@@ -2710,20 +2766,29 @@ class Project(BaseModel):
                         "client_email": gcs_config.get("client_email"),
                         "client_id": gcs_config.get("client_id"),
                         "auth_uri": gcs_config.get("auth_uri"),
-                        "token_uri": gcs_config.get("token_uri")
-                    }
+                        "token_uri": gcs_config.get("token_uri"),
+                    },
                 },
-                "link_service_type": data_connector_type
+                "link_service_type": data_connector_type,
             }
 
         if data_connector_type == "gdrive":
             if not gdrive_config:
                 return "No configuration for Google Drive found"
-            
+
             Validate.value_against_list(
-                "gdrive config", 
-                list(gdrive_config.keys()), 
-                ["project_id", "type", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri"]
+                "gdrive config",
+                list(gdrive_config.keys()),
+                [
+                    "project_id",
+                    "type",
+                    "private_key_id",
+                    "private_key",
+                    "client_email",
+                    "client_id",
+                    "auth_uri",
+                    "token_uri",
+                ],
             )
 
             payload = {
@@ -2737,20 +2802,20 @@ class Project(BaseModel):
                         "client_email": gdrive_config.get("client_email"),
                         "client_id": gdrive_config.get("client_id"),
                         "auth_uri": gdrive_config.get("auth_uri"),
-                        "token_uri": gdrive_config.get("token_uri")
-                    }
+                        "token_uri": gdrive_config.get("token_uri"),
+                    },
                 },
-                "link_service_type": data_connector_type
+                "link_service_type": data_connector_type,
             }
 
         if data_connector_type == "sftp":
             if not sftp_config:
                 return "No configuration for Google Drive found"
-            
+
             Validate.value_against_list(
-                "sftp config", 
-                list(sftp_config.keys()), 
-                ["hostname", "port", "username", "password"]
+                "sftp config",
+                list(sftp_config.keys()),
+                ["hostname", "port", "username", "password"],
             )
 
             payload = {
@@ -2760,14 +2825,16 @@ class Project(BaseModel):
                         "hostname": sftp_config.get("hostname"),
                         "port": sftp_config.get("port"),
                         "username": sftp_config.get("username"),
-                        "password": sftp_config.get("password")
-                    }
+                        "password": sftp_config.get("password"),
+                    },
                 },
-                "link_service_type": data_connector_type
+                "link_service_type": data_connector_type,
             }
 
         if data_connector_type == "dropbox":
-            url_data = self.api_client.get(f"{DROPBOX_OAUTH}?project_name={self.project_name}")
+            url_data = self.api_client.get(
+                f"{DROPBOX_OAUTH}?project_name={self.project_name}"
+            )
             print(f"Url: {url_data['details']['url']}")
             code = input(f"{url_data['details']['message']}: ")
 
@@ -2777,90 +2844,108 @@ class Project(BaseModel):
             payload = {
                 "link_service": {
                     "service_name": data_connector_name,
-                    "dropbox_json": {
-                        "code": code
-                    }
+                    "dropbox_json": {"code": code},
                 },
-                "link_service_type": data_connector_type
+                "link_service_type": data_connector_type,
             }
 
-        url = build_url(CREATE_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
+        url = build_url(
+            CREATE_DATA_CONNECTORS,
+            data_connector_name,
+            self.project_name,
+            self.organization_id,
+        )
         res = self.api_client.post(url, payload)
         return res["details"]
-    
-    def test_data_connectors(
-            self,
-            data_connector_name
-    ) -> str:
+
+    def test_data_connectors(self, data_connector_name) -> str:
         """Test connection for the data connectors
-        
+
         :param data_connector_name: str
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
         if not self.organization_id and not self.project_name:
             return "No Project Name or Organization id found"
-        url = build_url(TEST_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
+        url = build_url(
+            TEST_DATA_CONNECTORS,
+            data_connector_name,
+            self.project_name,
+            self.organization_id,
+        )
         res = self.api_client.post(url)
         return res["details"]
-    
-    def delete_data_connectors(
-        self,
-        data_connector_name
-    ) -> str:
+
+    def delete_data_connectors(self, data_connector_name) -> str:
         """Delete the data connectors
-        
+
         :param data_connector_name: str
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
         if not self.organization_id and not self.project_name:
             return "No Project Name or Organization id found"
-        
-        url = build_url(DELETE_DATA_CONNECTORS, data_connector_name, self.project_name, self.organization_id)
+
+        url = build_url(
+            DELETE_DATA_CONNECTORS,
+            data_connector_name,
+            self.project_name,
+            self.organization_id,
+        )
         res = self.api_client.post(url)
         return res["details"]
-    
+
     def list_data_connectors(self) -> str | pd.DataFrame:
         """List the data connectors"""
-        url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+        url = build_list_data_connector_url(
+            LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+        )
         res = self.api_client.post(url)
 
         if res["success"]:
             df = pd.DataFrame(res["details"])
-            df = df.drop(["_id", "region", "gcp_project_name", "gcp_project_id", "gdrive_file_name"], axis = 1, errors = "ignore")
+            df = df.drop(
+                [
+                    "_id",
+                    "region",
+                    "gcp_project_name",
+                    "gcp_project_id",
+                    "gdrive_file_name",
+                ],
+                axis=1,
+                errors="ignore",
+            )
             return df
 
         return res["details"]
-    
-    def list_data_connectors_buckets(
-        self,
-        data_connector_name
-    ) -> str | List:
+
+    def list_data_connectors_buckets(self, data_connector_name) -> str | List:
         """List the buckets in data connectors
-        
+
         :param data_connector_name: str
         """
         if not data_connector_name:
             return "Missing argument data_connector_name"
         if not self.organization_id and not self.project_name:
             return "No Project Name or Organization id found"
-        
-        url = build_url(LIST_BUCKETS, data_connector_name, self.project_name, self.organization_id)
+
+        url = build_url(
+            LIST_BUCKETS, data_connector_name, self.project_name, self.organization_id
+        )
         res = self.api_client.get(url)
 
         if res.get("message", None):
             print(res["message"])
         return res["details"]
-    
+
     def list_data_connectors_filepath(
         self,
         data_connector_name,
         bucket_name: Optional[str] = None,
-        root_folder: Optional[str] = None
+        root_folder: Optional[str] = None,
     ) -> str | Dict:
         """List the filepaths in data connectors
-        
+
         :param data_connector_name: str
         :param bucket_name: str | Required for S3 & GCS
         :param root_folder: str | Root folder of SFTP
@@ -2869,32 +2954,38 @@ class Project(BaseModel):
             return "Missing argument data_connector_name"
         if not self.organization_id and not self.project_name:
             return "No Project Name or Organization id found"
+
         def get_connector() -> str | pd.DataFrame:
-            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+            url = build_list_data_connector_url(
+                LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+            )
             res = self.api_client.post(url)
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                filtered_df = df.loc[df["link_service_name"] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
                 return filtered_df
 
             return res["details"]
-        
+
         connectors = get_connector()
         if isinstance(connectors, pd.DataFrame):
-            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            value = connectors.loc[
+                connectors["link_service_name"] == data_connector_name,
+                "link_service_type",
+            ].values[0]
             ds_type = value
 
             if ds_type == "s3" or ds_type == "gcs":
                 if not bucket_name:
                     return "Missing argument bucket_name"
-                
+
             if ds_type == "sftp":
                 if not root_folder:
                     return "Missing argument root_folder"
-        
+
         if self.project_name:
             url = f"{LIST_FILEPATHS}?project_name={self.project_name}&link_service_name={data_connector_name}&bucket_name={bucket_name}&root_folder={root_folder}"
         elif self.organization_id:
@@ -2904,14 +2995,14 @@ class Project(BaseModel):
         if res.get("message", None):
             print(res["message"])
         return res["details"]
-    
+
     def upload_data_dataconnectors(
-            self, 
-            data_connector_name: str,
-            tag: str,
-            bucket_name: Optional[str] = None,
-            file_path: Optional[str] = None,
-            config: Optional[ProjectConfig] = None
+        self,
+        data_connector_name: str,
+        tag: str,
+        bucket_name: Optional[str] = None,
+        file_path: Optional[str] = None,
+        config: Optional[ProjectConfig] = None,
     ) -> str:
         """Uploads data for the current project with data connectors
         :param data_connector_name: name of the data connector
@@ -2933,22 +3024,28 @@ class Project(BaseModel):
         :return: response
         """
         print("Preparing Data Upload")
+
         def get_connector() -> str | pd.DataFrame:
-            url = build_list_data_connector_url(LIST_DATA_CONNECTORS, self.project_name, self.organization_id)
+            url = build_list_data_connector_url(
+                LIST_DATA_CONNECTORS, self.project_name, self.organization_id
+            )
             res = self.api_client.post(url)
 
             if res["success"]:
                 df = pd.DataFrame(res["details"])
-                filtered_df = df.loc[df['link_service_name'] == data_connector_name]
+                filtered_df = df.loc[df["link_service_name"] == data_connector_name]
                 if filtered_df.empty:
                     return "No data connector found"
                 return filtered_df
 
             return res["details"]
-        
+
         connectors = get_connector()
         if isinstance(connectors, pd.DataFrame):
-            value = connectors.loc[connectors['link_service_name'] == data_connector_name, 'link_service_type'].values[0]
+            value = connectors.loc[
+                connectors["link_service_name"] == data_connector_name,
+                "link_service_type",
+            ].values[0]
             ds_type = value
 
             if ds_type == "s3" or ds_type == "gcs":
@@ -2964,10 +3061,12 @@ class Project(BaseModel):
                 return "Missing Project Name"
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}"
+                )
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}")
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}"
+                )
 
             if not res["success"]:
                 raise Exception(res.get("details"))
@@ -2986,7 +3085,7 @@ class Project(BaseModel):
                     "pred_label": "",
                     "feature_exclude": [],
                     "drop_duplicate_uid": False,
-                    "handle_errors": False
+                    "handle_errors": False,
                 }
                 raise Exception(
                     f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
@@ -3171,7 +3270,7 @@ class Project(BaseModel):
             "tag": tag,
             "model_name": model_name,
             "instance_type": instance_type,
-            "components": components
+            "components": components,
         }
 
         res = self.api_client.post(CASE_INFO_URI, payload)
@@ -3737,7 +3836,7 @@ class Project(BaseModel):
         statement: str,
         decision: str,
         input: Optional[str] = None,
-        models: Optional[list] = []
+        models: Optional[list] = [],
     ) -> str:
         """Creates New Policy
 
@@ -3781,7 +3880,7 @@ class Project(BaseModel):
             "metadata": {"expression": expression},
             "statement": [statement],
             "decision": input if decision == "input" else decision,
-            "models": models
+            "models": models,
         }
 
         res = self.api_client.post(CREATE_POLICY_URI, payload)
@@ -4387,7 +4486,6 @@ class Project(BaseModel):
 
     def __repr__(self) -> str:
         return self.__print__()
-
 
 
 def generate_expression(expression):

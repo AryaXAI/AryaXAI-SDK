@@ -253,7 +253,7 @@ class Workspace(BaseModel):
             f"{START_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -267,7 +267,7 @@ class Workspace(BaseModel):
             f"{STOP_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
