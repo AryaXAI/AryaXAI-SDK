@@ -292,7 +292,8 @@ class Workspace(BaseModel):
                 "update_workspace": {
                     "workspace_name": self.user_workspace_name,
                     "instance_type": server_type,
-                }
+                },
+                "update_operational_hours": {},
             },
         }
 
