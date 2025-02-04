@@ -282,7 +282,8 @@ class Project(BaseModel):
                 "update_project": {
                     "project_name": self.user_project_name,
                     "instance_type": server_type,
-                }
+                },
+                "update_operational_hours": {},
             },
         }
 
