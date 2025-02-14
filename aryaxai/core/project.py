@@ -304,9 +304,9 @@ class Project(BaseModel):
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
         )
         if res.get("details") != "Not Found":
-            res["details"].pop("updated_by")
-            res["details"]["metadata"].pop("path")
-            res["details"]["metadata"].pop("avaialble_tags")
+            res["details"].pop("updated_by", None)
+            res["details"]["metadata"].pop("path", None)
+            res["details"]["metadata"].pop("avaialble_tags", None)
 
         return res.get("details")
 

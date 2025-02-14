@@ -32,6 +32,7 @@ class Case(BaseModel):
     lime: Optional[Dict] = {}
     integrated_gradients: Optional[Dict] = {}
     backtrace: Optional[Dict] = {}
+    image_data: Optional[Dict] = {}
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -175,7 +176,7 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.gradcam.get("heatmap"),
+                source=self.image_data.get("gradcam", {}).get("heatmap"),
                 xref="x",
                 yref="y",
                 x=0,
@@ -190,7 +191,7 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.gradcam.get("superimposed"),
+                source=self.image_data.get("gradcam", {}).get("superimposed"),
                 xref="x",
                 yref="y",
                 x=1.2,
@@ -234,7 +235,7 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.shap.get("plot"),
+                source=self.image_data.get("shap", {}).get("plot"),
                 xref="x",
                 yref="y",
                 x=0,
@@ -260,7 +261,7 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.lime.get("plot"),
+                source=self.image_data.get("lime", {}).get("plot"),
                 xref="x",
                 yref="y",
                 x=0,
@@ -286,7 +287,9 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.integrated_gradients.get("attributions"),
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "attributions"
+                ),
                 xref="x",
                 yref="y",
                 x=0,
@@ -301,7 +304,9 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.integrated_gradients.get("positive_attributions"),
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "positive_attributions"
+                ),
                 xref="x",
                 yref="y",
                 x=1.2,
@@ -316,7 +321,9 @@ class Case(BaseModel):
 
         fig.add_layout_image(
             dict(
-                source=self.integrated_gradients.get("negative_attributions"),
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "negative_attributions"
+                ),
                 xref="x",
                 yref="y",
                 x=2.4,
