@@ -730,7 +730,7 @@ class Project(BaseModel):
         if project_config != "Not Found" and config:
             raise Exception("Config already exists, please remove config")
 
-        uploaded_path = upload_file_and_return_path()
+        uploaded_path = upload_file_and_return_path(data, "data", tag)
 
         payload = {
             "path": uploaded_path,

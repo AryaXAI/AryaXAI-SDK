@@ -8,7 +8,7 @@ from IPython.display import SVG, display
 
 class Case(BaseModel):
     status: str
-    true_value: str
+    true_value: str | int
     pred_value: str | int
     pred_category: str | int
     observations: List
@@ -27,11 +27,6 @@ class Case(BaseModel):
     created_at: Optional[str] = ""
     data: Optional[Dict] = {}
     similar_cases_data: Optional[List] = []
-    gradcam: Optional[Dict] = {}
-    shap: Optional[Dict] = {}
-    lime: Optional[Dict] = {}
-    integrated_gradients: Optional[Dict] = {}
-    backtrace: Optional[Dict] = {}
     image_data: Optional[Dict] = {}
 
     model_config = ConfigDict(protected_namespaces=())
