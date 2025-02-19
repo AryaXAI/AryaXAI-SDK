@@ -100,8 +100,8 @@ class Dashboard(BaseModel):
         """
         config = {k: v for k, v in self.config.items() if v is not None}
         config.pop("metadata", None)
-        print("Using config: ", end="")
-        print(json.dumps(config, indent=4))
+        # print("Using config: ", end="")
+        # print(json.dumps(config, indent=4))
 
     def __print__(self) -> str:
         return f"Dashboard(config='{self.get_config()}')"
