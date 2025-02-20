@@ -1277,7 +1277,7 @@ class Project(BaseModel):
         :return: data drift diagnosis dataframe
         """
         if instance_type not in ["small", "xsmall", "2xsmall", "3xsmall", "medium", "xmedium", "2xmedium", "3xmedium", "large", "xlarge", "2xlarge", "3xlarge"]:
-            return "instance_type is not valid"
+            return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
         if baseline_tags and current_tags:
             payload = {
                 "project_name": self.project_name,
