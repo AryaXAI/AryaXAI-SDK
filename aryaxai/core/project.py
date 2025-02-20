@@ -1756,11 +1756,17 @@ class Project(BaseModel):
         res = self.api_client.get(
             f"{DASHBOARD_LOGS_URI}?project_name={self.project_name}&type={type}&page={page}",
         )
-
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get all dashboard"))
+        res = res.get("details").get("dashboards")
+        for n_res in res:
+            data = self.get_dashboard_metadata(type, str(n_res.get('_id')))
+            n_res['metadata'] = {}
+            n_res['metadata']['config'] = {}
+            n_res['metadata']['config'] = data.get('config')
+            n_res['metadata']['metric'] = data.get('details', {}).get('metrics', {})[0].get('result', {})
 
-        logs = pd.DataFrame(res.get("details").get("dashboards"))
+        logs = pd.DataFrame(res)
         logs.drop(
             columns=[
                 "max_features",
@@ -1773,7 +1779,6 @@ class Project(BaseModel):
                 "stat_test_threshold",
                 "project_name",
                 "file_id",
-                "metadata",
                 "updated_at",
                 "features_to_use",
             ],
@@ -1781,6 +1786,31 @@ class Project(BaseModel):
             errors="ignore",
         )
         return logs
+
+    def get_dashboard_metadata(self, type: str, dashboard_id: str) -> Dashboard:
+        """get dashboard
+
+        :param type: type of the dashboard
+        :param dashboard_id: id of dashboard
+        :return: Dashboard
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}&dashboard_id={dashboard_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get dashboard"))
+
+        auth_token = self.api_client.get_auth_token()
+        query_params = f"?project_name={self.project_name}&type={type}&dashboard_id={dashboard_id}&access_token={auth_token}"
+
+        return res
 
     def get_dashboard_log_data(self, type: str):
         """get all dashboard
