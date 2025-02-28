@@ -245,7 +245,7 @@ class Project(BaseModel):
             f"{START_CUSTOM_SERVER_URI}?project_name={self.project_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -259,7 +259,7 @@ class Project(BaseModel):
             f"{STOP_CUSTOM_SERVER_URI}?project_name={self.project_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -284,7 +284,8 @@ class Project(BaseModel):
                 "update_project": {
                     "project_name": self.user_project_name,
                     "instance_type": server_type,
-                }
+                },
+                "update_operational_hours": {},
             },
         }
 
@@ -1020,10 +1021,10 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: List[str],
-        model_test_tags: Optional[List[str]] = None,
+        model_data_tags: list,
+        model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
-        explainability_method: Optional[List[str]] = ["shap"],
+        explainability_method: Optional[list] = ["shap"],
     ):
         """Uploads your custom model on AryaXAI
 
@@ -1040,8 +1041,9 @@ class Project(BaseModel):
 
         def upload_file_and_return_path() -> str:
             files = {"in_file": open(model_path, "rb")}
+            model_data_tags_str = ",".join(model_data_tags)
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model&tag={model_data_tags}",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=model&tag={model_data_tags_str}",
                 files,
             )
 
@@ -1063,7 +1065,7 @@ class Project(BaseModel):
         tags = self.tags()
         Validate.value_against_list("model_data_tags", model_data_tags, tags)
 
-        if model_test_tags is not None:
+        if model_test_tags:
             Validate.value_against_list("model_test_tags", model_test_tags, tags)
 
         uploaded_path = upload_file_and_return_path()
@@ -1116,10 +1118,10 @@ class Project(BaseModel):
         model_architecture: str,
         model_type: str,
         model_name: str,
-        model_data_tags: List[str],
-        model_test_tags: Optional[List[str]] = None,
+        model_data_tags: list,
+        model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
-        explainability_method: Optional[List[str]] = ["shap"],
+        explainability_method: Optional[list] = ["shap"],
         bucket_name: Optional[str] = None,
         file_path: Optional[str] = None,
     ):
@@ -1172,13 +1174,14 @@ class Project(BaseModel):
         def upload_file_and_return_path() -> str:
             if not self.project_name:
                 return "Missing Project Name"
+            model_data_tags_str = ",".join(model_data_tags)
             if self.organization_id:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}"
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}"
                 )
             else:
                 res = self.api_client.post(
-                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags}"
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=model&bucket_name={bucket_name}&file_path={file_path}&tag={model_data_tags_str}"
                 )
             print(res)
             if not res["success"]:
@@ -1199,7 +1202,7 @@ class Project(BaseModel):
         tags = self.tags()
         Validate.value_against_list("model_data_tags", model_data_tags, tags)
 
-        if model_test_tags is not None:
+        if model_test_tags:
             Validate.value_against_list("model_test_tags", model_test_tags, tags)
 
         uploaded_path = upload_file_and_return_path()
@@ -1305,17 +1308,34 @@ class Project(BaseModel):
         self,
         baseline_tags: Optional[List[str]] = None,
         current_tags: Optional[List[str]] = None,
+        instance_type: Optional[str] = "",
     ) -> pd.DataFrame:
         """Data Drift Diagnosis for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data drift diagnosis dataframe
         """
+        if instance_type not in [
+            "small",
+            "xsmall",
+            "2xsmall",
+            "3xsmall",
+            "medium",
+            "xmedium",
+            "2xmedium",
+            "3xmedium",
+            "large",
+            "xlarge",
+            "2xlarge",
+            "3xlarge",
+        ]:
+            return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
         if baseline_tags and current_tags:
             payload = {
                 "project_name": self.project_name,
                 "baseline_tags": baseline_tags,
                 "current_tags": current_tags,
+                "instance_type": instance_type,
             }
             res = self.api_client.post(RUN_DATA_DRIFT_DIAGNOSIS_URI, payload)
 
@@ -1972,11 +1992,19 @@ class Project(BaseModel):
         res = self.api_client.get(
             f"{DASHBOARD_LOGS_URI}?project_name={self.project_name}&type={type}&page={page}",
         )
-
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get all dashboard"))
+        res = res.get("details").get("dashboards")
+        for n_res in res:
+            data = self.get_dashboard_metadata(type, str(n_res.get("_id")))
+            n_res["metadata"] = {}
+            n_res["metadata"]["config"] = {}
+            n_res["metadata"]["config"] = data.get("config")
+            n_res["metadata"]["metric"] = (
+                data.get("details", {}).get("metrics", {})[0].get("result", {})
+            )
 
-        logs = pd.DataFrame(res.get("details").get("dashboards"))
+        logs = pd.DataFrame(res)
         logs.drop(
             columns=[
                 "max_features",
@@ -1989,7 +2017,6 @@ class Project(BaseModel):
                 "stat_test_threshold",
                 "project_name",
                 "file_id",
-                "metadata",
                 "updated_at",
                 "features_to_use",
             ],
@@ -1997,6 +2024,31 @@ class Project(BaseModel):
             errors="ignore",
         )
         return logs
+
+    def get_dashboard_metadata(self, type: str, dashboard_id: str) -> Dashboard:
+        """get dashboard
+
+        :param type: type of the dashboard
+        :param dashboard_id: id of dashboard
+        :return: Dashboard
+        """
+        Validate.value_against_list(
+            "type",
+            type,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
+        )
+
+        res = self.api_client.get(
+            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}&dashboard_id={dashboard_id}"
+        )
+
+        if not res["success"]:
+            raise Exception(res.get("details", "Failed to get dashboard"))
+
+        auth_token = self.api_client.get_auth_token()
+        query_params = f"?project_name={self.project_name}&type={type}&dashboard_id={dashboard_id}&access_token={auth_token}"
+
+        return res
 
     def get_dashboard_log_data(self, type: str):
         """get all dashboard
@@ -2169,8 +2221,13 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
-            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
+            try:
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
             Validate.value_against_list(
                 "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
             )
@@ -2192,7 +2249,12 @@ class Project(BaseModel):
             Validate.value_against_list(
                 "base_line_tag", payload["base_line_tag"], all_tags
             )
-            Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
+            try:
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
 
             Validate.value_against_list(
                 "model_type", payload["model_type"], MODEL_TYPES
@@ -2219,7 +2281,8 @@ class Project(BaseModel):
             )
 
             Validate.value_against_list(
-                "current_true_label"[payload["current_true_label"]],
+                "current_true_label",
+                [payload["current_true_label"]],
                 tags_info["alluniquefeatures"],
             )
         elif payload["trigger_type"] == "Model Performance":

@@ -171,6 +171,10 @@ class Workspace(BaseModel):
         """creates new project in the current workspace
 
         :param project_name: name for the project
+        :param modality: modality for the project
+            Eg:- tabular, image, text
+        :project_type: type for the project
+            Eg:- classification, regression
         :return: response
         """
         payload = {
@@ -192,6 +196,7 @@ class Workspace(BaseModel):
             )
 
             payload["instance_type"] = server_type
+            payload["server_config"] = {}
 
         res = self.api_client.post(CREATE_PROJECT_URI, payload)
 
@@ -248,7 +253,7 @@ class Workspace(BaseModel):
             f"{START_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -262,7 +267,7 @@ class Workspace(BaseModel):
             f"{STOP_CUSTOM_SERVER_URI}?workspace_name={self.workspace_name}"
         )
 
-        if not res["status"]:
+        if not res["success"]:
             raise Exception(res.get("message"))
 
         return res["message"]
@@ -287,7 +292,8 @@ class Workspace(BaseModel):
                 "update_workspace": {
                     "workspace_name": self.user_workspace_name,
                     "instance_type": server_type,
-                }
+                },
+                "update_operational_hours": {},
             },
         }
 
