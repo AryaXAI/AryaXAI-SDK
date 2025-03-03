@@ -6,6 +6,17 @@ import json
 from IPython.display import IFrame, display, HTML
 from aryaxai.common.xai_uris import XAI_APP_URI
 
+DASHBOARD_TYPES = [
+    "data_drift",
+    "target_drift",
+    "performance",
+    "biasmonitoring",
+    "image_property_drift",
+    "label_drift",
+    "property_label_correlation",
+    "image_dataset_drift",
+]
+
 
 class Dashboard(BaseModel):
     config: dict

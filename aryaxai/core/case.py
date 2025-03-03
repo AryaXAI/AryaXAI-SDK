@@ -148,7 +148,8 @@ class Case(BaseModel):
         """
         data = {
             "True Value": self.true_value,
-            "AutoML Prediction": self.pred_value,
+            "Prediction Value": self.pred_value,
+            "Prediction Category": self.pred_category,
             "Final Prediction": self.final_decision,
         }
         decision_df = pd.DataFrame([data])
