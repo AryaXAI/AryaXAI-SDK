@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 import pandas as pd
@@ -8,25 +8,26 @@ from IPython.display import SVG, display
 
 class Case(BaseModel):
     status: str
-    true_value: str
-    pred_value: str
-    pred_category: str
+    true_value: str | int
+    pred_value: str | int
+    pred_category: str | int
     observations: List
-    shap_feature_importance: Dict
-    lime_feature_importance: Dict
+    shap_feature_importance: Optional[Dict] = {}
+    lime_feature_importance: Optional[Dict] = {}
     similar_cases: List
-    is_automl_prediction: bool
+    is_automl_prediction: Optional[bool] = False
     model_name: str
-    case_prediction_path: str
-    case_prediction_svg: str
-    observation_checklist: List
-    policy_checklist: List
-    final_decision: str
-    unique_identifier: str
-    tag: str
-    created_at: str
-    data: Dict
-    similar_cases_data: List
+    case_prediction_path: Optional[str] = ""
+    case_prediction_svg: Optional[str] = ""
+    observation_checklist: Optional[List] = []
+    policy_checklist: Optional[List] = []
+    final_decision: Optional[str] = ""
+    unique_identifier: Optional[str] = ""
+    tag: Optional[str] = ""
+    created_at: Optional[str] = ""
+    data: Optional[Dict] = {}
+    similar_cases_data: Optional[List] = []
+    image_data: Optional[Dict] = {}
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -66,7 +67,7 @@ class Case(BaseModel):
             legend_y=1.1,
         )
         fig.show(config={"displaylogo": False})
-    
+
     def explainability_lime_feature_importance(self):
         """Plots Lime Feature Importance chart"""
         fig = go.Figure()
@@ -147,7 +148,8 @@ class Case(BaseModel):
         """
         data = {
             "True Value": self.true_value,
-            "AutoML Prediction": self.pred_value,
+            "Prediction Value": self.pred_value,
+            "Prediction Category": self.pred_category,
             "Final Prediction": self.final_decision,
         }
         decision_df = pd.DataFrame([data])
@@ -164,3 +166,203 @@ class Case(BaseModel):
 
         similar_cases_df = pd.DataFrame(self.similar_cases_data)
         return similar_cases_df
+
+    def explainability_gradcam(self):
+        fig = go.Figure()
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("gradcam", {}).get("heatmap"),
+                xref="x",
+                yref="y",
+                x=0,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("gradcam", {}).get("superimposed"),
+                xref="x",
+                yref="y",
+                x=1.2,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.add_annotation(
+            x=0.5,
+            y=0.1,
+            text="Attributions",
+            showarrow=False,
+            font=dict(size=16),
+            xref="x",
+            yref="y",
+        )
+        fig.add_annotation(
+            x=1.7,
+            y=0.1,
+            text="Superimposed",
+            showarrow=False,
+            font=dict(size=16),
+            xref="x",
+            yref="y",
+        )
+        fig.update_layout(
+            xaxis=dict(visible=False, range=[0, 2.5]),
+            yaxis=dict(visible=False, range=[0, 1]),
+            margin=dict(l=30, r=30, t=30, b=30),
+        )
+
+        fig.show(config={"displaylogo": False})
+
+    def explainability_shap(self):
+        fig = go.Figure()
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("shap", {}).get("plot"),
+                xref="x",
+                yref="y",
+                x=0,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.update_layout(
+            xaxis=dict(visible=False, range=[0, 2.5]),
+            yaxis=dict(visible=False, range=[0, 1]),
+            margin=dict(l=30, r=30, t=30, b=30),
+        )
+
+        fig.show(config={"displaylogo": False})
+
+    def explainability_lime(self):
+        fig = go.Figure()
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("lime", {}).get("plot"),
+                xref="x",
+                yref="y",
+                x=0,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.update_layout(
+            xaxis=dict(visible=False, range=[0, 2.5]),
+            yaxis=dict(visible=False, range=[0, 1]),
+            margin=dict(l=30, r=30, t=30, b=30),
+        )
+
+        fig.show(config={"displaylogo": False})
+
+    def explainability_integrated_gradients(self):
+        fig = go.Figure()
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "attributions"
+                ),
+                xref="x",
+                yref="y",
+                x=0,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "positive_attributions"
+                ),
+                xref="x",
+                yref="y",
+                x=1.2,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.add_layout_image(
+            dict(
+                source=self.image_data.get("integrated_gradients", {}).get(
+                    "negative_attributions"
+                ),
+                xref="x",
+                yref="y",
+                x=2.4,
+                y=1,
+                sizex=1,
+                sizey=1,
+                xanchor="left",
+                yanchor="top",
+                layer="below",
+            )
+        )
+
+        fig.add_annotation(
+            x=0.5,
+            y=0.1,
+            text="Attributions",
+            showarrow=False,
+            font=dict(size=16),
+            xref="x",
+            yref="y",
+        )
+        fig.add_annotation(
+            x=1.7,
+            y=0.1,
+            text="Positive Attributions",
+            showarrow=False,
+            font=dict(size=16),
+            xref="x",
+            yref="y",
+        )
+        fig.add_annotation(
+            x=2.9,
+            y=0.1,
+            text="Negative Attributions",
+            showarrow=False,
+            font=dict(size=16),
+            xref="x",
+            yref="y",
+        )
+        fig.update_layout(
+            xaxis=dict(visible=False, range=[0, 2.5]),
+            yaxis=dict(visible=False, range=[0, 1]),
+            margin=dict(l=30, r=30, t=30, b=30),
+        )
+
+        fig.show(config={"displaylogo": False})

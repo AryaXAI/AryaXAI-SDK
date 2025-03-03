@@ -1,5 +1,11 @@
 from typing import List, Optional, TypedDict
 
+
+class ImageDashboardPayload(TypedDict):
+    base_line_tag: List[str]
+    current_tag: List[str]
+
+
 class DataDriftPayload(TypedDict):
     project_name: Optional[str]
     base_line_tag: List[str]
@@ -32,6 +38,7 @@ class TargetDriftPayload(TypedDict):
     stat_test_name: str
     stat_test_threshold: float
 
+
 class BiasMonitoringPayload(TypedDict):
     project_name: str
     base_line_tag: List[str]
@@ -45,6 +52,7 @@ class BiasMonitoringPayload(TypedDict):
 
     features_to_use: List[str]
     model_type: str
+
 
 class ModelPerformancePayload(TypedDict):
     project_name: str
