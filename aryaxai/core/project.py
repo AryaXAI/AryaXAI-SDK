@@ -2210,6 +2210,11 @@ class Project(BaseModel):
             payload["trigger_type"],
             ["Data Drift", "Target Drift", "Model Performance"],
         )
+        
+        if "priority" not in payload or payload["priority"] is None:
+            return f"Priority is required. It should be between 1 to 10."
+        elif not 1 <= payload["priority"] <= 10:
+            return f"Priority is not a valid. It should be between 1 to 10."
 
         payload["project_name"] = self.project_name
 
@@ -2311,17 +2316,7 @@ class Project(BaseModel):
             )
 
             if payload["model_type"] == "classification":
-                if not payload["class_label"]:
-                    raise Exception(
-                        "class_label is required for classification model type."
-                    )
-
                 all_class_label = self.get_labels(payload["baseline_true_label"])
-
-                Validate.value_against_list(
-                    "class_label", payload["class_label"], all_class_label
-                )
-
                 Validate.value_against_list(
                     "model_performance_metric",
                     payload["model_performance_metric"],
