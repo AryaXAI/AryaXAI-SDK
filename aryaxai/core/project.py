@@ -1997,7 +1997,7 @@ class Project(BaseModel):
             raise Exception(res.get("details", "Failed to get all dashboard"))
         res = res.get("details").get("dashboards")
         for n_res in res:
-            data = self.get_dashboard_metadata(type, str(n_res.get("_id")))
+            data = self.get_dashboard_metadata(n_res.get("type"), str(n_res.get("_id")))
             n_res["metadata"] = {}
             n_res["metadata"]["config"] = {}
             n_res["metadata"]["config"] = data.get("config")
@@ -2014,7 +2014,6 @@ class Project(BaseModel):
                 "baseline_date",
                 "current_date",
                 "task_id",
-                "type",
                 "date_feature",
                 "stat_test_threshold",
                 "project_name",
@@ -3477,7 +3476,7 @@ class Project(BaseModel):
         if project_config != "Not Found" and config:
             raise Exception("Config already exists, please remove config")
 
-        uploaded_path = upload_file_and_return_path()
+        uploaded_path = upload_file_and_return_path(file_path, "data", tag)
 
         payload = {
             "path": uploaded_path,
