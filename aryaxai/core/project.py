@@ -1329,8 +1329,10 @@ class Project(BaseModel):
             res = self.api_client.post(RUN_DATA_DRIFT_DIAGNOSIS_URI, payload)
 
             if not res["success"]:
-                raise Exception(res.get("details").get("reason"))
-
+                if res.get("details").get("reason"):
+                    raise Exception(res.get("details").get("reason"))
+                else:
+                    raise Exception(res.get("message"))
             poll_events(self.api_client, self.project_name, res["task_id"])
 
         res = self.api_client.post(
