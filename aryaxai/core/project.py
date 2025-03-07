@@ -1276,9 +1276,10 @@ class Project(BaseModel):
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data drift diagnosis dataframe
         """
-        if instance_type not in ["small", "xsmall", "2xsmall", "3xsmall", "medium", "xmedium", "2xmedium", "3xmedium", "large", "xlarge", "2xlarge", "3xlarge"]:
-            return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
         if baseline_tags and current_tags:
+            if instance_type not in ["small", "xsmall", "2xsmall", "3xsmall", "medium", "xmedium", "2xmedium", "3xmedium", "large", "xlarge", "2xlarge", "3xlarge"]:
+                return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
+        
             payload = {
                 "project_name": self.project_name,
                 "baseline_tags": baseline_tags,
