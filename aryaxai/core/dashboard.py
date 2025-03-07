@@ -3,14 +3,25 @@ import os
 from typing import Any
 from pydantic import BaseModel
 import json
-from IPython.display import IFrame, display
+from IPython.display import IFrame, display, HTML
 from aryaxai.common.xai_uris import XAI_APP_URI
+
+DASHBOARD_TYPES = [
+    "data_drift",
+    "target_drift",
+    "performance",
+    "biasmonitoring",
+    "image_property_drift",
+    "label_drift",
+    "property_label_correlation",
+    "image_dataset_drift",
+]
 
 
 class Dashboard(BaseModel):
     config: dict
     query_params: str
-    raw_data: dict | list
+    raw_data: dict | list | str
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -25,9 +36,12 @@ class Dashboard(BaseModel):
             width (int, optional): _description_. Defaults to 100%.
             height (int, optional): _description_. Defaults to 650.
         """
-        uri = os.environ.get("XAI_APP_URL", XAI_APP_URI)
-        url = f"{uri}/sdk/dashboard{self.query_params}"
-        display(IFrame(src=f"{url}", width=width, height=height))
+        if isinstance(self.raw_data, str) and "</html>" in self.raw_data:
+            display(HTML(self.raw_data))
+        else:
+            uri = os.environ.get("XAI_APP_URL", XAI_APP_URI)
+            url = f"{uri}/sdk/dashboard{self.query_params}"
+            display(IFrame(src=f"{url}", width=width, height=height))
 
     def get_config(self) -> dict:
         """
