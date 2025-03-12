@@ -1317,9 +1317,22 @@ class Project(BaseModel):
         """
 
         if baseline_tags and current_tags:
-            if instance_type not in ["small", "xsmall", "2xsmall", "3xsmall", "medium", "xmedium", "2xmedium", "3xmedium", "large", "xlarge", "2xlarge", "3xlarge"]:
+            if instance_type not in [
+                "small",
+                "xsmall",
+                "2xsmall",
+                "3xsmall",
+                "medium",
+                "xmedium",
+                "2xmedium",
+                "3xmedium",
+                "large",
+                "xlarge",
+                "2xlarge",
+                "3xlarge",
+            ]:
                 return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
-        
+
             payload = {
                 "project_name": self.project_name,
                 "baseline_tags": baseline_tags,
@@ -1723,43 +1736,50 @@ class Project(BaseModel):
 
         payload["project_name"] = self.project_name
 
-        # validate required fields
-        Validate.check_for_missing_keys(payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS)
-
-        # validate tags and labels
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
+
+        if self.metadata.get("modality") == "image":
+            Validate.check_for_missing_keys(payload, ["base_line_tag", "current_tag"])
 
         Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
         Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
-        Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
+        if self.metadata.get("modality") == "tabular":
+            Validate.check_for_missing_keys(
+                payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS
+            )
+            Validate.validate_date_feature_val(
+                payload, tags_info["alldatetimefeatures"]
+            )
 
-        Validate.value_against_list("model_type", payload["model_type"], MODEL_TYPES)
+            Validate.value_against_list(
+                "model_type", payload["model_type"], MODEL_TYPES
+            )
 
-        Validate.value_against_list(
-            "baseline_true_label",
-            [payload["baseline_true_label"]],
-            tags_info["alluniquefeatures"],
-        )
+            Validate.value_against_list(
+                "baseline_true_label",
+                [payload["baseline_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
 
-        Validate.value_against_list(
-            "baseline_pred_label",
-            [payload["baseline_pred_label"]],
-            tags_info["alluniquefeatures"],
-        )
+            Validate.value_against_list(
+                "baseline_pred_label",
+                [payload["baseline_pred_label"]],
+                tags_info["alluniquefeatures"],
+            )
 
-        Validate.value_against_list(
-            "current_true_label",
-            [payload["current_true_label"]],
-            tags_info["alluniquefeatures"],
-        )
+            Validate.value_against_list(
+                "current_true_label",
+                [payload["current_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
 
-        Validate.value_against_list(
-            "current_pred_label",
-            [payload["current_pred_label"]],
-            tags_info["alluniquefeatures"],
-        )
+            Validate.value_against_list(
+                "current_pred_label",
+                [payload["current_pred_label"]],
+                tags_info["alluniquefeatures"],
+            )
 
         custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
         Validate.value_against_list(
@@ -2195,150 +2215,17 @@ class Project(BaseModel):
                 }
         :return: response
         """
-        Validate.value_against_list(
-            "trigger_type",
-            payload["trigger_type"],
-            ["Data Drift", "Target Drift", "Model Performance"],
-        )
-        
-        if "priority" not in payload or payload["priority"] is None:
-            return f"Priority is required. It should be between 1 to 10."
-        elif not 1 <= payload["priority"] <= 10:
-            return f"Priority is not a valid. It should be between 1 to 10."
-
         payload["project_name"] = self.project_name
 
-        # validate tags and labels
-        tags_info = self.available_tags()
-        all_tags = tags_info["alltags"]
+        required_payload_keys = [
+            "trigger_type",
+            "priority",
+            "mail_list",
+            "frequency",
+            "trigger_name",
+        ]
 
-        if payload["trigger_type"] == "Data Drift":
-            Validate.check_for_missing_keys(payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS)
-
-            Validate.value_against_list(
-                "base_line_tag", payload["base_line_tag"], all_tags
-            )
-
-            try:
-                Validate.value_against_list(
-                    "current_tag", payload["current_tag"], all_tags
-                )
-            except Exception as e:
-                print(f"monitor created for new tag {payload['current_tag']}")
-            Validate.value_against_list(
-                "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
-            )
-            if payload.get("features_to_use"):
-                Validate.value_against_list(
-                    "features_to_use",
-                    payload.get("features_to_use", []),
-                    tags_info["alluniquefeatures"],
-                )
-            if payload.get("dataset_drift_percentage"):
-                payload["datadrift_features_per"] = payload.get(
-                    "dataset_drift_percentage"
-                )
-        elif payload["trigger_type"] == "Target Drift":
-            Validate.check_for_missing_keys(
-                payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
-            )
-
-            Validate.value_against_list(
-                "base_line_tag", payload["base_line_tag"], all_tags
-            )
-            try:
-                Validate.value_against_list(
-                    "current_tag", payload["current_tag"], all_tags
-                )
-            except Exception as e:
-                print(f"monitor created for new tag {payload['current_tag']}")
-
-            Validate.value_against_list(
-                "model_type", payload["model_type"], MODEL_TYPES
-            )
-
-            if payload["model_type"] == "classification":
-                Validate.value_against_list(
-                    "stat_test_name",
-                    payload["stat_test_name"],
-                    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
-                )
-
-            if payload["model_type"] == "regression":
-                Validate.value_against_list(
-                    "stat_test_name",
-                    payload["stat_test_name"],
-                    TARGET_DRIFT_STAT_TESTS_REGRESSION,
-                )
-
-            Validate.value_against_list(
-                "baseline_true_label",
-                [payload["baseline_true_label"]],
-                tags_info["alluniquefeatures"],
-            )
-
-            Validate.value_against_list(
-                "current_true_label",
-                [payload["current_true_label"]],
-                tags_info["alluniquefeatures"],
-            )
-        elif payload["trigger_type"] == "Model Performance":
-            Validate.check_for_missing_keys(payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS)
-
-            Validate.value_against_list(
-                "base_line_tag", payload["base_line_tag"], all_tags
-            )
-
-            Validate.value_against_list(
-                "model_type", payload["model_type"], MODEL_TYPES
-            )
-
-            Validate.value_against_list(
-                "baseline_true_label",
-                [payload["baseline_true_label"]],
-                tags_info["alluniquefeatures"],
-            )
-
-            Validate.value_against_list(
-                "baseline_pred_label",
-                [payload["baseline_pred_label"]],
-                tags_info["alluniquefeatures"],
-            )
-
-            if payload["model_type"] == "classification":
-                all_class_label = self.get_labels(payload["baseline_true_label"])
-                Validate.value_against_list(
-                    "model_performance_metric",
-                    payload["model_performance_metric"],
-                    MODEL_PERF_METRICS_CLASSIFICATION,
-                )
-
-            if payload["model_type"] == "regression":
-                Validate.value_against_list(
-                    "model_performance_metric",
-                    payload["model_performance_metric"],
-                    MODEL_PERF_METRICS_REGRESSION,
-                )
-
-        else:
-            raise Exception(
-                'Invalid trigger type. Please use one of ["Data Drift", "Target Drift", "Model Performance"]'
-            )
-
-        Validate.value_against_list("frequency", payload["frequency"], MAIL_FREQUENCIES)
-
-        Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
-
-        if payload.get("instance_type"):
-            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
-            Validate.value_against_list(
-                "instance_type",
-                payload["instance_type"],
-                [
-                    server["instance_name"]
-                    for server in custom_batch_servers.get("details", [])
-                ],
-            )
+        Validate.check_for_missing_keys(payload, required_payload_keys)
 
         payload = {
             "project_name": self.project_name,
@@ -2415,11 +2302,11 @@ class Project(BaseModel):
 
         trigger_info = trigger_info["details"]
 
-        detailed_report = trigger_info["detailed_report"]
-        not_used_features = trigger_info["Not_Used_Features"]
+        detailed_report = trigger_info.get("detailed_report")
+        not_used_features = trigger_info.get("Not_Used_Features")
 
-        del trigger_info["detailed_report"]
-        del trigger_info["Not_Used_Features"]
+        trigger_info.pop("detailed_report", None)
+        trigger_info.pop("Not_Used_Features", None)
 
         return Alert(
             info=trigger_info,
