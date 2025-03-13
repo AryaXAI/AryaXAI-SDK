@@ -1025,6 +1025,7 @@ class Project(BaseModel):
         model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
         explainability_method: Optional[list] = ["shap"],
+        feature_list: Optional[list] = None,
     ):
         """Uploads your custom model on AryaXAI
 
@@ -1037,6 +1038,7 @@ class Project(BaseModel):
         :param model_test_tags: test tags for model (optional)
         :param instance_type: instance to be used for uploading model (optional)
         :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional)
+        :param feature_list: list of features in sequence which are to be passed in the model (optional)
         """
 
         def upload_file_and_return_path() -> str:
@@ -1095,6 +1097,7 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
             "explainability_method": explainability_method,
+            "feature_list":feature_list
         }
 
         if instance_type:
