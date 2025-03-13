@@ -35,7 +35,6 @@ from aryaxai.common.validation import Validate
 from aryaxai.common.monitoring import (
     BiasMonitoringPayload,
     DataDriftPayload,
-    ImageDashboardPayload,
     ModelPerformancePayload,
     TargetDriftPayload,
 )
@@ -131,7 +130,7 @@ from aryaxai.core.alert import Alert
 from aryaxai.core.case import Case
 from aryaxai.core.model_summary import ModelSummary
 
-from aryaxai.core.dashboard import DASHBOARD_TYPES, Dashboard
+from aryaxai.core.dashboard import Dashboard
 from datetime import datetime
 import re
 from aryaxai.core.utils import build_url, build_list_data_connector_url
@@ -145,7 +144,6 @@ class Project(BaseModel):
     user_project_name: str
     user_workspace_name: str
     workspace_name: str
-    metadata: dict
 
     api_client: APIClient
 
@@ -305,9 +303,9 @@ class Project(BaseModel):
             f"{GET_PROJECT_CONFIG}?project_name={self.project_name}"
         )
         if res.get("details") != "Not Found":
-            res["details"].pop("updated_by", None)
-            res["details"]["metadata"].pop("path", None)
-            res["details"]["metadata"].pop("avaialble_tags", None)
+            res["details"].pop("updated_by")
+            res["details"]["metadata"].pop("path")
+            res["details"]["metadata"].pop("avaialble_tags")
 
         return res.get("details")
 
@@ -539,14 +537,7 @@ class Project(BaseModel):
         poll_events(self.api_client, self.project_name, res.get("event_id"))
 
     def upload_data(
-        self,
-        data: str | pd.DataFrame,
-        tag: str,
-        model: Optional[str] = None,
-        model_name: Optional[str] = None,
-        model_architecture: Optional[str] = None,
-        model_type: Optional[str] = None,
-        config: Optional[ProjectConfig] = None,
+        self, data: str | pd.DataFrame, tag: str, config: Optional[ProjectConfig] = None
     ) -> str:
         """Uploads data for the current project
         :param data: file path | dataframe to be uploaded
@@ -567,7 +558,9 @@ class Project(BaseModel):
         :return: response
         """
 
-        def build_upload_data(data):
+        print("Preparing Data Upload")
+
+        def build_upload_data():
             if isinstance(data, str):
                 file = open(data, "rb")
                 return file
@@ -581,10 +574,10 @@ class Project(BaseModel):
             else:
                 raise Exception("Invalid Data Type")
 
-        def upload_file_and_return_path(data, data_type, tag=None) -> str:
-            files = {"in_file": build_upload_data(data)}
+        def upload_file_and_return_path() -> str:
+            files = {"in_file": build_upload_data()}
             res = self.api_client.file(
-                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type={data_type}&tag={tag}",
+                f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&data_type=data&tag={tag}",
                 files,
             )
 
@@ -597,126 +590,94 @@ class Project(BaseModel):
         project_config = self.config()
 
         if project_config == "Not Found":
-            if self.metadata.get("modality") == "image":
-                if (
-                    not model
-                    or not model_architecture
-                    or not model_type
-                    or not model_name
-                ):
-                    raise Exception("Model details is required for Image project type")
-
-                uploaded_path = upload_file_and_return_path(data, "data", tag)
-
-                model_uploaded_path = upload_file_and_return_path(model, "model")
-
-                payload = {
-                    "project_name": self.project_name,
-                    "project_type": self.metadata.get("project_type"),
-                    "metadata": {
-                        "path": uploaded_path,
-                        "model_name": model_name,
-                        "model_path": model_uploaded_path,
-                        "model_architecture": model_architecture,
-                        "model_type": model_type,
-                        "tag": tag,
-                        "tags": [tag],
-                    },
+            if not config:
+                config = {
+                    "project_type": "",
+                    "unique_identifier": "",
+                    "true_label": "",
+                    "pred_label": "",
+                    "feature_exclude": [],
+                    "drop_duplicate_uid": False,
+                    "handle_errors": False,
+                    "handle_data_imbalance": False,
                 }
-
-            if self.metadata.get("modality") == "tabular":
-                if not config:
-                    config = {
-                        "project_type": "",
-                        "unique_identifier": "",
-                        "true_label": "",
-                        "pred_label": "",
-                        "feature_exclude": [],
-                        "drop_duplicate_uid": False,
-                        "handle_errors": False,
-                        "handle_data_imbalance": False,
-                    }
-                    raise Exception(
-                        f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
-                    )
-
-                Validate.check_for_missing_keys(
-                    config, ["project_type", "unique_identifier", "true_label"]
+                raise Exception(
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
                 )
 
+            Validate.check_for_missing_keys(
+                config, ["project_type", "unique_identifier", "true_label"]
+            )
+
+            Validate.value_against_list(
+                "project_type", config, ["classification", "regression"]
+            )
+
+            uploaded_path = upload_file_and_return_path()
+
+            file_info = self.api_client.post(
+                UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
+            )
+
+            column_names = file_info.get("details").get("column_names")
+
+            Validate.value_against_list(
+                "unique_identifier",
+                config["unique_identifier"],
+                column_names,
+                lambda: self.delete_file(uploaded_path),
+            )
+
+            if config.get("feature_exclude"):
                 Validate.value_against_list(
-                    "project_type", config, ["classification", "regression"]
-                )
-
-                uploaded_path = upload_file_and_return_path(data, "data", tag)
-
-                file_info = self.api_client.post(
-                    UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
-                )
-
-                column_names = file_info.get("details").get("column_names")
-
-                Validate.value_against_list(
-                    "unique_identifier",
-                    config["unique_identifier"],
+                    "feature_exclude",
+                    config["feature_exclude"],
                     column_names,
                     lambda: self.delete_file(uploaded_path),
                 )
 
-                if config.get("feature_exclude"):
-                    Validate.value_against_list(
-                        "feature_exclude",
-                        config["feature_exclude"],
-                        column_names,
-                        lambda: self.delete_file(uploaded_path),
-                    )
+            feature_exclude = [
+                config["unique_identifier"],
+                config["true_label"],
+                *config.get("feature_exclude", []),
+            ]
 
-                feature_exclude = [
-                    config["unique_identifier"],
-                    config["true_label"],
-                    *config.get("feature_exclude", []),
-                ]
+            feature_include = [
+                feature for feature in column_names if feature not in feature_exclude
+            ]
 
-                feature_include = [
-                    feature
-                    for feature in column_names
-                    if feature not in feature_exclude
-                ]
+            feature_encodings = config.get("feature_encodings", {})
+            if feature_encodings:
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.keys()),
+                    column_names,
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.values()),
+                    ["labelencode", "countencode", "onehotencode"],
+                )
 
-                feature_encodings = config.get("feature_encodings", {})
-                if feature_encodings:
-                    Validate.value_against_list(
-                        "feature_encodings_feature",
-                        list(feature_encodings.keys()),
-                        column_names,
-                    )
-                    Validate.value_against_list(
-                        "feature_encodings_feature",
-                        list(feature_encodings.values()),
-                        ["labelencode", "countencode", "onehotencode"],
-                    )
-
-                payload = {
-                    "project_name": self.project_name,
-                    "project_type": config["project_type"],
-                    "unique_identifier": config["unique_identifier"],
-                    "true_label": config["true_label"],
-                    "pred_label": config.get("pred_label"),
-                    "metadata": {
-                        "path": uploaded_path,
-                        "tag": tag,
-                        "tags": [tag],
-                        "drop_duplicate_uid": config.get("drop_duplicate_uid"),
-                        "handle_errors": config.get("handle_errors", False),
-                        "feature_exclude": feature_exclude,
-                        "feature_include": feature_include,
-                        "feature_encodings": feature_encodings,
-                        "feature_actual_used": [],
-                        "handle_data_imbalance": config.get(
-                            "handle_data_imbalance", False
-                        ),
-                    },
-                }
+            payload = {
+                "project_name": self.project_name,
+                "project_type": config["project_type"],
+                "unique_identifier": config["unique_identifier"],
+                "true_label": config["true_label"],
+                "pred_label": config.get("pred_label"),
+                "metadata": {
+                    "path": uploaded_path,
+                    "tag": tag,
+                    "tags": [tag],
+                    "drop_duplicate_uid": config.get("drop_duplicate_uid"),
+                    "handle_errors": config.get("handle_errors", False),
+                    "feature_exclude": feature_exclude,
+                    "feature_include": feature_include,
+                    "feature_encodings": feature_encodings,
+                    "feature_actual_used": [],
+                    "handle_data_imbalance": config.get("handle_data_imbalance", False),
+                },
+            }
 
             res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
 
@@ -731,7 +692,7 @@ class Project(BaseModel):
         if project_config != "Not Found" and config:
             raise Exception("Config already exists, please remove config")
 
-        uploaded_path = upload_file_and_return_path(data, "data", tag)
+        uploaded_path = upload_file_and_return_path()
 
         payload = {
             "path": uploaded_path,
@@ -1025,6 +986,7 @@ class Project(BaseModel):
         model_test_tags: Optional[list],
         instance_type: Optional[str] = None,
         explainability_method: Optional[list] = ["shap"],
+        feature_list: Optional[list] = None,
     ):
         """Uploads your custom model on AryaXAI
 
@@ -1095,6 +1057,7 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
             "explainability_method": explainability_method,
+            "feature_list": feature_list,
         }
 
         if instance_type:
@@ -1308,44 +1271,23 @@ class Project(BaseModel):
         self,
         baseline_tags: Optional[List[str]] = None,
         current_tags: Optional[List[str]] = None,
-        instance_type: Optional[str] = "",
     ) -> pd.DataFrame:
         """Data Drift Diagnosis for the project
 
         :param tag: tag for data ["Training", "Testing", "Validation", "Custom"]
         :return: data drift diagnosis dataframe
         """
-
         if baseline_tags and current_tags:
-            if instance_type not in [
-                "small",
-                "xsmall",
-                "2xsmall",
-                "3xsmall",
-                "medium",
-                "xmedium",
-                "2xmedium",
-                "3xmedium",
-                "large",
-                "xlarge",
-                "2xlarge",
-                "3xlarge",
-            ]:
-                return "instance_type is not valid. Valid types are small, xsmall, 2xsmall, 3xsmall, medium, xmedium, 2xmedium, 3xmedium, large, xlarge, 2xlarge, 3xlarge"
-
             payload = {
                 "project_name": self.project_name,
                 "baseline_tags": baseline_tags,
                 "current_tags": current_tags,
-                "instance_type": instance_type,
             }
             res = self.api_client.post(RUN_DATA_DRIFT_DIAGNOSIS_URI, payload)
 
             if not res["success"]:
-                if res.get("details").get("reason"):
-                    raise Exception(res.get("details").get("reason"))
-                else:
-                    raise Exception(res.get("message"))
+                raise Exception(res.get("details").get("reason"))
+
             poll_events(self.api_client, self.project_name, res["task_id"])
 
         res = self.api_client.post(
@@ -1736,50 +1678,43 @@ class Project(BaseModel):
 
         payload["project_name"] = self.project_name
 
+        # validate required fields
+        Validate.check_for_missing_keys(payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS)
+
+        # validate tags and labels
         tags_info = self.available_tags()
         all_tags = tags_info["alltags"]
-
-        if self.metadata.get("modality") == "image":
-            Validate.check_for_missing_keys(payload, ["base_line_tag", "current_tag"])
 
         Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
         Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
 
-        if self.metadata.get("modality") == "tabular":
-            Validate.check_for_missing_keys(
-                payload, MODEL_PERF_DASHBOARD_REQUIRED_FIELDS
-            )
-            Validate.validate_date_feature_val(
-                payload, tags_info["alldatetimefeatures"]
-            )
+        Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
 
-            Validate.value_against_list(
-                "model_type", payload["model_type"], MODEL_TYPES
-            )
+        Validate.value_against_list("model_type", payload["model_type"], MODEL_TYPES)
 
-            Validate.value_against_list(
-                "baseline_true_label",
-                [payload["baseline_true_label"]],
-                tags_info["alluniquefeatures"],
-            )
+        Validate.value_against_list(
+            "baseline_true_label",
+            [payload["baseline_true_label"]],
+            tags_info["alluniquefeatures"],
+        )
 
-            Validate.value_against_list(
-                "baseline_pred_label",
-                [payload["baseline_pred_label"]],
-                tags_info["alluniquefeatures"],
-            )
+        Validate.value_against_list(
+            "baseline_pred_label",
+            [payload["baseline_pred_label"]],
+            tags_info["alluniquefeatures"],
+        )
 
-            Validate.value_against_list(
-                "current_true_label",
-                [payload["current_true_label"]],
-                tags_info["alluniquefeatures"],
-            )
+        Validate.value_against_list(
+            "current_true_label",
+            [payload["current_true_label"]],
+            tags_info["alluniquefeatures"],
+        )
 
-            Validate.value_against_list(
-                "current_pred_label",
-                [payload["current_pred_label"]],
-                tags_info["alluniquefeatures"],
-            )
+        Validate.value_against_list(
+            "current_pred_label",
+            [payload["current_pred_label"]],
+            tags_info["alluniquefeatures"],
+        )
 
         custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
         Validate.value_against_list(
@@ -1808,216 +1743,26 @@ class Project(BaseModel):
 
         return "Model performance dashboard generation initiated"
 
-    def get_image_property_drift_dashboard(
-        self,
-        payload: ImageDashboardPayload = {},
-        instance_type: Optional[str] = None,
-        run_in_background: bool = False,
-    ) -> Dashboard:
-        if not payload:
-            return self.get_default_dashboard("image_property_drift")
-
-        payload["project_name"] = self.project_name
-
-        # validate tags and labels
-        tags_info = self.available_tags()
-        all_tags = tags_info["alltags"]
-
-        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
-        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
-
-        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
-        Validate.value_against_list(
-            "instance_type",
-            instance_type,
-            [
-                server["instance_name"]
-                for server in custom_batch_servers.get("details", [])
-            ],
-        )
-
-        if instance_type:
-            payload["instance_type"] = instance_type
-
-        res = self.api_client.post(
-            f"{GENERATE_DASHBOARD_URI}?type=image_property_drift", payload
-        )
-
-        if not res["success"]:
-            error_details = res.get("details", "Failed to generate dashboard")
-            raise Exception(error_details)
-
-        if not run_in_background:
-            poll_events(self.api_client, self.project_name, res["task_id"])
-            return self.get_default_dashboard("image_property_drift")
-
-        return "Image Property Drift dashboard generation initiated"
-
-    def get_label_drift_dashboard(
-        self,
-        payload: ImageDashboardPayload = {},
-        instance_type: Optional[str] = None,
-        run_in_background: bool = False,
-    ) -> Dashboard:
-        if not payload:
-            return self.get_default_dashboard("label_drift")
-
-        payload["project_name"] = self.project_name
-
-        # validate tags and labels
-        tags_info = self.available_tags()
-        all_tags = tags_info["alltags"]
-
-        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
-        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
-
-        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
-        Validate.value_against_list(
-            "instance_type",
-            instance_type,
-            [
-                server["instance_name"]
-                for server in custom_batch_servers.get("details", [])
-            ],
-        )
-
-        if instance_type:
-            payload["instance_type"] = instance_type
-
-        res = self.api_client.post(
-            f"{GENERATE_DASHBOARD_URI}?type=label_drift", payload
-        )
-
-        if not res["success"]:
-            error_details = res.get("details", "Failed to generate dashboard")
-            raise Exception(error_details)
-
-        if not run_in_background:
-            poll_events(self.api_client, self.project_name, res["task_id"])
-            return self.get_default_dashboard("label_drift")
-
-        return "Label Drift dashboard generation initiated"
-
-    def get_property_label_correlation_dashboard(
-        self,
-        payload: ImageDashboardPayload = {},
-        instance_type: Optional[str] = None,
-        run_in_background: bool = False,
-    ) -> Dashboard:
-        if not payload:
-            return self.get_default_dashboard("property_label_correlation")
-
-        payload["project_name"] = self.project_name
-
-        # validate tags and labels
-        tags_info = self.available_tags()
-        all_tags = tags_info["alltags"]
-
-        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
-        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
-
-        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
-        Validate.value_against_list(
-            "instance_type",
-            instance_type,
-            [
-                server["instance_name"]
-                for server in custom_batch_servers.get("details", [])
-            ],
-        )
-
-        if instance_type:
-            payload["instance_type"] = instance_type
-
-        res = self.api_client.post(
-            f"{GENERATE_DASHBOARD_URI}?type=property_label_correlation", payload
-        )
-
-        if not res["success"]:
-            error_details = res.get("details", "Failed to generate dashboard")
-            raise Exception(error_details)
-
-        if not run_in_background:
-            poll_events(self.api_client, self.project_name, res["task_id"])
-            return self.get_default_dashboard("property_label_correlation")
-
-        return "Property label correlation dashboard generation initiated"
-
-    def get_image_dataset_drift_dashboard(
-        self,
-        payload: ImageDashboardPayload = {},
-        instance_type: Optional[str] = None,
-        run_in_background: bool = False,
-    ) -> Dashboard:
-        if not payload:
-            return self.get_default_dashboard("image_dataset_drift")
-
-        payload["project_name"] = self.project_name
-
-        # validate tags and labels
-        tags_info = self.available_tags()
-        all_tags = tags_info["alltags"]
-
-        Validate.value_against_list("base_line_tag", payload["base_line_tag"], all_tags)
-        Validate.value_against_list("current_tag", payload["current_tag"], all_tags)
-
-        custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
-        Validate.value_against_list(
-            "instance_type",
-            instance_type,
-            [
-                server["instance_name"]
-                for server in custom_batch_servers.get("details", [])
-            ],
-        )
-
-        if instance_type:
-            payload["instance_type"] = instance_type
-
-        res = self.api_client.post(
-            f"{GENERATE_DASHBOARD_URI}?type=image_dataset_drift", payload
-        )
-
-        if not res["success"]:
-            error_details = res.get("details", "Failed to generate dashboard")
-            raise Exception(error_details)
-
-        if not run_in_background:
-            poll_events(self.api_client, self.project_name, res["task_id"])
-            return self.get_default_dashboard("image_dataset_drift")
-
-        return "Image Dataset Drift dashboard generation initiated"
-
     def get_all_dashboards(self, type: str, page: Optional[int] = 1):
         """get all dashboard
 
         :param type: type of the dashboard
         :page: page number defaults to 1
         """
-
         Validate.value_against_list(
             "type",
             type,
-            DASHBOARD_TYPES,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
         )
 
         res = self.api_client.get(
             f"{DASHBOARD_LOGS_URI}?project_name={self.project_name}&type={type}&page={page}",
         )
+
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get all dashboard"))
-        res = res.get("details").get("dashboards")
-        for n_res in res:
-            data = self.get_dashboard_metadata(n_res.get("type"), str(n_res.get("_id")))
-            n_res["metadata"] = {}
-            n_res["metadata"]["config"] = {}
-            n_res["metadata"]["config"] = data.get("config")
-            if self.metadata.get("modality") == "tabular":
-                n_res["metadata"]["metric"] = (
-                    data.get("details", {}).get("metrics", {})[0].get("result", {})
-                )
 
-        logs = pd.DataFrame(res)
+        logs = pd.DataFrame(res.get("details").get("dashboards"))
         logs.drop(
             columns=[
                 "max_features",
@@ -2025,10 +1770,12 @@ class Project(BaseModel):
                 "baseline_date",
                 "current_date",
                 "task_id",
+                "type",
                 "date_feature",
                 "stat_test_threshold",
                 "project_name",
                 "file_id",
+                "metadata",
                 "updated_at",
                 "features_to_use",
             ],
@@ -2036,31 +1783,6 @@ class Project(BaseModel):
             errors="ignore",
         )
         return logs
-
-    def get_dashboard_metadata(self, type: str, dashboard_id: str) -> Dashboard:
-        """get dashboard
-
-        :param type: type of the dashboard
-        :param dashboard_id: id of dashboard
-        :return: Dashboard
-        """
-        Validate.value_against_list(
-            "type",
-            type,
-            DASHBOARD_TYPES,
-        )
-
-        res = self.api_client.get(
-            f"{GET_DASHBOARD_URI}?type={type}&project_name={self.project_name}&dashboard_id={dashboard_id}"
-        )
-
-        if not res["success"]:
-            raise Exception(res.get("details", "Failed to get dashboard"))
-
-        auth_token = self.api_client.get_auth_token()
-        query_params = f"?project_name={self.project_name}&type={type}&dashboard_id={dashboard_id}&access_token={auth_token}"
-
-        return res
 
     def get_dashboard_log_data(self, type: str):
         """get all dashboard
@@ -2070,7 +1792,7 @@ class Project(BaseModel):
         Validate.value_against_list(
             "type",
             type,
-            DASHBOARD_TYPES,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
         )
         self.api_client.refresh_bearer_token()
         auth_token = self.api_client.get_auth_token()
@@ -2105,7 +1827,7 @@ class Project(BaseModel):
         Validate.value_against_list(
             "type",
             type,
-            DASHBOARD_TYPES,
+            ["data_drift", "target_drift", "performance", "biasmonitoring"],
         )
 
         res = self.api_client.get(
@@ -2215,17 +1937,155 @@ class Project(BaseModel):
                 }
         :return: response
         """
+        Validate.value_against_list(
+            "trigger_type",
+            payload["trigger_type"],
+            ["Data Drift", "Target Drift", "Model Performance"],
+        )
+
         payload["project_name"] = self.project_name
 
-        required_payload_keys = [
-            "trigger_type",
-            "priority",
-            "mail_list",
-            "frequency",
-            "trigger_name",
-        ]
+        # validate tags and labels
+        tags_info = self.available_tags()
+        all_tags = tags_info["alltags"]
 
-        Validate.check_for_missing_keys(payload, required_payload_keys)
+        if payload["trigger_type"] == "Data Drift":
+            Validate.check_for_missing_keys(payload, DATA_DRIFT_TRIGGER_REQUIRED_FIELDS)
+
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
+            )
+
+            try:
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
+            Validate.value_against_list(
+                "stat_test_name", payload["stat_test_name"], DATA_DRIFT_STAT_TESTS
+            )
+            if payload.get("features_to_use"):
+                Validate.value_against_list(
+                    "features_to_use",
+                    payload.get("features_to_use", []),
+                    tags_info["alluniquefeatures"],
+                )
+            if payload.get("dataset_drift_percentage"):
+                payload["datadrift_features_per"] = payload.get(
+                    "dataset_drift_percentage"
+                )
+        elif payload["trigger_type"] == "Target Drift":
+            Validate.check_for_missing_keys(
+                payload, TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS
+            )
+
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
+            )
+            try:
+                Validate.value_against_list(
+                    "current_tag", payload["current_tag"], all_tags
+                )
+            except Exception as e:
+                print(f"monitor created for new tag {payload['current_tag']}")
+
+            Validate.value_against_list(
+                "model_type", payload["model_type"], MODEL_TYPES
+            )
+
+            if payload["model_type"] == "classification":
+                Validate.value_against_list(
+                    "stat_test_name",
+                    payload["stat_test_name"],
+                    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
+                )
+
+            if payload["model_type"] == "regression":
+                Validate.value_against_list(
+                    "stat_test_name",
+                    payload["stat_test_name"],
+                    TARGET_DRIFT_STAT_TESTS_REGRESSION,
+                )
+
+            Validate.value_against_list(
+                "baseline_true_label",
+                [payload["baseline_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
+
+            Validate.value_against_list(
+                "current_true_label",
+                [payload["current_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
+        elif payload["trigger_type"] == "Model Performance":
+            Validate.check_for_missing_keys(payload, MODEL_PERF_TRIGGER_REQUIRED_FIELDS)
+
+            Validate.value_against_list(
+                "base_line_tag", payload["base_line_tag"], all_tags
+            )
+
+            Validate.value_against_list(
+                "model_type", payload["model_type"], MODEL_TYPES
+            )
+
+            Validate.value_against_list(
+                "baseline_true_label",
+                [payload["baseline_true_label"]],
+                tags_info["alluniquefeatures"],
+            )
+
+            Validate.value_against_list(
+                "baseline_pred_label",
+                [payload["baseline_pred_label"]],
+                tags_info["alluniquefeatures"],
+            )
+
+            if payload["model_type"] == "classification":
+                if not payload["class_label"]:
+                    raise Exception(
+                        "class_label is required for classification model type."
+                    )
+
+                all_class_label = self.get_labels(payload["baseline_true_label"])
+
+                Validate.value_against_list(
+                    "class_label", payload["class_label"], all_class_label
+                )
+
+                Validate.value_against_list(
+                    "model_performance_metric",
+                    payload["model_performance_metric"],
+                    MODEL_PERF_METRICS_CLASSIFICATION,
+                )
+
+            if payload["model_type"] == "regression":
+                Validate.value_against_list(
+                    "model_performance_metric",
+                    payload["model_performance_metric"],
+                    MODEL_PERF_METRICS_REGRESSION,
+                )
+
+        else:
+            raise Exception(
+                'Invalid trigger type. Please use one of ["Data Drift", "Target Drift", "Model Performance"]'
+            )
+
+        Validate.value_against_list("frequency", payload["frequency"], MAIL_FREQUENCIES)
+
+        Validate.validate_date_feature_val(payload, tags_info["alldatetimefeatures"])
+
+        if payload.get("instance_type"):
+            custom_batch_servers = self.api_client.get(AVAILABLE_BATCH_SERVERS_URI)
+            Validate.value_against_list(
+                "instance_type",
+                payload["instance_type"],
+                [
+                    server["instance_name"]
+                    for server in custom_batch_servers.get("details", [])
+                ],
+            )
 
         payload = {
             "project_name": self.project_name,
@@ -2302,11 +2162,11 @@ class Project(BaseModel):
 
         trigger_info = trigger_info["details"]
 
-        detailed_report = trigger_info.get("detailed_report")
-        not_used_features = trigger_info.get("Not_Used_Features")
+        detailed_report = trigger_info["detailed_report"]
+        not_used_features = trigger_info["Not_Used_Features"]
 
-        trigger_info.pop("detailed_report", None)
-        trigger_info.pop("Not_Used_Features", None)
+        del trigger_info["detailed_report"]
+        del trigger_info["Not_Used_Features"]
 
         return Alert(
             info=trigger_info,
@@ -3143,10 +3003,6 @@ class Project(BaseModel):
         self,
         data_connector_name: str,
         tag: str,
-        model_path: Optional[str] = None,
-        model_name: Optional[str] = None,
-        model_architecture: Optional[str] = None,
-        model_type: Optional[str] = None,
         bucket_name: Optional[str] = None,
         file_path: Optional[str] = None,
         config: Optional[ProjectConfig] = None,
@@ -3203,13 +3059,18 @@ class Project(BaseModel):
         else:
             return connectors
 
-        def upload_file_and_return_path(file_path, data_type, tag=None) -> str:
+        def upload_file_and_return_path() -> str:
             if not self.project_name:
                 return "Missing Project Name"
-            query_params = f"project_name={self.project_name}&link_service_name={data_connector_name}&data_type={data_type}&tag={tag}&bucket_name={bucket_name}&file_path={file_path}"
             if self.organization_id:
-                query_params += f"&organization_id={self.organization_id}"
-            res = self.api_client.post(f"{UPLOAD_FILE_DATA_CONNECTORS}?{query_params}")
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&organization_id={self.organization_id}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}"
+                )
+            else:
+                res = self.api_client.post(
+                    f"{UPLOAD_FILE_DATA_CONNECTORS}?project_name={self.project_name}&link_service_name={data_connector_name}&data_type=data&tag={tag}&bucket_name={bucket_name}&file_path={file_path}"
+                )
+
             if not res["success"]:
                 raise Exception(res.get("details"))
             uploaded_path = res.get("metadata").get("filepath")
@@ -3219,122 +3080,92 @@ class Project(BaseModel):
         project_config = self.config()
 
         if project_config == "Not Found":
-            if self.metadata.get("modality") == "image":
-                if (
-                    not model_path
-                    or not model_architecture
-                    or not model_type
-                    or not model_name
-                ):
-                    raise Exception("Model details is required for Image project type")
-
-                uploaded_path = upload_file_and_return_path(file_path, "data", tag)
-
-                model_uploaded_path = upload_file_and_return_path(model_path, "model")
-
-                payload = {
-                    "project_name": self.project_name,
-                    "project_type": self.metadata.get("project_type"),
-                    "metadata": {
-                        "path": uploaded_path,
-                        "model_name": model_name,
-                        "model_path": model_uploaded_path,
-                        "model_architecture": model_architecture,
-                        "model_type": model_type,
-                        "tag": tag,
-                        "tags": [tag],
-                    },
+            if not config:
+                config = {
+                    "project_type": "",
+                    "unique_identifier": "",
+                    "true_label": "",
+                    "pred_label": "",
+                    "feature_exclude": [],
+                    "drop_duplicate_uid": False,
+                    "handle_errors": False,
                 }
-
-            if self.metadata.get("modality") == "tabular":
-                if not config:
-                    config = {
-                        "project_type": "",
-                        "unique_identifier": "",
-                        "true_label": "",
-                        "pred_label": "",
-                        "feature_exclude": [],
-                        "drop_duplicate_uid": False,
-                        "handle_errors": False,
-                    }
-                    raise Exception(
-                        f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
-                    )
-
-                Validate.check_for_missing_keys(
-                    config, ["project_type", "unique_identifier", "true_label"]
+                raise Exception(
+                    f"Project Config is required, since no config is set for project \n {json.dumps(config,indent=1)}"
                 )
 
+            Validate.check_for_missing_keys(
+                config, ["project_type", "unique_identifier", "true_label"]
+            )
+
+            Validate.value_against_list(
+                "project_type", config, ["classification", "regression"]
+            )
+
+            uploaded_path = upload_file_and_return_path()
+
+            file_info = self.api_client.post(
+                UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
+            )
+
+            column_names = file_info.get("details").get("column_names")
+
+            Validate.value_against_list(
+                "unique_identifier",
+                config["unique_identifier"],
+                column_names,
+                lambda: self.delete_file(uploaded_path),
+            )
+
+            if config.get("feature_exclude"):
                 Validate.value_against_list(
-                    "project_type", config, ["classification", "regression"]
-                )
-
-                uploaded_path = upload_file_and_return_path(file_path, "data", tag)
-
-                file_info = self.api_client.post(
-                    UPLOAD_DATA_FILE_INFO_URI, {"path": uploaded_path}
-                )
-
-                column_names = file_info.get("details").get("column_names")
-
-                Validate.value_against_list(
-                    "unique_identifier",
-                    config["unique_identifier"],
+                    "feature_exclude",
+                    config["feature_exclude"],
                     column_names,
                     lambda: self.delete_file(uploaded_path),
                 )
 
-                if config.get("feature_exclude"):
-                    Validate.value_against_list(
-                        "feature_exclude",
-                        config["feature_exclude"],
-                        column_names,
-                        lambda: self.delete_file(uploaded_path),
-                    )
+            feature_exclude = [
+                config["unique_identifier"],
+                config["true_label"],
+                *config.get("feature_exclude", []),
+            ]
 
-                feature_exclude = [
-                    config["unique_identifier"],
-                    config["true_label"],
-                    *config.get("feature_exclude", []),
-                ]
+            feature_include = [
+                feature for feature in column_names if feature not in feature_exclude
+            ]
 
-                feature_include = [
-                    feature
-                    for feature in column_names
-                    if feature not in feature_exclude
-                ]
+            feature_encodings = config.get("feature_encodings", {})
+            if feature_encodings:
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.keys()),
+                    column_names,
+                )
+                Validate.value_against_list(
+                    "feature_encodings_feature",
+                    list(feature_encodings.values()),
+                    ["labelencode", "countencode", "onehotencode"],
+                )
 
-                feature_encodings = config.get("feature_encodings", {})
-                if feature_encodings:
-                    Validate.value_against_list(
-                        "feature_encodings_feature",
-                        list(feature_encodings.keys()),
-                        column_names,
-                    )
-                    Validate.value_against_list(
-                        "feature_encodings_feature",
-                        list(feature_encodings.values()),
-                        ["labelencode", "countencode", "onehotencode"],
-                    )
-
-                payload = {
-                    "project_name": self.project_name,
-                    "project_type": config["project_type"],
-                    "unique_identifier": config["unique_identifier"],
-                    "true_label": config["true_label"],
-                    "pred_label": config.get("pred_label"),
-                    "metadata": {
-                        "path": uploaded_path,
-                        "tag": tag,
-                        "tags": [tag],
-                        "drop_duplicate_uid": config.get("drop_duplicate_uid"),
-                        "handle_errors": config.get("handle_errors", False),
-                        "feature_exclude": feature_exclude,
-                        "feature_include": feature_include,
-                        "feature_encodings": feature_encodings,
-                        "feature_actual_used": [],
-                    },
-                }
+            payload = {
+                "project_name": self.project_name,
+                "project_type": config["project_type"],
+                "unique_identifier": config["unique_identifier"],
+                "true_label": config["true_label"],
+                "pred_label": config.get("pred_label"),
+                "metadata": {
+                    "path": uploaded_path,
+                    "tag": tag,
+                    "tags": [tag],
+                    "drop_duplicate_uid": config.get("drop_duplicate_uid"),
+                    "handle_errors": config.get("handle_errors", False),
+                    "feature_exclude": feature_exclude,
+                    "feature_include": feature_include,
+                    "feature_encodings": feature_encodings,
+                    "feature_actual_used": [],
+                },
+            }
 
             res = self.api_client.post(UPLOAD_DATA_WITH_CHECK_URI, payload)
 
@@ -3349,7 +3180,7 @@ class Project(BaseModel):
         if project_config != "Not Found" and config:
             raise Exception("Config already exists, please remove config")
 
-        uploaded_path = upload_file_and_return_path(file_path, "data", tag)
+        uploaded_path = upload_file_and_return_path()
 
         payload = {
             "path": uploaded_path,
@@ -3449,24 +3280,23 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        if self.metadata.get("modality") == "tabular":
-            prediction_path_payload = {
-                "project_name": self.project_name,
-                "unique_identifier": unique_identifer,
-                "case_id": case_id,
-                "model_name": res["details"]["model_name"],
-                "data_id": res["details"]["data_id"],
-                "instance_type": instance_type,
-            }
+        prediction_path_payload = {
+            "project_name": self.project_name,
+            "unique_identifier": unique_identifer,
+            "case_id": case_id,
+            "model_name": res["details"]["model_name"],
+            "data_id": res["details"]["data_id"],
+            "instance_type": instance_type,
+        }
 
-            dtree_res = self.api_client.post(CASE_DTREE_URI, prediction_path_payload)
-            if dtree_res["success"]:
-                res["details"]["case_prediction_svg"] = dtree_res["details"][
-                    "case_prediction_svg"
-                ]
-                res["details"]["case_prediction_path"] = dtree_res["details"][
-                    "case_prediction_path"
-                ]
+        dtree_res = self.api_client.post(CASE_DTREE_URI, prediction_path_payload)
+        if dtree_res["success"]:
+            res["details"]["case_prediction_svg"] = dtree_res["details"][
+                "case_prediction_svg"
+            ]
+            res["details"]["case_prediction_path"] = dtree_res["details"][
+                "case_prediction_path"
+            ]
 
         case = Case(**res["details"])
 
@@ -3548,8 +3378,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get viewed case"))
 
-        data = {**res["details"], **res["details"].get("result", {})}
-        case = Case(**data)
+        case = Case(**res["details"])
 
         return case
 
