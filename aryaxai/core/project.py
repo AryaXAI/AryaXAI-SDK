@@ -999,6 +999,7 @@ class Project(BaseModel):
         :param model_test_tags: test tags for model (optional)
         :param instance_type: instance to be used for uploading model (optional)
         :param explainability_method: explainability method to be used while uploading model ["shap", "lime"] (optional)
+        :param feature_list: list of features to be passed in the model (optional)
         """
 
         def upload_file_and_return_path() -> str:
