@@ -14,6 +14,7 @@ class Case(BaseModel):
     observations: List
     shap_feature_importance: Optional[Dict] = {}
     lime_feature_importance: Optional[Dict] = {}
+    ig_features_importance: Optional[Dict] = {}
     similar_cases: List
     is_automl_prediction: Optional[bool] = False
     model_name: str
@@ -53,6 +54,43 @@ class Case(BaseModel):
                 go.Bar(
                     x=list(self.shap_feature_importance.values()),
                     y=list(self.shap_feature_importance.keys()),
+                    orientation="h",
+                )
+            )
+        fig.update_layout(
+            barmode="relative",
+            height=800,
+            width=800,
+            yaxis_autorange="reversed",
+            bargap=0.01,
+            legend_orientation="h",
+            legend_x=0.1,
+            legend_y=1.1,
+        )
+        fig.show(config={"displaylogo": False})
+
+    def explainability_ig_feature_importance(self):
+        """Plots IG Feature Importance chart"""
+        fig = go.Figure()
+
+        if len(list(self.ig_features_importance.values())) < 1:
+            return "No IG Feature Importance for the case"
+
+        if isinstance(list(self.ig_features_importance.values())[0], dict):
+            for col in self.ig_features_importance.keys():
+                fig.add_trace(
+                    go.Bar(
+                        x=list(self.ig_features_importance[col].values()),
+                        y=list(self.ig_features_importance[col].keys()),
+                        orientation="h",
+                        name=col,
+                    )
+                )
+        else:
+            fig.add_trace(
+                go.Bar(
+                    x=list(self.ig_features_importance.values()),
+                    y=list(self.ig_features_importance.keys()),
                     orientation="h",
                 )
             )
