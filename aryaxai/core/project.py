@@ -3526,6 +3526,7 @@ class Project(BaseModel):
         case_logs_df = pd.DataFrame(
             res["details"]["logs"],
             columns=[
+                "case_log_id",
                 "case_id",
                 "unique_identifier",
                 "tag",
@@ -3534,6 +3535,8 @@ class Project(BaseModel):
                 "created_at",
             ],
         )
+        case_logs_df["case_log_id"] = case_logs_df["case_id"].astype(str)
+        case_logs_df.drop(columns=["case_id"], inplace=True)
 
         return case_logs_df
 
