@@ -91,6 +91,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_MODELS_URI,
     GET_SYNTHETIC_PROMPT_URI,
     GET_VIEWED_CASE_URI,
+    IMAGE_DL,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
@@ -100,6 +101,8 @@ from aryaxai.common.xai_uris import (
     SEARCH_CASE_URI,
     START_CUSTOM_SERVER_URI,
     STOP_CUSTOM_SERVER_URI,
+    TABULAR_DL,
+    TABULAR_ML,
     TAG_DATA_URI,
     TRAIN_MODEL_URI,
     TRAIN_SYNTHETIC_MODEL_URI,
@@ -167,6 +170,7 @@ class Project(BaseModel):
                 }
             },
         }
+        print(UPDATE_PROJECT_URI)
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         self.user_project_name = new_project_name
         return res.get("details")
@@ -4617,7 +4621,6 @@ class Project(BaseModel):
         :return: _description_
         """
         url = f"{GET_SYNTHETIC_PROMPT_URI}?project_name={self.project_name}"
-
         res = self.api_client.get(url)
 
         if not res["success"]:
@@ -4633,6 +4636,44 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
+    
+    def evals_ml_tabular(self, model_name: str):
+        """get evals for ml tabular model
+
+        :param model_name: model name
+        :return: evals
+        """
+        url = f"{TABULAR_ML}?model_name={model_name}&project_name={self.project_name}"
+        res = self.api_client.post(url)
+        if not res["success"]:
+            raise Exception(res["message"])
+
+        return pd.DataFrame(res["attributions"])
+    
+    def evals_dl_tabular(self, model_name: str):
+        """get evals for ml tabular model
+
+        :param model_name: model name
+        :return: evals
+        """
+        url = f"{TABULAR_DL}?model_name={model_name}&project_name={self.project_name}"
+        res = self.api_client.post(url)
+        if not res["success"]:
+            raise Exception(res["message"])
+
+        return res["attributions"]
+    
+    def  evals_dl_image(self, model_name: str, unique_identifier: str):
+        """get evals for ml tabular model
+        :param model_name: model name
+        :return: evals
+        """
+        url = f"{IMAGE_DL}?model_name={model_name}&project_name={self.project_name}&unique_identifier={unique_identifier}"
+        res = self.api_client.post(url)
+        if not res["success"]:
+            raise Exception(res["message"])
+
+        return res["attributions"]
 
     def events(
         self,
