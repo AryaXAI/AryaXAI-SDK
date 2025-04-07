@@ -149,3 +149,8 @@ DROPBOX_OAUTH = f"{API_VERSION_V2}/linkservices/dropbox_auth"
 
 #Credits
 COMPUTE_CREDIT_URI = f"{API_VERSION_V2}/plans/compute_credit"
+
+#evals
+TABULAR_ML = f"{API_VERSION_V2}/evals/evals-tabular-ml"
+TABULAR_DL = f"{API_VERSION_V2}/evals/evals-tabular-dl"
+IMAGE_DL = f"{API_VERSION_V2}/evals/"
