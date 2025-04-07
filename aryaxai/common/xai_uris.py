@@ -147,7 +147,7 @@ DELETE_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/delete"
 UPLOAD_FILE_DATA_CONNECTORS = f"{API_VERSION_V2}/project/uploadfile_with_linkservices"
 DROPBOX_OAUTH = f"{API_VERSION_V2}/linkservices/dropbox_auth"
 
-#evals-image-dlCredits
+#Credits
 COMPUTE_CREDIT_URI = f"{API_VERSION_V2}/plans/compute_credit"
 
 #evals
