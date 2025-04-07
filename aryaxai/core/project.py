@@ -170,7 +170,6 @@ class Project(BaseModel):
                 }
             },
         }
-        print(UPDATE_PROJECT_URI)
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         self.user_project_name = new_project_name
         return res.get("details")
