@@ -4637,13 +4637,13 @@ class Project(BaseModel):
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
     
-    def evals_ml_tabular(self, model_name: str):
+    def evals_ml_tabular(self, model_name: str, tag: Optional[str] = ""):
         """get evals for ml tabular model
 
         :param model_name: model name
         :return: evals
         """
-        url = f"{TABULAR_ML}?model_name={model_name}&project_name={self.project_name}"
+        url = f"{TABULAR_ML}?model_name={model_name}&project_name={self.project_name}&tag={tag}"
         res = self.api_client.post(url)
         if not res["success"]:
             raise Exception(res["message"])
