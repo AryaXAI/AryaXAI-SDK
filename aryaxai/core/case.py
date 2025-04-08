@@ -404,3 +404,75 @@ class Case(BaseModel):
         )
 
         fig.show(config={"displaylogo": False})
+
+
+class CaseText(BaseModel):
+    model_name: str
+    status: str
+    prompt: str
+    output: str
+    explainabiblity: Optional[Dict] = {}
+
+    def get_prompt(self):
+        """Get prompt"""
+        return self.prompt
+    
+    def get_output(self):
+        """Get output"""
+        return self.output
+    
+
+    def explainability_raw_data(self) -> pd.DataFrame:
+        """Explainability Raw Data
+
+        :return: raw data dataframe
+        """
+        raw_data_df = (
+            pd.DataFrame([self.explainabiblity.get("feature_importance", {})])
+            .transpose()
+            .reset_index()
+            .rename(columns={"index": "Feature", 0: "Value"})
+            .sort_values(by="Value", ascending=False)
+        )
+        return raw_data_df
+    
+    def explainability_feature_importance(self):
+        """Plots Feature Importance chart"""
+        fig = go.Figure()
+        feature_importance = self.explainabiblity.get("feature_importance", {})
+
+        if not feature_importance:
+            return "No Feature Importance for the case"
+        raw_data_df = (
+            pd.DataFrame([feature_importance])
+            .transpose()
+            .reset_index()
+            .rename(columns={"index": "Feature", 0: "Value"})
+            .sort_values(by="Value", ascending=False)
+        )
+        fig.add_trace(
+            go.Bar(
+                x=raw_data_df["Value"],
+                y=raw_data_df["Feature"],
+                orientation="h"
+            )
+        )
+        fig.update_layout(
+            barmode="relative",
+            height=max(400, len(raw_data_df) * 20),
+            width=800,
+            yaxis=dict(
+                autorange="reversed",
+                tickmode="array",
+                tickvals=list(raw_data_df["Feature"]),
+                ticktext=list(raw_data_df["Feature"]),
+                tickfont=dict(size=10),
+            ),
+            bargap=0.01,
+            margin=dict(l=150, r=20, t=30, b=30),
+            legend_orientation="h",
+            legend_x=0.1,
+            legend_y=0.5,
+        )
+
+        fig.show(config={"displaylogo": False})

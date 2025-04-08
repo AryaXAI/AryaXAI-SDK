@@ -134,7 +134,7 @@ import json
 import io
 from aryaxai.core.alert import Alert
 
-from aryaxai.core.case import Case
+from aryaxai.core.case import Case, CaseText
 from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import DASHBOARD_TYPES, Dashboard
@@ -3462,7 +3462,7 @@ class Project(BaseModel):
         }
         if self.metadata.get("modality") == "text":
             res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
-            return res.get("details")
+            return CaseText(**res["details"])
         else:
             res = self.api_client.post(CASE_INFO_URI, payload)
         if not res["success"]:
