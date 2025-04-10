@@ -48,8 +48,10 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_CUSTOM_SERVERS_URI,
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     AVAILABLE_TAGS_URI,
+    CASE_INFO_TEXT_URI,
     CASE_INFO_URI,
     CASE_DTREE_URI,
+    CASE_LOGS_TEXT_URI,
     CASE_LOGS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_OBSERVATION_URI,
@@ -95,6 +97,7 @@ from aryaxai.common.xai_uris import (
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_SUMMARY_URI,
+    PROJECT_OVERVIEW_TEXT_URI,
     REMOVE_MODEL_URI,
     RUN_DATA_DRIFT_DIAGNOSIS_URI,
     RUN_MODEL_ON_DATA_URI,
@@ -131,7 +134,7 @@ import json
 import io
 from aryaxai.core.alert import Alert
 
-from aryaxai.core.case import Case
+from aryaxai.core.case import Case, CaseText
 from aryaxai.core.model_summary import ModelSummary
 
 from aryaxai.core.dashboard import DASHBOARD_TYPES, Dashboard
@@ -2763,10 +2766,16 @@ class Project(BaseModel):
         :param model_name: name of the model, defaults to active model for project
         :return: model summary
         """
-        res = self.api_client.get(
-            f"{MODEL_SUMMARY_URI}?project_name={self.project_name}"
-            + (f"&model_name={model_name}" if model_name else "")
-        )
+        if self.metadata.get("modality") == "text":
+            res = self.api_client.post(
+                f"{PROJECT_OVERVIEW_TEXT_URI}?project_name={self.project_name}"
+            )
+            return res.get("details")
+        else:
+            res = self.api_client.get(
+                f"{MODEL_SUMMARY_URI}?project_name={self.project_name}"
+                + (f"&model_name={model_name}" if model_name else "")
+            )
 
         if not res["success"]:
             raise Exception(res["details"])
@@ -3450,8 +3459,11 @@ class Project(BaseModel):
             "instance_type": instance_type,
             "components": components,
         }
-
-        res = self.api_client.post(CASE_INFO_URI, payload)
+        if self.metadata.get("modality") == "text":
+            res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
+            return CaseText(**res["details"])
+        else:
+            res = self.api_client.post(CASE_INFO_URI, payload)
         if not res["success"]:
             raise Exception(res["details"])
 
@@ -3519,9 +3531,14 @@ class Project(BaseModel):
         :return: Case object with details
         """
 
-        res = self.api_client.get(
-            f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
-        )
+        if self.metadata.get("modality") == "text":
+            res = self.api_client.get(
+                f"{CASE_LOGS_TEXT_URI}?project_name={self.project_name}&page={page}"
+            )
+        else:
+            res = self.api_client.get(
+                f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
+            )
 
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get case logs"))
