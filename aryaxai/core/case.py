@@ -413,11 +413,11 @@ class CaseText(BaseModel):
     output: str
     explainabiblity: Optional[Dict] = {}
 
-    def get_prompt(self):
+    def prompt(self):
         """Get prompt"""
         return self.prompt
     
-    def get_output(self):
+    def output(self):
         """Get output"""
         return self.output
     
