@@ -1103,7 +1103,7 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
             "explainability_method": explainability_method,
-            "feature_list":feature_list
+            "feature_list": feature_list,
         }
 
         if instance_type:
@@ -2016,15 +2016,6 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get all dashboard"))
         res = res.get("details").get("dashboards")
-        for n_res in res:
-            data = self.get_dashboard_metadata(n_res.get("type"), str(n_res.get("_id")))
-            n_res["metadata"] = {}
-            n_res["metadata"]["config"] = {}
-            n_res["metadata"]["config"] = data.get("config")
-            if self.metadata.get("modality") == "tabular":
-                n_res["metadata"]["metric"] = (
-                    data.get("details", {}).get("metrics", {})[0].get("result", {})
-                )
 
         logs = pd.DataFrame(res)
         logs.drop(
@@ -4502,9 +4493,10 @@ class Project(BaseModel):
             all_tags,
         )
 
-        payload = {"project_name": self.project_name, "tag": tag}
-
-        res = self.api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
+        res = self.api_client.base_request(
+            "GET",
+            f"{DOWNLOAD_SYNTHETIC_DATA_URI}?project_name={self.project_name}&tag={tag}&token={self.api_client.get_auth_token()}",
+        )
 
         synthetic_data = pd.read_csv(io.StringIO(res.content.decode("utf-8")))
 
@@ -4652,7 +4644,7 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
-    
+
     def evals_ml_tabular(self, model_name: str, tag: Optional[str] = ""):
         """get evals for ml tabular model
 
@@ -4665,7 +4657,7 @@ class Project(BaseModel):
             raise Exception(res["message"])
 
         return pd.DataFrame(res["attributions"])
-    
+
     def evals_dl_tabular(self, model_name: str):
         """get evals for ml tabular model
 
@@ -4678,8 +4670,8 @@ class Project(BaseModel):
             raise Exception(res["message"])
 
         return res["attributions"]
-    
-    def  evals_dl_image(self, model_name: str, unique_identifier: str):
+
+    def evals_dl_image(self, model_name: str, unique_identifier: str):
         """get evals for ml tabular model
         :param model_name: model name
         :return: evals
