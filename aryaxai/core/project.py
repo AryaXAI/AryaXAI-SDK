@@ -96,6 +96,7 @@ from aryaxai.common.xai_uris import (
     IMAGE_DL,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
+    MODEL_PERFORMANCE_DASHBOARD_URI,
     MODEL_SUMMARY_URI,
     PROJECT_OVERVIEW_TEXT_URI,
     REMOVE_MODEL_URI,
@@ -2319,12 +2320,22 @@ class Project(BaseModel):
         get model performance dashboard
         """
         auth_token = self.api_client.get_auth_token()
-        query_params = f"?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
+        dashboard_query_params = f"?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
+        raw_data_query_params = f"?project_name={self.project_name}"
 
         if model_name:
-            query_params = f"{query_params}&model_name={model_name}"
+            dashboard_query_params = f"{dashboard_query_params}&model_name={model_name}"
+            raw_data_query_params = f"{raw_data_query_params}&model_name={model_name}"
 
-        return Dashboard(config={}, query_params=query_params, raw_data={})
+        raw_data = self.api_client.get(
+            f"{MODEL_PERFORMANCE_DASHBOARD_URI}{raw_data_query_params}"
+        )
+
+        return Dashboard(
+            config={},
+            query_params=dashboard_query_params,
+            raw_data=raw_data.get("details"),
+        )
 
     def model_parameters(self) -> dict:
         """Model Parameters
