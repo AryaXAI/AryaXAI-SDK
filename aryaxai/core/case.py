@@ -15,6 +15,7 @@ class Case(BaseModel):
     shap_feature_importance: Optional[Dict] = {}
     lime_feature_importance: Optional[Dict] = {}
     ig_features_importance: Optional[Dict] = {}
+    dlb_feature_importance: Optional[Dict] = {}
     similar_cases: List
     is_automl_prediction: Optional[bool] = False
     model_name: str
@@ -128,6 +129,42 @@ class Case(BaseModel):
                 go.Bar(
                     x=list(self.lime_feature_importance.values()),
                     y=list(self.lime_feature_importance.keys()),
+                    orientation="h",
+                )
+            )
+        fig.update_layout(
+            barmode="relative",
+            height=800,
+            width=800,
+            yaxis_autorange="reversed",
+            bargap=0.01,
+            legend_orientation="h",
+            legend_x=0.1,
+            legend_y=1.1,
+        )
+        fig.show(config={"displaylogo": False})
+
+    def explainability_dlb_feature_importance(self):
+        """Plots DLB Feature Importance chart"""
+        fig = go.Figure()
+        if len(list(self.dlb_feature_importance.values())) < 1:
+            return "No DLB Feature Importance for the case"
+
+        if isinstance(list(self.dlb_feature_importance.values())[0], dict):
+            for col in self.dlb_feature_importance.keys():
+                fig.add_trace(
+                    go.Bar(
+                        x=list(self.dlb_feature_importance[col].values()),
+                        y=list(self.dlb_feature_importance[col].keys()),
+                        orientation="h",
+                        name=col,
+                    )
+                )
+        else:
+            fig.add_trace(
+                go.Bar(
+                    x=list(self.dlb_feature_importance.values()),
+                    y=list(self.dlb_feature_importance.keys()),
                     orientation="h",
                 )
             )
