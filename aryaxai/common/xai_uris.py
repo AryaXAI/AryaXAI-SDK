@@ -105,6 +105,7 @@ DUPLICATE_MONITORS_URI = f"{API_VERSION_V2}/triggers/duplicate_monitors"
 EXECUTED_TRIGGER_URI = f"{API_VERSION_V2}/triggers/get_executed_triggers"
 GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION_V2}/triggers/get_trigger_details"
 GET_LABELS_URI = f"{API_VERSION_V2}/triggers/get_label_classes"
+GET_TRIGGERS_DAYS_URI = f"{API_VERSION_V2}/triggers/get_alerts"
 
 # Synthetic AI
 AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI = f"{API_VERSION_V2}/synthetics/custom_servers"
