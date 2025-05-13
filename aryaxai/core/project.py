@@ -3485,7 +3485,7 @@ class Project(BaseModel):
                 res["details"]["case_prediction_path"] = dtree_res["details"][
                     "case_prediction_path"
                 ]
-
+        res["details"]["project_name"] = self.project_name
         case = Case(**res["details"])
 
         return case
@@ -3575,6 +3575,7 @@ class Project(BaseModel):
             raise Exception(res.get("details", "Failed to get viewed case"))
 
         data = {**res["details"], **res["details"].get("result", {})}
+        data["api_client"] = self.api_client
         case = Case(**data)
 
         return case
