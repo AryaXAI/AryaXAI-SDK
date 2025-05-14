@@ -73,6 +73,7 @@ from aryaxai.common.xai_uris import (
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_CASES_URI,
+    GET_DASHBOARD_SCORE_URI,
     GET_DASHBOARD_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_DRIFT_DIAGNOSIS_URI,
@@ -81,6 +82,7 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
+    GET_MONITORS_ALERTS,
     GET_NOTIFICATIONS_URI,
     GET_OBSERVATION_PARAMS_URI,
     GET_OBSERVATIONS_URI,
@@ -2045,6 +2047,31 @@ class Project(BaseModel):
             errors="ignore",
         )
         return logs
+    
+    def get_score(self, dashboard_id, feature_name):
+        resp = self.api_client.get(f"{GET_DASHBOARD_SCORE_URI}?project_name={self.project_name}&dashboard_id={dashboard_id}&feature_name={feature_name}")
+        resp = resp.get("details").get("dashboards")
+        logs = pd.DataFrame(resp)
+        logs.drop(
+            columns=[
+                "max_features",
+                "limit_features",
+                "baseline_date",
+                "current_date",
+                "task_id",
+                "date_feature",
+                "stat_test_threshold",
+                "project_name",
+                "file_id",
+                "updated_at",
+                "features_to_use",
+            ],
+            inplace=True,
+            errors="ignore",
+        )
+        column_drift_results = logs.metadata[0].get("DatasetColumnDriftResults")
+        matched_column_info = next((item for item in column_drift_results if item.get("column_name") == feature_name), None)
+        return matched_column_info
 
     def get_dashboard_metadata(self, type: str, dashboard_id: str) -> Dashboard:
         """get dashboard
@@ -2322,6 +2349,12 @@ class Project(BaseModel):
             detailed_report=detailed_report,
             not_used_features=not_used_features,
         )
+    
+    def get_monitors_alerts(self, monitor_id: str, time: int):
+        url = f"{GET_MONITORS_ALERTS}?project_name={self.project_name}&monitor_id={monitor_id}&time={time}"
+        res = self.api_client.get(url)
+        data = pd.DataFrame(res.get("details"))
+        return data
 
     def get_model_performance(self, model_name: str = None) -> Dashboard:
         """

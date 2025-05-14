@@ -405,6 +405,15 @@ class Case(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
+    def feature_importance(self, feature: str):
+        if self.shap_feature_importance:
+            return self.shap_feature_importance.get(feature, {})
+        elif self.lime_feature_importance:
+            return self.lime_feature_importance.get(feature, {})
+        elif self.ig_features_importance:
+            return self.ig_features_importance.get(feature, {})
+        else:
+            return "No Feature Importance found for the case"
 
 class CaseText(BaseModel):
     model_name: str
