@@ -82,6 +82,7 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
+    GET_MONITORS_ALERTS,
     GET_NOTIFICATIONS_URI,
     GET_OBSERVATION_PARAMS_URI,
     GET_OBSERVATIONS_URI,
@@ -2348,6 +2349,12 @@ class Project(BaseModel):
             detailed_report=detailed_report,
             not_used_features=not_used_features,
         )
+    
+    def get_monitors_alerts(self, monitor_id: str, time: int):
+        url = f"{GET_MONITORS_ALERTS}?project_name={self.project_name}&monitor_id={monitor_id}&time={time}"
+        res = self.api_client.get(url)
+        data = pd.DataFrame(res.get("details"))
+        return data
 
     def get_model_performance(self, model_name: str = None) -> Dashboard:
         """
