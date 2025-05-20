@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 import pandas as pd
 from IPython.display import SVG, display
+from aryaxai.client.client import APIClient
+from aryaxai.common.xai_uris import GET_TRIGGERS_DAYS_URI
 
 
 class Case(BaseModel):
@@ -29,9 +31,17 @@ class Case(BaseModel):
     created_at: Optional[str] = ""
     data: Optional[Dict] = {}
     similar_cases_data: Optional[List] = []
+    audit_trails: Optional[dict] = {}
+    project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
 
     model_config = ConfigDict(protected_namespaces=())
+
+    api_client: APIClient
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.api_client = kwargs.get("api_client")
 
     def explainability_shap_feature_importance(self):
         """Plots Shap Feature Importance chart"""
@@ -442,6 +452,16 @@ class Case(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
+    def alerts_trail(self, page_num: Optional[int] = 1, days: Optional[int] = 7):
+        resp = self.api_client.post(f"{GET_TRIGGERS_DAYS_URI}?project_name={self.project_name}&page_num={page_num}&days={days}", payload)
+        if resp.get("details"):
+            return pd.DataFrame(resp.get("details"))
+        else:
+            return "No alerts found."
+
+    def audit(self):
+        return self.audit_trails
+      
     def feature_importance(self, feature: str):
         if self.shap_feature_importance:
             return self.shap_feature_importance.get(feature, {})
