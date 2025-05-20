@@ -59,6 +59,7 @@ MODEL_PERFORMANCE_DASHBOARD_URI = (
 DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_logs"
 GET_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/get_dashboard"
 DOWNLOAD_DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/download_dashboard_logs"
+GET_DASHBOARD_SCORE_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_score"
 
 # Auto ML
 MODEL_PARAMETERS_URI = f"{API_VERSION_V2}/users/get_xai_model_parameters"
@@ -106,6 +107,7 @@ EXECUTED_TRIGGER_URI = f"{API_VERSION_V2}/triggers/get_executed_triggers"
 GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION_V2}/triggers/get_trigger_details"
 GET_LABELS_URI = f"{API_VERSION_V2}/triggers/get_label_classes"
 GET_TRIGGERS_DAYS_URI = f"{API_VERSION_V2}/triggers/get_alerts"
+GET_MONITORS_ALERTS = f"{API_VERSION_V2}/triggers/get_monitors_alerts"
 
 # Synthetic AI
 AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI = f"{API_VERSION_V2}/synthetics/custom_servers"
