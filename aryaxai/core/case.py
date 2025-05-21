@@ -31,7 +31,7 @@ class Case(BaseModel):
     created_at: Optional[str] = ""
     data: Optional[Dict] = {}
     similar_cases_data: Optional[List] = []
-    audit_trails: Optional[dict] = {}
+    audit_trail: Optional[dict] = {}
     project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
 
@@ -453,14 +453,16 @@ class Case(BaseModel):
         fig.show(config={"displaylogo": False})
 
     def alerts_trail(self, page_num: Optional[int] = 1, days: Optional[int] = 7):
-        resp = self.api_client.post(f"{GET_TRIGGERS_DAYS_URI}?project_name={self.project_name}&page_num={page_num}&days={days}", payload)
+        if days==7:
+            return self.audit_trail.get("alerts", {})
+        resp = self.api_client.post(f"{GET_TRIGGERS_DAYS_URI}?project_name={self.project_name}&page_num={page_num}&days={days}")
         if resp.get("details"):
             return pd.DataFrame(resp.get("details"))
         else:
             return "No alerts found."
 
     def audit(self):
-        return self.audit_trails
+        return self.audit_trail
       
     def feature_importance(self, feature: str):
         if self.shap_feature_importance:
