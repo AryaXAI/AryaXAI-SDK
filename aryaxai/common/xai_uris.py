@@ -54,7 +54,7 @@ TAG_DATA_URI = f"{API_VERSION_V2}/project/tag_data"
 GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"
 DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
 MODEL_PERFORMANCE_DASHBOARD_URI = (
-    f"{API_VERSION_V2}/dashboard/model_performance_dashboard"
+    f"{API_VERSION_V2}/dashboards/model_performance_dashboard"
 )
 DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_logs"
 GET_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/get_dashboard"
@@ -66,7 +66,9 @@ MODEL_PARAMETERS_URI = f"{API_VERSION_V2}/users/get_xai_model_parameters"
 TRAIN_MODEL_URI = f"{API_VERSION_V2}/users/xai_config_update"
 GET_MODELS_URI = f"{API_VERSION_V2}/ai-models/get_all_models"
 UPDATE_ACTIVE_MODEL_URI = f"{API_VERSION_V2}/ai-models/update_active_model"
-UPDATE_ACTIVE_INFERENCE_MODEL_URI = f"{API_VERSION_V2}/ai-models/update_active_inference"
+UPDATE_ACTIVE_INFERENCE_MODEL_URI = (
+    f"{API_VERSION_V2}/ai-models/update_active_inference"
+)
 REMOVE_MODEL_URI = f"{API_VERSION_V2}/ai-models/remove_model"
 RUN_MODEL_ON_DATA_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION_V2}/ai-models/download_tag_data"
@@ -153,10 +155,10 @@ DELETE_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/delete"
 UPLOAD_FILE_DATA_CONNECTORS = f"{API_VERSION_V2}/project/uploadfile_with_linkservices"
 DROPBOX_OAUTH = f"{API_VERSION_V2}/linkservices/dropbox_auth"
 
-#Credits
+# Credits
 COMPUTE_CREDIT_URI = f"{API_VERSION_V2}/plans/compute_credit"
 
-#evals
+# evals
 TABULAR_ML = f"{API_VERSION_V2}/evals/evals-tabular"
 TABULAR_DL = f"{API_VERSION_V2}/evals/evals-tabular"
 IMAGE_DL = f"{API_VERSION_V2}/evals/"
