@@ -72,6 +72,7 @@ from aryaxai.common.xai_uris import (
     EXECUTED_TRIGGER_URI,
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
+    GENERATE_TEXT_CASE_URI,
     GET_CASES_URI,
     GET_DASHBOARD_SCORE_URI,
     GET_DASHBOARD_URI,
@@ -3414,6 +3415,48 @@ class Project(BaseModel):
             raise Exception(res.get("details"))
 
         return res.get("details")
+    
+    def generate_text_case(
+        self,
+        model_name: str,
+        model_type: str,
+        input_text: str,
+        tag: str,
+        task_type: Optional[str] = None,
+        instance_type: Optional[str] = "gova-2",
+        explainability_method: Optional[list] = ["DLB"],
+        explain_model: Optional[bool] = False
+    ):
+        """Generate Text Case
+
+        :param model_name: name of the model
+        :param model_type: type of the model
+        :param input_text: input text for the case
+        :param tag: tag for the case
+        :param task_type: task type for the case, defaults to None
+        :param instance_type: instance type for the case, defaults to None
+        :param explainability_method: explainability method for the case, defaults to None
+        :param explain_model: explain model for the case, defaults to False
+        :return: response
+        """
+        if self.metadata.get("modality") == "text":
+            payload = {
+                "project_name": self.project_name,
+                "model_name": model_name,
+                "model_type": model_type,
+                "input_text": input_text,
+                "tag": tag,
+                "task_type": task_type,
+                "instance_type": instance_type,
+                "explainability_method": explainability_method,
+                "explain_model": explain_model,
+            }
+            res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
+            if not res["success"]:
+                raise Exception(res["details"])
+            return res.get("details")
+        else:
+            return "Text case generation is not supported for this modality type"
 
     def cases(
         self,
@@ -3521,6 +3564,7 @@ class Project(BaseModel):
                     "case_prediction_path"
                 ]
         res["details"]["project_name"] = self.project_name
+        res["details"]["api_client"] = self.api_client
         case = Case(**res["details"])
 
         return case
