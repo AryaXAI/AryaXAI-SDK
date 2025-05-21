@@ -3519,6 +3519,7 @@ class Project(BaseModel):
                     "case_prediction_path"
                 ]
         res["details"]["project_name"] = self.project_name
+        res["details"]["api_client"] = self.api_client
         case = Case(**res["details"])
 
         return case
