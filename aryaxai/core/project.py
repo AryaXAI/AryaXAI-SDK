@@ -3454,7 +3454,7 @@ class Project(BaseModel):
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:
                 raise Exception(res["details"])
-            return res.get("details")
+            return res
         else:
             return "Text case generation is not supported for this modality type"
 
@@ -4745,7 +4745,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["message"])
 
-        return pd.DataFrame(res["attributions"])
+        return pd.DataFrame(res["comparison_metrics"])
 
     def evals_dl_tabular(self, model_name: str):
         """get evals for ml tabular model
@@ -4758,7 +4758,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["message"])
 
-        return res["attributions"]
+        return pd.DataFrame(res["comparison_metrics"])
 
     def evals_dl_image(self, model_name: str, unique_identifier: str):
         """get evals for ml tabular model
