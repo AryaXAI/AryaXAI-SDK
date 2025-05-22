@@ -3456,12 +3456,13 @@ class Project(BaseModel):
         self,
         model_name: str,
         model_type: str,
-        input_text: str,
+        prompt: str,
         tag: str,
         task_type: Optional[str] = None,
         instance_type: Optional[str] = "gova-2",
         explainability_method: Optional[list] = ["DLB"],
-        explain_model: Optional[bool] = False
+        explain_model: Optional[bool] = False,
+        unique_identifier: Optional[str] = None,
     ):
         """Generate Text Case
 
@@ -3480,12 +3481,13 @@ class Project(BaseModel):
                 "project_name": self.project_name,
                 "model_name": model_name,
                 "model_type": model_type,
-                "input_text": input_text,
+                "input_text": prompt,
                 "tag": tag,
                 "task_type": task_type,
                 "instance_type": instance_type,
                 "explainability_method": explainability_method,
                 "explain_model": explain_model,
+                "unique_identifier": unique_identifier
             }
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:
