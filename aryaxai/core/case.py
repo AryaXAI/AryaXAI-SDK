@@ -454,7 +454,7 @@ class Case(BaseModel):
 
     def alerts_trail(self, page_num: Optional[int] = 1, days: Optional[int] = 7):
         if days==7:
-            return self.audit_trail.get("alerts", {})
+            return pd.DataFrame(self.audit_trail.get("alerts", {}))
         resp = self.api_client.post(f"{GET_TRIGGERS_DAYS_URI}?project_name={self.project_name}&page_num={page_num}&days={days}")
         if resp.get("details"):
             return pd.DataFrame(resp.get("details"))

@@ -72,6 +72,7 @@ from aryaxai.common.xai_uris import (
     EXECUTED_TRIGGER_URI,
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
+    GET_AVAILABLE_TEXT_MODELS_URI,
     GENERATE_TEXT_CASE_URI,
     GET_CASES_URI,
     GET_DASHBOARD_SCORE_URI,
@@ -97,6 +98,7 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_PROMPT_URI,
     GET_VIEWED_CASE_URI,
     IMAGE_DL,
+    INITIALIZE_TEXT_MODEL_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_PERFORMANCE_DASHBOARD_URI,
@@ -3415,17 +3417,52 @@ class Project(BaseModel):
             raise Exception(res.get("details"))
 
         return res.get("details")
+
+    def get_available_text_models(self):
+        """Get available text models
+
+        :return: list of available text models
+        """
+        if self.metadata.get("modality") != "text":
+            return "The current project is not a text-based project."
+        res = self.api_client.get(f"{GET_AVAILABLE_TEXT_MODELS_URI}")
+        if not res["success"]:
+            raise Exception(res["details"])
+        all_models = []
+        for model_type, models in res["details"].items():
+            for model in models:
+                all_models.append({
+                    "model_type": model_type,
+                    "model_name": model[0],
+                    "model_url": model[1],
+                    "available": model[2]
+                })
+        return pd.DataFrame(all_models)
     
+    def initialize_text_model(self, model_name: str) -> str:
+        """Initialize text model
+
+        :param model_name: name of the model to be initialized
+        :return: response
+        """
+        if self.metadata.get("modality") != "text":
+            return "The current project is not a text-based project."
+        res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", {"model_name": model_name, "project_name": self.project_name})
+        if not res["success"]:
+            raise Exception(res["message"])
+        return res["message"]
+
     def generate_text_case(
         self,
         model_name: str,
         model_type: str,
-        input_text: str,
+        prompt: str,
         tag: str,
         task_type: Optional[str] = None,
         instance_type: Optional[str] = "gova-2",
         explainability_method: Optional[list] = ["DLB"],
-        explain_model: Optional[bool] = False
+        explain_model: Optional[bool] = False,
+        unique_identifier: Optional[str] = None,
     ):
         """Generate Text Case
 
@@ -3444,12 +3481,13 @@ class Project(BaseModel):
                 "project_name": self.project_name,
                 "model_name": model_name,
                 "model_type": model_type,
-                "input_text": input_text,
+                "input_text": prompt,
                 "tag": tag,
                 "task_type": task_type,
                 "instance_type": instance_type,
                 "explainability_method": explainability_method,
                 "explain_model": explain_model,
+                "unique_identifier": unique_identifier
             }
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:
@@ -3545,7 +3583,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        if self.metadata.get("modality") == "tabular":
+        if self.metadata.get("modality") == "tabular" and (instance_type not in ["gova-0.5", "gova-1", "gova-1.5", "gova-2", "gova-4", "gova-6", "gova-8", "gova-10"]):
             prediction_path_payload = {
                 "project_name": self.project_name,
                 "unique_identifier": unique_identifer,
