@@ -73,7 +73,9 @@ from aryaxai.common.xai_uris import (
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_AVAILABLE_TEXT_MODELS_URI,
+    GENERATE_TEXT_CASE_URI,
     GET_CASES_URI,
+    GET_DASHBOARD_SCORE_URI,
     GET_DASHBOARD_URI,
     GET_DATA_DIAGNOSIS_URI,
     GET_DATA_DRIFT_DIAGNOSIS_URI,
@@ -82,6 +84,7 @@ from aryaxai.common.xai_uris import (
     GET_LABELS_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
+    GET_MONITORS_ALERTS,
     GET_NOTIFICATIONS_URI,
     GET_OBSERVATION_PARAMS_URI,
     GET_OBSERVATIONS_URI,
@@ -98,6 +101,7 @@ from aryaxai.common.xai_uris import (
     INITIALIZE_TEXT_MODEL_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
+    MODEL_PERFORMANCE_DASHBOARD_URI,
     MODEL_SUMMARY_URI,
     PROJECT_OVERVIEW_TEXT_URI,
     REMOVE_MODEL_URI,
@@ -175,7 +179,6 @@ class Project(BaseModel):
                 }
             },
         }
-        print(UPDATE_PROJECT_URI)
         res = self.api_client.post(UPDATE_PROJECT_URI, payload)
         self.user_project_name = new_project_name
         return res.get("details")
@@ -1106,7 +1109,7 @@ class Project(BaseModel):
             "model_data_tags": model_data_tags,
             "model_test_tags": model_test_tags,
             "explainability_method": explainability_method,
-            "feature_list":feature_list
+            "feature_list": feature_list,
         }
 
         if instance_type:
@@ -2019,15 +2022,6 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get all dashboard"))
         res = res.get("details").get("dashboards")
-        for n_res in res:
-            data = self.get_dashboard_metadata(n_res.get("type"), str(n_res.get("_id")))
-            n_res["metadata"] = {}
-            n_res["metadata"]["config"] = {}
-            n_res["metadata"]["config"] = data.get("config")
-            if self.metadata.get("modality") == "tabular":
-                n_res["metadata"]["metric"] = (
-                    data.get("details", {}).get("metrics", {})[0].get("result", {})
-                )
 
         logs = pd.DataFrame(res)
         logs.drop(
@@ -2048,6 +2042,31 @@ class Project(BaseModel):
             errors="ignore",
         )
         return logs
+    
+    def get_score(self, dashboard_id, feature_name):
+        resp = self.api_client.get(f"{GET_DASHBOARD_SCORE_URI}?project_name={self.project_name}&dashboard_id={dashboard_id}&feature_name={feature_name}")
+        resp = resp.get("details").get("dashboards")
+        logs = pd.DataFrame(resp)
+        logs.drop(
+            columns=[
+                "max_features",
+                "limit_features",
+                "baseline_date",
+                "current_date",
+                "task_id",
+                "date_feature",
+                "stat_test_threshold",
+                "project_name",
+                "file_id",
+                "updated_at",
+                "features_to_use",
+            ],
+            inplace=True,
+            errors="ignore",
+        )
+        column_drift_results = logs.metadata[0].get("DatasetColumnDriftResults")
+        matched_column_info = next((item for item in column_drift_results if item.get("column_name") == feature_name), None)
+        return matched_column_info
 
     def get_dashboard_metadata(self, type: str, dashboard_id: str) -> Dashboard:
         """get dashboard
@@ -2325,18 +2344,34 @@ class Project(BaseModel):
             detailed_report=detailed_report,
             not_used_features=not_used_features,
         )
+    
+    def get_monitors_alerts(self, monitor_id: str, time: int):
+        url = f"{GET_MONITORS_ALERTS}?project_name={self.project_name}&monitor_id={monitor_id}&time={time}"
+        res = self.api_client.get(url)
+        data = pd.DataFrame(res.get("details"))
+        return data
 
     def get_model_performance(self, model_name: str = None) -> Dashboard:
         """
         get model performance dashboard
         """
         auth_token = self.api_client.get_auth_token()
-        query_params = f"?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
+        dashboard_query_params = f"?type=model_performance&project_name={self.project_name}&access_token={auth_token}"
+        raw_data_query_params = f"?project_name={self.project_name}"
 
         if model_name:
-            query_params = f"{query_params}&model_name={model_name}"
+            dashboard_query_params = f"{dashboard_query_params}&model_name={model_name}"
+            raw_data_query_params = f"{raw_data_query_params}&model_name={model_name}"
 
-        return Dashboard(config={}, query_params=query_params, raw_data={})
+        raw_data = self.api_client.get(
+            f"{MODEL_PERFORMANCE_DASHBOARD_URI}{raw_data_query_params}"
+        )
+
+        return Dashboard(
+            config={},
+            query_params=dashboard_query_params,
+            raw_data=raw_data.get("details"),
+        )
 
     def model_parameters(self) -> dict:
         """Model Parameters
@@ -3382,7 +3417,7 @@ class Project(BaseModel):
             raise Exception(res.get("details"))
 
         return res.get("details")
-    
+
     def get_available_text_models(self):
         """Get available text models
 
@@ -3416,6 +3451,48 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["message"])
         return res["message"]
+
+    def generate_text_case(
+        self,
+        model_name: str,
+        model_type: str,
+        input_text: str,
+        tag: str,
+        task_type: Optional[str] = None,
+        instance_type: Optional[str] = "gova-2",
+        explainability_method: Optional[list] = ["DLB"],
+        explain_model: Optional[bool] = False
+    ):
+        """Generate Text Case
+
+        :param model_name: name of the model
+        :param model_type: type of the model
+        :param input_text: input text for the case
+        :param tag: tag for the case
+        :param task_type: task type for the case, defaults to None
+        :param instance_type: instance type for the case, defaults to None
+        :param explainability_method: explainability method for the case, defaults to None
+        :param explain_model: explain model for the case, defaults to False
+        :return: response
+        """
+        if self.metadata.get("modality") == "text":
+            payload = {
+                "project_name": self.project_name,
+                "model_name": model_name,
+                "model_type": model_type,
+                "input_text": input_text,
+                "tag": tag,
+                "task_type": task_type,
+                "instance_type": instance_type,
+                "explainability_method": explainability_method,
+                "explain_model": explain_model,
+            }
+            res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
+            if not res["success"]:
+                raise Exception(res["details"])
+            return res.get("details")
+        else:
+            return "Text case generation is not supported for this modality type"
 
     def cases(
         self,
@@ -3522,7 +3599,8 @@ class Project(BaseModel):
                 res["details"]["case_prediction_path"] = dtree_res["details"][
                     "case_prediction_path"
                 ]
-
+        res["details"]["project_name"] = self.project_name
+        res["details"]["api_client"] = self.api_client
         case = Case(**res["details"])
 
         return case
@@ -3612,6 +3690,7 @@ class Project(BaseModel):
             raise Exception(res.get("details", "Failed to get viewed case"))
 
         data = {**res["details"], **res["details"].get("result", {})}
+        data["api_client"] = self.api_client
         case = Case(**data)
 
         return case
@@ -4539,9 +4618,10 @@ class Project(BaseModel):
             all_tags,
         )
 
-        payload = {"project_name": self.project_name, "tag": tag}
-
-        res = self.api_client.request("POST", DOWNLOAD_SYNTHETIC_DATA_URI, payload)
+        res = self.api_client.base_request(
+            "GET",
+            f"{DOWNLOAD_SYNTHETIC_DATA_URI}?project_name={self.project_name}&tag={tag}&token={self.api_client.get_auth_token()}",
+        )
 
         synthetic_data = pd.read_csv(io.StringIO(res.content.decode("utf-8")))
 
@@ -4689,20 +4769,20 @@ class Project(BaseModel):
             raise Exception(f"Invalid prompt_id")
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
-    
-    def evals_ml_tabular(self, model_name: str):
+
+    def evals_ml_tabular(self, model_name: str, tag: Optional[str] = ""):
         """get evals for ml tabular model
 
         :param model_name: model name
         :return: evals
         """
-        url = f"{TABULAR_ML}?model_name={model_name}&project_name={self.project_name}"
+        url = f"{TABULAR_ML}?model_name={model_name}&project_name={self.project_name}&tag={tag}"
         res = self.api_client.post(url)
         if not res["success"]:
             raise Exception(res["message"])
 
         return pd.DataFrame(res["attributions"])
-    
+
     def evals_dl_tabular(self, model_name: str):
         """get evals for ml tabular model
 
@@ -4715,8 +4795,8 @@ class Project(BaseModel):
             raise Exception(res["message"])
 
         return res["attributions"]
-    
-    def  evals_dl_image(self, model_name: str, unique_identifier: str):
+
+    def evals_dl_image(self, model_name: str, unique_identifier: str):
         """get evals for ml tabular model
         :param model_name: model name
         :return: evals

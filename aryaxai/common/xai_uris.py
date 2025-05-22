@@ -56,18 +56,21 @@ INITIALIZE_TEXT_MODEL_URI = f"{API_VERSION_V2}/users/initalize_text_model"
 GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"
 DASHBOARD_CONFIG_URI = f"{API_VERSION_V2}/dashboards/config"
 MODEL_PERFORMANCE_DASHBOARD_URI = (
-    f"{API_VERSION_V2}/dashboard/model_performance_dashboard"
+    f"{API_VERSION_V2}/dashboards/model_performance_dashboard"
 )
 DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_logs"
 GET_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/get_dashboard"
 DOWNLOAD_DASHBOARD_LOGS_URI = f"{API_VERSION_V2}/dashboards/download_dashboard_logs"
+GET_DASHBOARD_SCORE_URI = f"{API_VERSION_V2}/dashboards/get_dashboard_score"
 
 # Auto ML
 MODEL_PARAMETERS_URI = f"{API_VERSION_V2}/users/get_xai_model_parameters"
 TRAIN_MODEL_URI = f"{API_VERSION_V2}/users/xai_config_update"
 GET_MODELS_URI = f"{API_VERSION_V2}/ai-models/get_all_models"
 UPDATE_ACTIVE_MODEL_URI = f"{API_VERSION_V2}/ai-models/update_active_model"
-UPDATE_ACTIVE_INFERENCE_MODEL_URI = f"{API_VERSION_V2}/ai-models/update_active_inference"
+UPDATE_ACTIVE_INFERENCE_MODEL_URI = (
+    f"{API_VERSION_V2}/ai-models/update_active_inference"
+)
 REMOVE_MODEL_URI = f"{API_VERSION_V2}/ai-models/remove_model"
 RUN_MODEL_ON_DATA_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data"
 DOWNLOAD_TAG_DATA_URI = f"{API_VERSION_V2}/ai-models/download_tag_data"
@@ -86,6 +89,7 @@ DELETE_CASE_URI = f"{API_VERSION_V2}/project/delete_data_with_filter"
 CASE_LOGS_URI = f"{API_VERSION_V2}/ai-models/explainability_logs"
 CASE_LOGS_TEXT_URI = f"{API_VERSION_V2}/ai-models/explainability_logs_text"
 GET_VIEWED_CASE_URI = f"{API_VERSION_V2}/ai-models/get_viewed_case"
+GENERATE_TEXT_CASE_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data_text"
 
 # Observations
 GET_OBSERVATIONS_URI = f"{API_VERSION_V2}/observations/get_observations"
@@ -107,6 +111,8 @@ DUPLICATE_MONITORS_URI = f"{API_VERSION_V2}/triggers/duplicate_monitors"
 EXECUTED_TRIGGER_URI = f"{API_VERSION_V2}/triggers/get_executed_triggers"
 GET_EXECUTED_TRIGGER_INFO = f"{API_VERSION_V2}/triggers/get_trigger_details"
 GET_LABELS_URI = f"{API_VERSION_V2}/triggers/get_label_classes"
+GET_TRIGGERS_DAYS_URI = f"{API_VERSION_V2}/triggers/get_alerts"
+GET_MONITORS_ALERTS = f"{API_VERSION_V2}/triggers/get_monitors_alerts"
 
 # Synthetic AI
 AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI = f"{API_VERSION_V2}/synthetics/custom_servers"
@@ -152,10 +158,10 @@ DELETE_DATA_CONNECTORS = f"{API_VERSION_V2}/linkservices/delete"
 UPLOAD_FILE_DATA_CONNECTORS = f"{API_VERSION_V2}/project/uploadfile_with_linkservices"
 DROPBOX_OAUTH = f"{API_VERSION_V2}/linkservices/dropbox_auth"
 
-#evals-image-dlCredits
+# Credits
 COMPUTE_CREDIT_URI = f"{API_VERSION_V2}/plans/compute_credit"
 
-#evals
-TABULAR_ML = f"{API_VERSION_V2}/evals/evals-tabular-ml"
-TABULAR_DL = f"{API_VERSION_V2}/evals/evals-tabular-dl"
+# evals
+TABULAR_ML = f"{API_VERSION_V2}/evals/evals-tabular"
+TABULAR_DL = f"{API_VERSION_V2}/evals/evals-tabular"
 IMAGE_DL = f"{API_VERSION_V2}/evals/"

@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 import pandas as pd
 from IPython.display import SVG, display
+from aryaxai.client.client import APIClient
+from aryaxai.common.xai_uris import GET_TRIGGERS_DAYS_URI
 
 
 class Case(BaseModel):
@@ -15,6 +17,7 @@ class Case(BaseModel):
     shap_feature_importance: Optional[Dict] = {}
     lime_feature_importance: Optional[Dict] = {}
     ig_features_importance: Optional[Dict] = {}
+    dlb_feature_importance: Optional[Dict] = {}
     similar_cases: List
     is_automl_prediction: Optional[bool] = False
     model_name: str
@@ -28,9 +31,17 @@ class Case(BaseModel):
     created_at: Optional[str] = ""
     data: Optional[Dict] = {}
     similar_cases_data: Optional[List] = []
+    audit_trail: Optional[dict] = {}
+    project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
 
     model_config = ConfigDict(protected_namespaces=())
+
+    api_client: APIClient
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.api_client = kwargs.get("api_client")
 
     def explainability_shap_feature_importance(self):
         """Plots Shap Feature Importance chart"""
@@ -128,6 +139,42 @@ class Case(BaseModel):
                 go.Bar(
                     x=list(self.lime_feature_importance.values()),
                     y=list(self.lime_feature_importance.keys()),
+                    orientation="h",
+                )
+            )
+        fig.update_layout(
+            barmode="relative",
+            height=800,
+            width=800,
+            yaxis_autorange="reversed",
+            bargap=0.01,
+            legend_orientation="h",
+            legend_x=0.1,
+            legend_y=1.1,
+        )
+        fig.show(config={"displaylogo": False})
+
+    def explainability_dlb_feature_importance(self):
+        """Plots DLB Feature Importance chart"""
+        fig = go.Figure()
+        if len(list(self.dlb_feature_importance.values())) < 1:
+            return "No DLB Feature Importance for the case"
+
+        if isinstance(list(self.dlb_feature_importance.values())[0], dict):
+            for col in self.dlb_feature_importance.keys():
+                fig.add_trace(
+                    go.Bar(
+                        x=list(self.dlb_feature_importance[col].values()),
+                        y=list(self.dlb_feature_importance[col].keys()),
+                        orientation="h",
+                        name=col,
+                    )
+                )
+        else:
+            fig.add_trace(
+                go.Bar(
+                    x=list(self.dlb_feature_importance.values()),
+                    y=list(self.dlb_feature_importance.keys()),
                     orientation="h",
                 )
             )
@@ -405,6 +452,27 @@ class Case(BaseModel):
 
         fig.show(config={"displaylogo": False})
 
+    def alerts_trail(self, page_num: Optional[int] = 1, days: Optional[int] = 7):
+        if days==7:
+            return self.audit_trail.get("alerts", {})
+        resp = self.api_client.post(f"{GET_TRIGGERS_DAYS_URI}?project_name={self.project_name}&page_num={page_num}&days={days}")
+        if resp.get("details"):
+            return pd.DataFrame(resp.get("details"))
+        else:
+            return "No alerts found."
+
+    def audit(self):
+        return self.audit_trail
+      
+    def feature_importance(self, feature: str):
+        if self.shap_feature_importance:
+            return self.shap_feature_importance.get(feature, {})
+        elif self.lime_feature_importance:
+            return self.lime_feature_importance.get(feature, {})
+        elif self.ig_features_importance:
+            return self.ig_features_importance.get(feature, {})
+        else:
+            return "No Feature Importance found for the case"
 
 class CaseText(BaseModel):
     model_name: str
