@@ -3581,7 +3581,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        if self.metadata.get("modality") == "tabular":
+        if self.metadata.get("modality") == "tabular" and (instance_type not in ["gova-0.5", "gova-1", "gova-1.5", "gova-2", "gova-4", "gova-6", "gova-8", "gova-10"]):
             prediction_path_payload = {
                 "project_name": self.project_name,
                 "unique_identifier": unique_identifer,
