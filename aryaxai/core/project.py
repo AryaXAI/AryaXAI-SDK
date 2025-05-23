@@ -3450,7 +3450,7 @@ class Project(BaseModel):
         res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", {"model_name": model_name, "project_name": self.project_name})
         if not res["success"]:
             raise Exception(res["message"])
-        return res["message"]
+        poll_events(self.api_client, self.project_name, res["task_id"])
 
     def generate_text_case(
         self,
