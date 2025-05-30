@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from IPython.display import SVG, display
 from aryaxai.client.client import APIClient
-from aryaxai.common.xai_uris import GET_TRIGGERS_DAYS_URI
+from aryaxai.common.xai_uris import EXPLAINABILITY_SUMMARY, GET_TRIGGERS_DAYS_URI
 
 
 class Case(BaseModel):
@@ -34,6 +34,8 @@ class Case(BaseModel):
     audit_trail: Optional[dict] = {}
     project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
+    data_id: Optional[str] = ""
+    summary: Optional[str] = ""
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -473,6 +475,21 @@ class Case(BaseModel):
             return self.ig_features_importance.get(feature, {})
         else:
             return "No Feature Importance found for the case"
+        
+    def explainability_summary(self):
+        if self.data_id and not self.summary:
+            payload = {
+                "project_name": self.project_name,
+                "viewed_case_id": self.data_id,
+            }
+            res = self.api_client.post(EXPLAINABILITY_SUMMARY,payload)
+            if not res.get("success"):
+                raise Exception(res.get("details","Failed to summarize"))
+            
+            self.summary = res.get("details")
+            return res.get("details")
+        
+        return self.summary
 
 class CaseText(BaseModel):
     model_name: str

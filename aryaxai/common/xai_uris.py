@@ -165,3 +165,7 @@ COMPUTE_CREDIT_URI = f"{API_VERSION_V2}/plans/compute_credit"
 TABULAR_ML = f"{API_VERSION_V2}/evals/evals-tabular"
 TABULAR_DL = f"{API_VERSION_V2}/evals/evals-tabular"
 IMAGE_DL = f"{API_VERSION_V2}/evals/"
+
+
+# Agents 
+EXPLAINABILITY_SUMMARY = f"{API_VERSION_V2}/agents/explainability_summary"
