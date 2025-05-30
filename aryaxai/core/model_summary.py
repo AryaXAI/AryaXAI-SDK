@@ -41,13 +41,17 @@ class ModelSummary(BaseModel):
 
         return info
 
-    def feature_importance(self):
+    def feature_importance(self, xai_method: str):
         """Global features plot"""
-        global_features = self.model_results.get("GFI", {}).get("shap_gfi", None)
-        if not global_features:
+        global_features = None
+        if xai_method=="shap":
+            global_features = self.model_results.get("GFI", {}).get("shap_gfi", None)
+        if xai_method=="lime":
             global_features = self.model_results.get("GFI", {}).get("lime_gfi", None)
+        # if not global_features:
+        #     global_features = self.model_results.get("GFI")
         if not global_features:
-            global_features = self.model_results.get("GFI")
+            return f"No feature importance found for {xai_method}"
         fig = go.Figure()
 
         fig.add_trace(

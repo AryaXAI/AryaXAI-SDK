@@ -51,6 +51,7 @@ AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
 TAG_DATA_URI = f"{API_VERSION_V2}/project/tag_data"
 GET_AVAILABLE_TEXT_MODELS_URI = f"{API_VERSION_V2}/users/get_available_text_models"
 INITIALIZE_TEXT_MODEL_URI = f"{API_VERSION_V2}/users/initalize_text_model"
+GET_FEATURE_IMPORTANCE_URI = f"{API_VERSION_V2}/project/get_feature_importance"
 
 # Monitoring
 GENERATE_DASHBOARD_URI = f"{API_VERSION_V2}/dashboards/generate_dashboard"

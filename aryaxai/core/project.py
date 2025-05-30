@@ -81,6 +81,7 @@ from aryaxai.common.xai_uris import (
     GET_DATA_DRIFT_DIAGNOSIS_URI,
     GET_DATA_SUMMARY_URI,
     GET_EXECUTED_TRIGGER_INFO,
+    GET_FEATURE_IMPORTANCE_URI,
     GET_LABELS_URI,
     GET_MODEL_TYPES_URI,
     GET_MODELS_URI,
@@ -4809,6 +4810,13 @@ class Project(BaseModel):
             raise Exception(res["message"])
 
         return res["attributions"]
+    
+    def get_feature_importance(self, model_name: str, feature_name: str, xai_method: str):
+        url = f"{GET_FEATURE_IMPORTANCE_URI}?project_name={self.project_name}&model_name={model_name}&feature_name={feature_name}&xai_method={xai_method}"
+        res = self.api_client.get(url)
+        if not res["success"]:
+            raise Exception(res["message"])
+        return res.get("feature_importance", "")
 
     def events(
         self,
