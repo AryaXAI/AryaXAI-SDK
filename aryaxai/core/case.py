@@ -1,11 +1,14 @@
 from __future__ import annotations
+from io import BytesIO
 from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict
 import plotly.graph_objects as go
 import pandas as pd
 from IPython.display import SVG, display
 from aryaxai.client.client import APIClient
-from aryaxai.common.xai_uris import EXPLAINABILITY_SUMMARY, GET_TRIGGERS_DAYS_URI
+from aryaxai.common.xai_uris import GET_TRIGGERS_DAYS_URI
+import base64
+from PIL import Image
 
 
 class Case(BaseModel):
@@ -34,9 +37,6 @@ class Case(BaseModel):
     audit_trail: Optional[dict] = {}
     project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
-    data_id: Optional[str] = ""
-    summary: Optional[str] = ""
-
     model_config = ConfigDict(protected_namespaces=())
 
     api_client: APIClient
@@ -561,3 +561,17 @@ class CaseText(BaseModel):
         )
 
         fig.show(config={"displaylogo": False})
+
+    def network_graph(self):
+        network_graph_data = self.explainabiblity.get("network_graph", {})
+        if not network_graph_data:
+            return "No Network graph found for this case"
+        base64_str = network_graph_data
+        try:
+            img_bytes = base64.b64decode(base64_str)
+            image = Image.open(BytesIO(img_bytes))
+            image.show()
+            return image
+        except Exception as e:
+            print(f"Error decoding base64 image: {e}")
+            return None

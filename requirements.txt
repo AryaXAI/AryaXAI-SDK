@@ -5,3 +5,4 @@ requests>=2.31.0
 pandas>=1.5.3
 plotly>=5.15.0
 ipython>=7.34.0
+Pillow==10.4.0
