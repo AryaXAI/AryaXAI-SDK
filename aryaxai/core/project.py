@@ -3495,7 +3495,7 @@ class Project(BaseModel):
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:
                 raise Exception(res["details"])
-            poll_events(self.api_client, self.project_name, res["event_id"])
+            return res
         else:
             return "Text case generation is not supported for this modality type"
 
