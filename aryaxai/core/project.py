@@ -4775,7 +4775,7 @@ class Project(BaseModel):
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
 
-    def evals_ml_tabular(self, model_name: str, tag: Optional[str] = ""):
+    def evals_tabular(self, model_name: str, tag: Optional[str] = ""):
         """get evals for ml tabular model
 
         :param model_name: model name
