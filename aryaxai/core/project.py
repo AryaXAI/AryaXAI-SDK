@@ -3461,6 +3461,7 @@ class Project(BaseModel):
         tag: str,
         task_type: Optional[str] = None,
         instance_type: Optional[str] = "gova-2",
+        serverless_instance_type: Optional[str] = "xsmall",
         explainability_method: Optional[list] = ["DLB"],
         explain_model: Optional[bool] = False,
         unique_identifier: Optional[str] = None,
@@ -3486,6 +3487,7 @@ class Project(BaseModel):
                 "tag": tag,
                 "task_type": task_type,
                 "instance_type": instance_type,
+                "serverless_instance_type": serverless_instance_type,
                 "explainability_method": explainability_method,
                 "explain_model": explain_model,
                 "unique_identifier": unique_identifier
@@ -3493,7 +3495,7 @@ class Project(BaseModel):
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:
                 raise Exception(res["details"])
-            return res
+            poll_events(self.api_client, self.project_name, res["event_id"])
         else:
             return "Text case generation is not supported for this modality type"
 
@@ -4773,7 +4775,7 @@ class Project(BaseModel):
 
         return SyntheticPrompt(**curr_prompt, api_client=self.api_client, project=self)
 
-    def evals_ml_tabular(self, model_name: str, tag: Optional[str] = ""):
+    def evals_tabular(self, model_name: str, tag: Optional[str] = ""):
         """get evals for ml tabular model
 
         :param model_name: model name
