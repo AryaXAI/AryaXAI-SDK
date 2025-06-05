@@ -37,6 +37,8 @@ class Case(BaseModel):
     audit_trail: Optional[dict] = {}
     project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
+    data_id: Optional[str] = ""
+    summary: Optional[str] = ""
     model_config = ConfigDict(protected_namespaces=())
 
     api_client: APIClient
