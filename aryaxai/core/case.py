@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from IPython.display import SVG, display
 from aryaxai.client.client import APIClient
-from aryaxai.common.xai_uris import GET_TRIGGERS_DAYS_URI
+from aryaxai.common.xai_uris import EXPLAINABILITY_SUMMARY, GET_TRIGGERS_DAYS_URI
 import base64
 from PIL import Image
 
@@ -37,6 +37,8 @@ class Case(BaseModel):
     audit_trail: Optional[dict] = {}
     project_name: Optional[str] = ""
     image_data: Optional[Dict] = {}
+    data_id: Optional[str] = ""
+    summary: Optional[str] = ""
     model_config = ConfigDict(protected_namespaces=())
 
     api_client: APIClient
