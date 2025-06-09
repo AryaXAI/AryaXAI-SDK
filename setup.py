@@ -16,6 +16,10 @@ setup(
     keywords='aryaxai, ML observability',
     license='MIT',
     url='https://xai.arya.ai/docs/introduction',
+    project_urls={
+        "Bug Reports": "https://github.com/AryaXAI/AryaXAI-SDK/issues",
+        "Documentation": "https://xai.arya.ai/docs/introduction",
+    },
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
