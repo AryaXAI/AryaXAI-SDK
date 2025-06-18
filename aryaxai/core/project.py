@@ -3505,6 +3505,7 @@ class Project(BaseModel):
         tag: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        page: Optional[int] = 1
     ) -> pd.DataFrame:
         """Cases for the Project
 
@@ -3518,7 +3519,7 @@ class Project(BaseModel):
         def get_cases():
             payload = {
                 "project_name": self.project_name,
-                "page_num": 1,
+                "page_num": page,
             }
             res = self.api_client.post(GET_CASES_URI, payload)
             return res
@@ -3530,7 +3531,7 @@ class Project(BaseModel):
                 "start_date": start_date,
                 "end_date": end_date,
                 "tag": tag,
-                "page_num": 1,
+                "page_num": page,
             }
             res = self.api_client.post(SEARCH_CASE_URI, payload)
             return res
