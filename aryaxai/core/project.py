@@ -3557,6 +3557,7 @@ class Project(BaseModel):
         model_name: Optional[str] = None,
         instance_type: Optional[str] = None,
         components: Optional[list] = None,
+        explainability: Optional[bool] = False,
     ) -> Case:
         """Case Info
 
@@ -3578,6 +3579,7 @@ class Project(BaseModel):
             "model_name": model_name,
             "instance_type": instance_type,
             "components": components,
+            "explainability": explainability,
         }
         if self.metadata.get("modality") == "text":
             res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
