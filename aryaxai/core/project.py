@@ -149,6 +149,7 @@ from datetime import datetime
 import re
 from aryaxai.core.utils import build_url, build_list_data_connector_url
 from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPrompt
+from aryaxai.core.wrapper import available_guardrails, configure_guardrail, get_active_guardrails, get_messages, get_sessions, get_traces, monitor
 
 
 class Project(BaseModel):
@@ -3440,31 +3441,34 @@ class Project(BaseModel):
                 })
         return pd.DataFrame(all_models)
     
-    def initialize_text_model(self, model_name: str) -> str:
+    def initialize_text_model(self, model_provider: str, model_name: str) -> str:
         """Initialize text model
 
+        :param model_provider: model of provider
         :param model_name: name of the model to be initialized
         :return: response
         """
         if self.metadata.get("modality") != "text":
             return "The current project is not a text-based project."
-        res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", {"model_name": model_name, "project_name": self.project_name})
+        payload = {
+            "model_provider": model_provider,
+            "model_name": model_name, 
+            "project_name": self.project_name
+        }
+        res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
         if not res["success"]:
-            raise Exception(res["message"])
+            raise Exception(res.get("details","Model Intialization Failed"))
         poll_events(self.api_client, self.project_name, res["event_id"])
 
     def generate_text_case(
         self,
         model_name: str,
-        model_type: str,
         prompt: str,
-        tag: str,
-        task_type: Optional[str] = None,
         instance_type: Optional[str] = "gova-2",
         serverless_instance_type: Optional[str] = "xsmall",
         explainability_method: Optional[list] = ["DLB"],
         explain_model: Optional[bool] = False,
-        unique_identifier: Optional[str] = None,
+        session_id: Optional[str] = None,
     ):
         """Generate Text Case
 
@@ -3478,26 +3482,17 @@ class Project(BaseModel):
         :param explain_model: explain model for the case, defaults to False
         :return: response
         """
-        if self.metadata.get("modality") == "text":
-            payload = {
-                "project_name": self.project_name,
-                "model_name": model_name,
-                "model_type": model_type,
-                "input_text": prompt,
-                "tag": tag,
-                "task_type": task_type,
-                "instance_type": instance_type,
-                "serverless_instance_type": serverless_instance_type,
-                "explainability_method": explainability_method,
-                "explain_model": explain_model,
-                "unique_identifier": unique_identifier
-            }
-            res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
-            if not res["success"]:
-                raise Exception(res["details"])
-            return res
-        else:
-            return "Text case generation is not supported for this modality type"
+        from aryaxai.core.wrapper import AryaModels, monitor
+        llm = monitor(project=self,client=AryaModels(project=self),session_id=session_id)
+        res = llm.generate_text_case(
+            model_name=model_name, 
+            prompt=prompt , 
+            instance_type=instance_type,
+            serverless_instance_type=serverless_instance_type,
+            explainability_method=explainability_method,
+            explain_model=explain_model
+        )
+        return res
 
     def cases(
         self,
@@ -4819,6 +4814,27 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["message"])
         return res.get("feature_importance", "")
+
+    def llm_monitor(self, client, session_id=None):
+        return monitor(project=self,client=client, session_id=session_id)
+    
+    def get_messages(self, session_id):
+        return get_messages(project_name=self.project_name, session_id=session_id)
+    
+    def get_sessions(self):
+        return get_sessions(project_name=self.project_name)
+    
+    def get_traces(self, trace_id):
+        return get_traces(project_name=self.project_name, trace_id=trace_id)
+    
+    def get_active_guardrails(self):
+        return get_active_guardrails(project_name=self.project_name)
+    
+    def available_guardrails(self):
+        return available_guardrails()
+    
+    def configure_guardrail(self, guardrail_name, guardrail_config, model_name, apply_on):
+        return configure_guardrail(project_name=self.project_name, guardrail_name=guardrail_name, model_name=model_name, guardrail_config=guardrail_config, apply_on=apply_on)
 
     def events(
         self,
