@@ -577,3 +577,17 @@ class CaseText(BaseModel):
         except Exception as e:
             print(f"Error decoding base64 image: {e}")
             return None
+        
+    def token_attribution_graph(self):
+        relavance_data = self.explainabiblity.get("relavance", {})
+        if not relavance_data:
+            return "No Token Attribution graph found for this case"
+        base64_str = relavance_data
+        try:
+            img_bytes = base64.b64decode(base64_str)
+            image = Image.open(BytesIO(img_bytes))
+            return image
+        except Exception as e:
+            print(f"Error decoding base64 image: {e}")
+            return None
+    
