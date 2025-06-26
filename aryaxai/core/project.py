@@ -3557,7 +3557,7 @@ class Project(BaseModel):
         model_name: Optional[str] = None,
         instance_type: Optional[str] = None,
         components: Optional[list] = None,
-        explainability: Optional[bool] = False,
+        xai: Optional[list] = []
     ) -> Case:
         """Case Info
 
@@ -3579,7 +3579,7 @@ class Project(BaseModel):
             "model_name": model_name,
             "instance_type": instance_type,
             "components": components,
-            "explainability": explainability,
+            "xai": xai
         }
         if self.metadata.get("modality") == "text":
             res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
@@ -3589,7 +3589,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        if self.metadata.get("modality") == "tabular" and (instance_type not in ["gova-0.5", "gova-1", "gova-1.5", "gova-2", "gova-4", "gova-6", "gova-8", "gova-10"]):
+        if self.metadata.get("modality") == "tabular" and "dtree" in xai:
             prediction_path_payload = {
                 "project_name": self.project_name,
                 "unique_identifier": unique_identifer,
