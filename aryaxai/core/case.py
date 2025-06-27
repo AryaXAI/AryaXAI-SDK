@@ -257,6 +257,8 @@ class Case(BaseModel):
         return similar_cases_df
 
     def explainability_gradcam(self):
+        if not self.image_data.get("gradcam", None):
+            return "No Gradcam method found for this case"
         fig = go.Figure()
 
         fig.add_layout_image(
@@ -316,6 +318,8 @@ class Case(BaseModel):
         fig.show(config={"displaylogo": False})
 
     def explainability_shap(self):
+        if not self.image_data.get("shap", None):
+            return "No Shap method found for this case"
         fig = go.Figure()
 
         fig.add_layout_image(
@@ -342,6 +346,8 @@ class Case(BaseModel):
         fig.show(config={"displaylogo": False})
 
     def explainability_lime(self):
+        if not self.image_data.get("lime", None):
+            return "No Lime method found for this case"
         fig = go.Figure()
 
         fig.add_layout_image(
@@ -368,6 +374,8 @@ class Case(BaseModel):
         fig.show(config={"displaylogo": False})
 
     def explainability_integrated_gradients(self):
+        if not self.image_data.get("integrated_gradients", None):
+            return "No Integrated Gradients method found for this case"
         fig = go.Figure()
 
         fig.add_layout_image(
