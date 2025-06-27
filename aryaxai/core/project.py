@@ -3556,8 +3556,8 @@ class Project(BaseModel):
         tag: Optional[str] = None,
         model_name: Optional[str] = None,
         instance_type: Optional[str] = None,
-        components: Optional[list] = None,
-        xai: Optional[list] = []
+        xai: Optional[list] = [],
+        risk_policies: Optional[bool] = False
     ) -> Case:
         """Case Info
 
@@ -3578,7 +3578,7 @@ class Project(BaseModel):
             "tag": tag,
             "model_name": model_name,
             "instance_type": instance_type,
-            "components": components,
+            "risk_policies": risk_policies,
             "xai": xai
         }
         if self.metadata.get("modality") == "text":
