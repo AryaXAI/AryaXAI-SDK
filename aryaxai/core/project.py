@@ -3607,8 +3607,9 @@ class Project(BaseModel):
                 res["details"]["case_prediction_path"] = dtree_res["details"][
                     "case_prediction_path"
                 ]
-                res["details"]["audit_trail"]["explainability_cost"] = dtree_res["details"]["explainability_cost"]
-                res["details"]["audit_trail"]["explainability_time"] = dtree_res["details"]["explainability_time"]
+                res["details"]["audit_trail"]["cost"]["xai_dtree"] = dtree_res["details"]["cost_dtree"]
+                res["details"]["audit_trail"]["time"]["xai_dtree"] = dtree_res["details"]["time_dtree"]
+                res["details"]["audit_trail"]["instance_type"]["xai_dtree"] = dtree_res["details"]["compute_type"]
         res["details"]["project_name"] = self.project_name
         res["details"]["api_client"] = self.api_client
         case = Case(**res["details"])
