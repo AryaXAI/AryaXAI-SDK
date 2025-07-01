@@ -4979,12 +4979,12 @@ def validate_configuration(configuration, params):
             valid_feature_values = params.get("features").get(expression.get("column"))
 
             if isinstance(valid_feature_values, str):
-                if valid_feature_values == "input" and not parse_float(
-                    expression_value
-                ):
-                    raise Exception(
-                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
-                    )
+            #     if valid_feature_values == "input" and not parse_float(
+            #         expression_value
+            #     ):
+            #         raise Exception(
+            #             f"Invalid value comparison with {expression_value} for {expression.get('column')}"
+            #         )
 
                 if valid_feature_values == "datetime" and not parse_datetime(
                     expression_value
