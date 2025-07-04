@@ -507,6 +507,7 @@ class CaseText(BaseModel):
     prompt: str
     output: str
     explainabiblity: Optional[Dict] = {}
+    audit_trail: Optional[Dict] = {}
 
     def prompt(self):
         """Get prompt"""
@@ -598,4 +599,7 @@ class CaseText(BaseModel):
         except Exception as e:
             print(f"Error decoding base64 image: {e}")
             return None
+        
+    def audit(self):
+        return self.audit_trail
     

@@ -3927,7 +3927,7 @@ class Project(BaseModel):
         )
         configuration, expression = build_expression(expression)
 
-        validate_configuration(configuration, observation_params["details"], self.project_name, self.api_client)
+        validate_configuration(configuration, observation_params["details"], self.project_name, self.api_client, True)
 
         payload = {
             "project_name": self.project_name,
@@ -4982,7 +4982,7 @@ def build_expression(expression_string):
     return configuration, metadata_expression
 
 
-def validate_configuration(configuration, params, project_name="", api_client=APIClient()):
+def validate_configuration(configuration, params, project_name="", api_client=APIClient(), observations=False):
     for expression in configuration:
         if isinstance(expression, str):
             if expression not in ["(", ")", *params.get("logical_operators")]:
@@ -5006,7 +5006,16 @@ def validate_configuration(configuration, params, project_name="", api_client=AP
             # validate value(s)
             expression_value = expression.get("value")
             valid_feature_values = params.get("features").get(expression.get("column"))
-
+            if observations and isinstance(valid_feature_values, list):
+                condition_operators = {
+                        "_NOTEQ": "!==",
+                        "_ISEQ": "==",
+                        "_GRT": ">",
+                        "_LST": "<",
+                    }
+                res = api_client.get(f"{VALIDATE_POLICY_URI}?project_name={project_name}&column1_name={expression.get('column')}&column2_name={expression.get('value')}&operation={condition_operators[expression.get('expression')]}")
+                if not res.get("success"):
+                    raise Exception(res.get("message"))
             if isinstance(valid_feature_values, str):
             #     if valid_feature_values == "input" and not parse_float(
             #         expression_value
