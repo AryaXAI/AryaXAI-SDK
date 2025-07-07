@@ -60,6 +60,8 @@ from aryaxai.common.xai_uris import (
     DOWNLOAD_SYNTHETIC_DATA_URI,
     DOWNLOAD_TAG_DATA_URI,
     DELETE_TRIGGER_URI,
+    DUPLICATE_OBSERVATION_URI,
+    DUPLICATE_POLICY_URI,
     EXECUTED_TRIGGER_URI,
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
@@ -125,6 +127,7 @@ from aryaxai.common.xai_uris import (
     LIST_FILEPATHS,
     UPLOAD_FILE_DATA_CONNECTORS,
     DROPBOX_OAUTH,
+    VALIDATE_POLICY_URI,
 )
 import json
 import io
@@ -3465,8 +3468,8 @@ class Project(BaseModel):
         tag: Optional[str] = None,
         model_name: Optional[str] = None,
         instance_type: Optional[str] = None,
-        components: Optional[list] = None,
-        explainability: Optional[bool] = False,
+        xai: Optional[list] = [],
+        risk_policies: Optional[bool] = False
     ) -> Case:
         """Case Info
 
@@ -3487,8 +3490,8 @@ class Project(BaseModel):
             "tag": tag,
             "model_name": model_name,
             "instance_type": instance_type,
-            "components": components,
-            "explainability": explainability,
+            "risk_policies": risk_policies,
+            "xai": xai
         }
         if self.metadata.get("modality") == "text":
             res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
@@ -3498,7 +3501,7 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        if self.metadata.get("modality") == "tabular" and (instance_type not in ["gova-0.5", "gova-1", "gova-1.5", "gova-2", "gova-4", "gova-6", "gova-8", "gova-10"]):
+        if self.metadata.get("modality") == "tabular" and "dtree" in xai:
             prediction_path_payload = {
                 "project_name": self.project_name,
                 "unique_identifier": unique_identifer,
@@ -3516,8 +3519,9 @@ class Project(BaseModel):
                 res["details"]["case_prediction_path"] = dtree_res["details"][
                     "case_prediction_path"
                 ]
-                res["details"]["audit_trail"]["explainability_cost"] = dtree_res["details"]["explainability_cost"]
-                res["details"]["audit_trail"]["explainability_time"] = dtree_res["details"]["explainability_time"]
+                res["details"]["audit_trail"]["cost"]["xai_dtree"] = dtree_res["details"]["cost_dtree"]
+                res["details"]["audit_trail"]["time"]["xai_dtree"] = dtree_res["details"]["time_dtree"]
+                res["details"]["audit_trail"]["compute_type"]["xai_dtree"] = dtree_res["details"]["compute_type"]
         res["details"]["project_name"] = self.project_name
         res["details"]["api_client"] = self.api_client
         case = Case(**res["details"])
@@ -3775,6 +3779,17 @@ class Project(BaseModel):
 
         observation_df.reset_index(inplace=True, drop=True)
         return observation_df
+    
+    def duplicate_observation(self, observation_name, new_observation_name) -> str:
+        if observation_name == new_observation_name:
+            return "Duplicate observation name can't be same"
+        url = f"{DUPLICATE_OBSERVATION_URI}?project_name={self.project_name}&observation_name={observation_name}&new_observation_name={new_observation_name}"
+        res = self.api_client.post(url)
+
+        if not res["success"]:
+            return res.get("details", "Failed to clone triggers")
+
+        return res["details"]
 
     def create_observation(
         self,
@@ -3782,6 +3797,7 @@ class Project(BaseModel):
         expression: str,
         statement: str,
         linked_features: List[str],
+        priority: Optional[int] = 5
     ) -> str:
         """Creates New Observation
 
@@ -3815,7 +3831,7 @@ class Project(BaseModel):
         )
         configuration, expression = build_expression(expression)
 
-        validate_configuration(configuration, observation_params["details"])
+        validate_configuration(configuration, observation_params["details"], self.project_name, self.api_client, True)
 
         payload = {
             "project_name": self.project_name,
@@ -3825,6 +3841,7 @@ class Project(BaseModel):
             "metadata": {"expression": expression},
             "statement": [statement],
             "linked_features": linked_features,
+            "priority": priority
         }
 
         res = self.api_client.post(CREATE_OBSERVATION_URI, payload)
@@ -3878,7 +3895,7 @@ class Project(BaseModel):
         if expression:
             Validate.string("expression", expression)
             configuration, expression = build_expression(expression)
-            validate_configuration(configuration, observation_params["details"])
+            validate_configuration(configuration, observation_params["details"], self.project_name, self.api_client)
             payload["update_keys"]["configuration"] = configuration
             payload["update_keys"]["metadata"] = {"expression": expression}
 
@@ -4058,6 +4075,17 @@ class Project(BaseModel):
         policy_df.reset_index(inplace=True, drop=True)
 
         return policy_df
+    
+    def duplicate_policy(self, policy_name, new_policy_name) -> str:
+        if policy_name == new_policy_name:
+            return "Duplicate observation name can't be same"
+        url = f"{DUPLICATE_POLICY_URI}?project_name={self.project_name}&policy_name={policy_name}&new_policy_name={new_policy_name}"
+        res = self.api_client.post(url)
+
+        if not res["success"]:
+            return res.get("details", "Failed to clone Policy")
+
+        return res["details"]
 
     def create_policy(
         self,
@@ -4067,6 +4095,7 @@ class Project(BaseModel):
         decision: str,
         input: Optional[str] = None,
         models: Optional[list] = [],
+        priority: Optional[int] = 5
     ) -> str:
         """Creates New Policy
 
@@ -4093,7 +4122,7 @@ class Project(BaseModel):
             f"{GET_POLICY_PARAMS_URI}?project_name={self.project_name}"
         )
 
-        validate_configuration(configuration, policy_params["details"])
+        validate_configuration(configuration, policy_params["details"], self.project_name, self.api_client)
 
         Validate.value_against_list(
             "decision", decision, list(policy_params["details"]["decision"].values())[0]
@@ -4111,6 +4140,7 @@ class Project(BaseModel):
             "statement": [statement],
             "decision": input if decision == "input" else decision,
             "models": models,
+            "priority": priority
         }
 
         res = self.api_client.post(CREATE_POLICY_URI, payload)
@@ -4166,7 +4196,7 @@ class Project(BaseModel):
         if expression:
             Validate.string("expression", expression)
             configuration, expression = build_expression(expression)
-            validate_configuration(configuration, policy_params["details"])
+            validate_configuration(configuration, policy_params["details"], self.project_name, self.api_client)
             payload["update_keys"]["configuration"] = configuration
             payload["update_keys"]["metadata"] = {"expression": expression}
 
@@ -4598,7 +4628,7 @@ class Project(BaseModel):
         configuration, expression = build_expression(expression)
 
         prompt_params = self.get_observation_params()
-        validate_configuration(configuration, prompt_params)
+        validate_configuration(configuration, prompt_params, self.project_name, self.api_client)
 
         payload = {
             "prompt_name": name,
@@ -4856,7 +4886,7 @@ def build_expression(expression_string):
     return configuration, metadata_expression
 
 
-def validate_configuration(configuration, params):
+def validate_configuration(configuration, params, project_name="", api_client=APIClient(), observations=False):
     for expression in configuration:
         if isinstance(expression, str):
             if expression not in ["(", ")", *params.get("logical_operators")]:
@@ -4880,18 +4910,37 @@ def validate_configuration(configuration, params):
             # validate value(s)
             expression_value = expression.get("value")
             valid_feature_values = params.get("features").get(expression.get("column"))
-
+            if observations and isinstance(valid_feature_values, list):
+                condition_operators = {
+                        "_NOTEQ": "!==",
+                        "_ISEQ": "==",
+                        "_GRT": ">",
+                        "_LST": "<",
+                    }
+                res = api_client.get(f"{VALIDATE_POLICY_URI}?project_name={project_name}&column1_name={expression.get('column')}&column2_name={expression.get('value')}&operation={condition_operators[expression.get('expression')]}")
+                if not res.get("success"):
+                    raise Exception(res.get("message"))
             if isinstance(valid_feature_values, str):
-                if valid_feature_values == "input" and not parse_float(
-                    expression_value
-                ):
-                    raise Exception(
-                        f"Invalid value comparison with {expression_value} for {expression.get('column')}"
-                    )
-
+            #     if valid_feature_values == "input" and not parse_float(
+            #         expression_value
+            #     ):
+            #         raise Exception(
+            #             f"Invalid value comparison with {expression_value} for {expression.get('column')}"
+            #         )
                 if valid_feature_values == "datetime" and not parse_datetime(
                     expression_value
                 ):
                     raise Exception(
                         f"Invalid value comparison with {expression_value} for {expression.get('column')}"
                     )
+
+                else:
+                    condition_operators = {
+                        "_NOTEQ": "!==",
+                        "_ISEQ": "==",
+                        "_GRT": ">",
+                        "_LST": "<",
+                    }
+                    res = api_client.get(f"{VALIDATE_POLICY_URI}?project_name={project_name}&column1_name={expression.get('column')}&column2_name={expression.get('value')}&operation={condition_operators[expression.get('expression')]}")
+                    if not res.get("success"):
+                        raise Exception(res.get("message"))

@@ -96,12 +96,15 @@ GET_OBSERVATIONS_URI = f"{API_VERSION_V2}/observations/get_observations"
 GET_OBSERVATION_PARAMS_URI = f"{API_VERSION_V2}/observations/get_observation_params"
 CREATE_OBSERVATION_URI = f"{API_VERSION_V2}/observations/create_observation"
 UPDATE_OBSERVATION_URI = f"{API_VERSION_V2}/observations/observation_config_update"
+DUPLICATE_OBSERVATION_URI = f"{API_VERSION_V2}/observations/duplicate_observation"
 
 # Policies
 GET_POLICIES_URI = f"{API_VERSION_V2}/policies/get_policies"
 GET_POLICY_PARAMS_URI = f"{API_VERSION_V2}/policies/get_policy_params"
 CREATE_POLICY_URI = f"{API_VERSION_V2}/policies/create_policy"
 UPDATE_POLICY_URI = f"{API_VERSION_V2}/policies/policy_config_update"
+VALIDATE_POLICY_URI = f"{API_VERSION_V2}/policies/validate_policy"
+DUPLICATE_POLICY_URI = f"{API_VERSION_V2}/policies/duplicate_policy"
 
 # Alerts
 GET_TRIGGERS_URI = f"{API_VERSION_V2}/triggers/get_triggers"
