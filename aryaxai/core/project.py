@@ -3,11 +3,6 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
-    DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
-    MAIL_FREQUENCIES,
-    MODEL_PERF_METRICS_CLASSIFICATION,
-    MODEL_PERF_METRICS_REGRESSION,
-    MODEL_PERF_TRIGGER_REQUIRED_FIELDS,
     MODEL_TYPES,
     DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
     DATA_DRIFT_STAT_TESTS,
@@ -16,9 +11,6 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS,
     BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
-    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
-    TARGET_DRIFT_STAT_TESTS_REGRESSION,
-    TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import (
     DataConfig,
@@ -59,7 +51,6 @@ from aryaxai.common.xai_uris import (
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
     DUPLICATE_MONITORS_URI,
-    DASHBOARD_CONFIG_URI,
     DASHBOARD_LOGS_URI,
     DOWNLOAD_DASHBOARD_LOGS_URI,
     DELETE_CASE_URI,
@@ -73,7 +64,6 @@ from aryaxai.common.xai_uris import (
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_AVAILABLE_TEXT_MODELS_URI,
-    GENERATE_TEXT_CASE_URI,
     GET_CASES_URI,
     GET_DASHBOARD_SCORE_URI,
     GET_DASHBOARD_URI,
@@ -99,7 +89,6 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_PROMPT_URI,
     GET_VIEWED_CASE_URI,
     IMAGE_DL,
-    INITIALIZE_TEXT_MODEL_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_PERFORMANCE_DASHBOARD_URI,
@@ -149,7 +138,6 @@ from datetime import datetime
 import re
 from aryaxai.core.utils import build_url, build_list_data_connector_url
 from aryaxai.core.synthetic import SyntheticDataTag, SyntheticModel, SyntheticPrompt
-from aryaxai.core.wrapper import available_guardrails, configure_guardrail, get_active_guardrails, get_messages, get_sessions, get_traces, monitor
 
 
 class Project(BaseModel):
@@ -3420,80 +3408,6 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def get_available_text_models(self):
-        """Get available text models
-
-        :return: list of available text models
-        """
-        if self.metadata.get("modality") != "text":
-            return "The current project is not a text-based project."
-        res = self.api_client.get(f"{GET_AVAILABLE_TEXT_MODELS_URI}")
-        if not res["success"]:
-            raise Exception(res["details"])
-        all_models = []
-        for model_type, models in res["details"].items():
-            for model in models:
-                all_models.append({
-                    "model_type": model_type,
-                    "model_name": model[0],
-                    "model_url": model[1],
-                    "available": model[2]
-                })
-        return pd.DataFrame(all_models)
-    
-    def initialize_text_model(self, model_provider: str, model_name: str) -> str:
-        """Initialize text model
-
-        :param model_provider: model of provider
-        :param model_name: name of the model to be initialized
-        :return: response
-        """
-        if self.metadata.get("modality") != "text":
-            return "The current project is not a text-based project."
-        payload = {
-            "model_provider": model_provider,
-            "model_name": model_name, 
-            "project_name": self.project_name
-        }
-        res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
-        if not res["success"]:
-            raise Exception(res.get("details","Model Intialization Failed"))
-        poll_events(self.api_client, self.project_name, res["event_id"])
-
-    def generate_text_case(
-        self,
-        model_name: str,
-        prompt: str,
-        instance_type: Optional[str] = "gova-2",
-        serverless_instance_type: Optional[str] = "xsmall",
-        explainability_method: Optional[list] = ["DLB"],
-        explain_model: Optional[bool] = False,
-        session_id: Optional[str] = None,
-    ):
-        """Generate Text Case
-
-        :param model_name: name of the model
-        :param model_type: type of the model
-        :param input_text: input text for the case
-        :param tag: tag for the case
-        :param task_type: task type for the case, defaults to None
-        :param instance_type: instance type for the case, defaults to None
-        :param explainability_method: explainability method for the case, defaults to None
-        :param explain_model: explain model for the case, defaults to False
-        :return: response
-        """
-        from aryaxai.core.wrapper import AryaModels, monitor
-        llm = monitor(project=self,client=AryaModels(project=self),session_id=session_id)
-        res = llm.generate_text_case(
-            model_name=model_name, 
-            prompt=prompt , 
-            instance_type=instance_type,
-            serverless_instance_type=serverless_instance_type,
-            explainability_method=explainability_method,
-            explain_model=explain_model
-        )
-        return res
-
     def cases(
         self,
         unique_identifier: Optional[str] = None,
@@ -3651,14 +3565,9 @@ class Project(BaseModel):
         :return: Case object with details
         """
 
-        if self.metadata.get("modality") == "text":
-            res = self.api_client.get(
-                f"{CASE_LOGS_TEXT_URI}?project_name={self.project_name}&page={page}"
-            )
-        else:
-            res = self.api_client.get(
-                f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
-            )
+        res = self.api_client.get(
+            f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
+        )
 
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get case logs"))
@@ -3696,8 +3605,8 @@ class Project(BaseModel):
 
         data = {**res["details"], **res["details"].get("result", {})}
         data["api_client"] = self.api_client
-        case = Case(**data)
-
+        if self.metadata.get("modality") != "text": case = Case(**data)
+        if self.metadata.get("modality") == "text": case = CaseText(**data)
         return case
 
     def get_notifications(self) -> pd.DataFrame:
@@ -4819,27 +4728,6 @@ class Project(BaseModel):
         if not res["success"]:
             raise Exception(res["message"])
         return res.get("feature_importance", "")
-
-    def llm_monitor(self, client, session_id=None):
-        return monitor(project=self,client=client, session_id=session_id)
-    
-    def get_messages(self, session_id):
-        return get_messages(project_name=self.project_name, session_id=session_id)
-    
-    def get_sessions(self):
-        return get_sessions(project_name=self.project_name)
-    
-    def get_traces(self, trace_id):
-        return get_traces(project_name=self.project_name, trace_id=trace_id)
-    
-    def get_active_guardrails(self):
-        return get_active_guardrails(project_name=self.project_name)
-    
-    def available_guardrails(self):
-        return available_guardrails()
-    
-    def configure_guardrail(self, guardrail_name, guardrail_config, model_name, apply_on):
-        return configure_guardrail(project_name=self.project_name, guardrail_name=guardrail_name, model_name=model_name, guardrail_config=guardrail_config, apply_on=apply_on)
 
     def events(
         self,

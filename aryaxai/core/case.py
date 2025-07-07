@@ -498,7 +498,7 @@ class CaseText(BaseModel):
     status: str
     prompt: str
     output: str
-    explainabiblity: Optional[Dict] = {}
+    explainability: Optional[Dict] = {}
 
     def prompt(self):
         """Get prompt"""
@@ -515,7 +515,7 @@ class CaseText(BaseModel):
         :return: raw data dataframe
         """
         raw_data_df = (
-            pd.DataFrame([self.explainabiblity.get("feature_importance", {})])
+            pd.DataFrame([self.explainability.get("feature_importance", {})])
             .transpose()
             .reset_index()
             .rename(columns={"index": "Feature", 0: "Value"})
@@ -526,7 +526,7 @@ class CaseText(BaseModel):
     def explainability_feature_importance(self):
         """Plots Feature Importance chart"""
         fig = go.Figure()
-        feature_importance = self.explainabiblity.get("feature_importance", {})
+        feature_importance = self.explainability.get("feature_importance", {})
 
         if not feature_importance:
             return "No Feature Importance for the case"
@@ -565,24 +565,23 @@ class CaseText(BaseModel):
         fig.show(config={"displaylogo": False})
 
     def network_graph(self):
-        network_graph_data = self.explainabiblity.get("network_graph", {})
+        network_graph_data = self.explainability.get("network_graph", {})
         if not network_graph_data:
             return "No Network graph found for this case"
         base64_str = network_graph_data
         try:
             img_bytes = base64.b64decode(base64_str)
             image = Image.open(BytesIO(img_bytes))
-            image.show()
             return image
         except Exception as e:
             print(f"Error decoding base64 image: {e}")
             return None
         
     def token_attribution_graph(self):
-        relavance_data = self.explainabiblity.get("relavance", {})
-        if not relavance_data:
+        relevance_data = self.explainability.get("relevance", {})
+        if not relevance_data:
             return "No Token Attribution graph found for this case"
-        base64_str = relavance_data
+        base64_str = relevance_data
         try:
             img_bytes = base64.b64decode(base64_str)
             image = Image.open(BytesIO(img_bytes))
