@@ -506,6 +506,10 @@ class CaseText(BaseModel):
     status: str
     prompt: str
     output: str
+    input_encoded_length: int
+    input_decoded_length: int
+    output_encoded_length: int
+    output_decoded_length: int
     explainability: Optional[Dict] = {}
     audit_trail: Optional[Dict] = {}
 
