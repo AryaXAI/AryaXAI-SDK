@@ -6,6 +6,7 @@ import uuid
 from openai import OpenAI
 from anthropic import Anthropic
 from google import genai
+from mistralai import Mistral
 from pydantic import BaseModel
 from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_URI
 
@@ -24,7 +25,7 @@ class Wrapper:
             "metadata": metadata,
             "duration": duration,
         }
-        # print("add_message Payload:", payload) 
+        # print("add_message Payload:", payload)
         try:
             res = self.api_client.post("sessions/add_session_message", payload=payload)
             # print("add_message Response:", res)
@@ -81,10 +82,10 @@ class Wrapper:
             "project_name": self.project_name,
             "apply_on": apply_on
         }
-        print("run_guardrails Payload:", payload)
+        # print("run_guardrails Payload:", payload)
         try:
             res = self.api_client.post("v2/ai-models/run_guardrails", payload=payload)
-            print("run_guardrails Response:", res)
+            # print("run_guardrails Response:", res)
             return res
         except Exception as e:
             print("run_guardrails Error:", str(e))
@@ -115,6 +116,9 @@ class Wrapper:
                 elif method_name == "client.models.generate_content":  # Gemini
                     input_data = kwargs.get("contents")
                     model_name = kwargs.get("model")
+                elif method_name == "client.chat.complete":  # Mistral
+                    input_data = kwargs.get("messages")
+                    model_name = kwargs.get("model")
                 elif method_name == "client.generate_text_case":  # AryaModels
                     input_data = kwargs.get("prompt")
                     model_name = kwargs.get("model_name")
@@ -122,7 +126,7 @@ class Wrapper:
                     input_data = kwargs
                     model_name = None
 
-                print("Wrapper Method:", method_name)
+                # print("Wrapper Method:", method_name)
                 try:
                     trace_res = self.add_trace_details(
                         trace_id=trace_id,
@@ -133,9 +137,9 @@ class Wrapper:
                         metadata={},
                     )
                     id_session = trace_res.get("details", {}).get("session_id")
-                    print("Session ID:", id_session)
+                    # print("Session ID:", id_session)
                 except Exception as e:
-                    print("Input Trace Error:", str(e))
+                    # print("Input Trace Error:", str(e))
                     raise
 
                 try:
@@ -188,6 +192,12 @@ class Wrapper:
                         output_data = result.text
                     except AttributeError as e:
                         print("Gemini Output Extraction Error:", str(e))
+                        output_data = None
+                elif method_name == "client.chat.complete":  # Mistral
+                    try:
+                        output_data = result.choices[0].message.content
+                    except (AttributeError, IndexError) as e:
+                        print("Mistral Output Extraction Error:", str(e))
                         output_data = None
                 elif method_name == "client.generate_text_case":  # AryaModels
                     output_data = result.get("details", {}).get("result", {}).get("output")
@@ -308,6 +318,14 @@ def monitor(project, client, session_id=None):
         client.models.generate_content = wrapper._get_wrapper(
             original_method=client.models.generate_content,
             method_name="client.models.generate_content",
+            session_id=session_id,
+            project_name=project.project_name
+        )
+    elif isinstance(client, Mistral):
+        # Temporarily bypass model check for testing
+        client.chat.complete = wrapper._get_wrapper(
+            original_method=client.chat.complete,
+            method_name="client.chat.complete",
             session_id=session_id,
             project_name=project.project_name
         )
