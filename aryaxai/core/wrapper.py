@@ -25,14 +25,11 @@ class Wrapper:
             "metadata": metadata,
             "duration": duration,
         }
-        # print("add_message Payload:", payload)
         try:
             res = self.api_client.post("sessions/add_session_message", payload=payload)
-            # print("add_message Response:", res)
             return res
         except Exception as e:
-            print("add_message Error:", str(e))
-            raise
+            raise e
 
     def add_trace_details(self, session_id, trace_id, component, input_data, metadata, output_data=None, function_to_run=None):
         start_time = time.perf_counter()
@@ -58,13 +55,7 @@ class Wrapper:
             "metadata": metadata,
             "duration": duration,
         }
-        # print("add_trace_details Payload:", payload)
-        try:
-            res = self.api_client.post("traces/add_trace", payload=payload)
-            # print("add_trace_details Response:", res)
-        except Exception as e:
-            print("add_trace_details Error:", str(e))
-            raise
+        res = self.api_client.post("traces/add_trace", payload=payload)
         if function_to_run:
             if component in ["Input Guardrails", "Output Guardrails"]:
                 if not result.get("success", True):
@@ -82,10 +73,8 @@ class Wrapper:
             "project_name": self.project_name,
             "apply_on": apply_on
         }
-        # print("run_guardrails Payload:", payload)
         try:
             res = self.api_client.post("v2/ai-models/run_guardrails", payload=payload)
-            # print("run_guardrails Response:", res)
             return res
         except Exception as e:
             print("run_guardrails Error:", str(e))
@@ -126,133 +115,96 @@ class Wrapper:
                     input_data = kwargs
                     model_name = None
 
-                # print("Wrapper Method:", method_name)
-                try:
-                    trace_res = self.add_trace_details(
-                        trace_id=trace_id,
-                        session_id=session_id,
-                        component="Input",
-                        input_data=input_data,
-                        output_data=input_data,
-                        metadata={},
-                    )
-                    id_session = trace_res.get("details", {}).get("session_id")
-                    # print("Session ID:", id_session)
-                except Exception as e:
-                    # print("Input Trace Error:", str(e))
-                    raise
+                trace_res = self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=session_id,
+                    component="Input",
+                    input_data=input_data,
+                    output_data=input_data,
+                    metadata={},
+                )
+                id_session = trace_res.get("details", {}).get("session_id")
 
-                try:
-                    self.add_trace_details(
-                        trace_id=trace_id,
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Input Guardrails",
+                    input_data=input_data,
+                    metadata={},
+                    function_to_run=lambda: self.run_guardrails(
                         session_id=id_session,
-                        component="Input Guardrails",
+                        trace_id=trace_id,
                         input_data=input_data,
-                        metadata={},
-                        function_to_run=lambda: self.run_guardrails(
-                            session_id=id_session,
-                            trace_id=trace_id,
-                            input_data=input_data,
-                            model_name=model_name,
-                            apply_on="input"
-                        )
+                        model_name=model_name,
+                        apply_on="input"
                     )
-                except Exception as e:
-                    print("Input Guardrails Error:", str(e))
-                    raise
+                )
 
                 if method_name == "client.generate_text_case":
                     kwargs["session_id"] = id_session
                     kwargs["trace_id"] = trace_id
 
-                try:
-                    result = self.add_trace_details(
-                        trace_id=trace_id,
-                        session_id=id_session,
-                        component="LLM",
-                        input_data=input_data,
-                        metadata=kwargs,
-                        function_to_run=lambda: original_method(*args, **kwargs)
-                    )
-                except Exception as e:
-                    print("LLM Call Error:", str(e))
-                    raise
+                result = self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="LLM",
+                    input_data=input_data,
+                    metadata=kwargs,
+                    function_to_run=lambda: original_method(*args, **kwargs)
+                )
 
                 # Handle output data based on method
                 if method_name == "client.chat.completions.create":  # OpenAI
                     output_data = result.choices[0].message.content
                 elif method_name == "client.messages.create":  # Anthropic Messages API
-                    try:
-                        output_data = result.content[0].text
-                    except (AttributeError, IndexError) as e:
-                        print("Anthropic Output Extraction Error:", str(e))
-                        output_data = None
+                    output_data = result.content[0].text
                 elif method_name == "client.models.generate_content":  # Gemini
-                    try:
-                        output_data = result.text
-                    except AttributeError as e:
-                        print("Gemini Output Extraction Error:", str(e))
-                        output_data = None
+                    output_data = result.text
                 elif method_name == "client.chat.complete":  # Mistral
-                    try:
-                        output_data = result.choices[0].message.content
-                    except (AttributeError, IndexError) as e:
-                        print("Mistral Output Extraction Error:", str(e))
-                        output_data = None
+                    output_data = result.choices[0].message.content
                 elif method_name == "client.generate_text_case":  # AryaModels
                     output_data = result.get("details", {}).get("result", {}).get("output")
                 else:
                     output_data = result
 
-                try:
-                    self.add_trace_details(
-                        trace_id=trace_id,
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Output Guardrails",
+                    input_data=output_data,
+                    metadata={},
+                    function_to_run=lambda: self.run_guardrails(
                         session_id=id_session,
-                        component="Output Guardrails",
+                        trace_id=trace_id,
+                        model_name=model_name,
                         input_data=output_data,
-                        metadata={},
-                        function_to_run=lambda: self.run_guardrails(
-                            session_id=id_session,
-                            trace_id=trace_id,
-                            model_name=model_name,
-                            input_data=output_data,
-                            apply_on="output"
-                        )
+                        apply_on="output"
                     )
-                except Exception as e:
-                    print("Output Guardrails Error:", str(e))
-                    raise
+                )
 
-                try:
-                    self.add_trace_details(
-                        trace_id=trace_id,
-                        session_id=id_session,
-                        component="Output",
-                        input_data=input_data,
-                        output_data=output_data,
-                        metadata={},
-                    )
-                except Exception as e:
-                    print("Output Trace Error:", str(e))
-                    raise
+
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Output",
+                    input_data=input_data,
+                    output_data=output_data,
+                    metadata={},
+                )
 
                 metadata = {}
                 if method_name == "client.generate_text_case":
                     metadata = {
                         "case_id": result.get("details", {}).get("case_id")
                     }
-                try:
-                    self.add_message(
-                        trace_id=trace_id,
-                        session_id=id_session,
-                        input_data=input_data,
-                        output_data=output_data,
-                        duration=time.perf_counter() - total_start_time,
-                        metadata=metadata
-                    )
-                except Exception as e:
-                    print("add_message Error:", str(e))
-                    raise
+                self.add_message(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    input_data=input_data,
+                    output_data=output_data,
+                    duration=time.perf_counter() - total_start_time,
+                    metadata=metadata
+                )
 
                 return result
             return wrapper
