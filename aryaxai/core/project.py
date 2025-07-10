@@ -3,11 +3,6 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from aryaxai.client.client import APIClient
 from aryaxai.common.constants import (
-    DATA_DRIFT_TRIGGER_REQUIRED_FIELDS,
-    MAIL_FREQUENCIES,
-    MODEL_PERF_METRICS_CLASSIFICATION,
-    MODEL_PERF_METRICS_REGRESSION,
-    MODEL_PERF_TRIGGER_REQUIRED_FIELDS,
     MODEL_TYPES,
     DATA_DRIFT_DASHBOARD_REQUIRED_FIELDS,
     DATA_DRIFT_STAT_TESTS,
@@ -16,9 +11,6 @@ from aryaxai.common.constants import (
     TARGET_DRIFT_STAT_TESTS,
     BIAS_MONITORING_DASHBOARD_REQUIRED_FIELDS,
     MODEL_PERF_DASHBOARD_REQUIRED_FIELDS,
-    TARGET_DRIFT_STAT_TESTS_CLASSIFICATION,
-    TARGET_DRIFT_STAT_TESTS_REGRESSION,
-    TARGET_DRIFT_TRIGGER_REQUIRED_FIELDS,
 )
 from aryaxai.common.types import (
     DataConfig,
@@ -59,7 +51,6 @@ from aryaxai.common.xai_uris import (
     CREATE_SYNTHETIC_PROMPT_URI,
     CREATE_TRIGGER_URI,
     DUPLICATE_MONITORS_URI,
-    DASHBOARD_CONFIG_URI,
     DASHBOARD_LOGS_URI,
     DOWNLOAD_DASHBOARD_LOGS_URI,
     DELETE_CASE_URI,
@@ -75,7 +66,6 @@ from aryaxai.common.xai_uris import (
     FETCH_EVENTS,
     GENERATE_DASHBOARD_URI,
     GET_AVAILABLE_TEXT_MODELS_URI,
-    GENERATE_TEXT_CASE_URI,
     GET_CASES_URI,
     GET_DASHBOARD_SCORE_URI,
     GET_DASHBOARD_URI,
@@ -101,7 +91,6 @@ from aryaxai.common.xai_uris import (
     GET_SYNTHETIC_PROMPT_URI,
     GET_VIEWED_CASE_URI,
     IMAGE_DL,
-    INITIALIZE_TEXT_MODEL_URI,
     MODEL_INFERENCES_URI,
     MODEL_PARAMETERS_URI,
     MODEL_PERFORMANCE_DASHBOARD_URI,
@@ -3422,86 +3411,6 @@ class Project(BaseModel):
 
         return res.get("details")
 
-    def get_available_text_models(self):
-        """Get available text models
-
-        :return: list of available text models
-        """
-        if self.metadata.get("modality") != "text":
-            return "The current project is not a text-based project."
-        res = self.api_client.get(f"{GET_AVAILABLE_TEXT_MODELS_URI}")
-        if not res["success"]:
-            raise Exception(res["details"])
-        all_models = []
-        for model_type, models in res["details"].items():
-            for model in models:
-                all_models.append({
-                    "model_type": model_type,
-                    "model_name": model[0],
-                    "model_url": model[1],
-                    "available": model[2]
-                })
-        return pd.DataFrame(all_models)
-    
-    def initialize_text_model(self, model_name: str) -> str:
-        """Initialize text model
-
-        :param model_name: name of the model to be initialized
-        :return: response
-        """
-        if self.metadata.get("modality") != "text":
-            return "The current project is not a text-based project."
-        res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", {"model_name": model_name, "project_name": self.project_name})
-        if not res["success"]:
-            raise Exception(res["message"])
-        poll_events(self.api_client, self.project_name, res["event_id"])
-
-    def generate_text_case(
-        self,
-        model_name: str,
-        model_type: str,
-        prompt: str,
-        tag: str,
-        task_type: Optional[str] = None,
-        instance_type: Optional[str] = "gova-2",
-        serverless_instance_type: Optional[str] = "xsmall",
-        explainability_method: Optional[list] = ["DLB"],
-        explain_model: Optional[bool] = False,
-        unique_identifier: Optional[str] = None,
-    ):
-        """Generate Text Case
-
-        :param model_name: name of the model
-        :param model_type: type of the model
-        :param input_text: input text for the case
-        :param tag: tag for the case
-        :param task_type: task type for the case, defaults to None
-        :param instance_type: instance type for the case, defaults to None
-        :param explainability_method: explainability method for the case, defaults to None
-        :param explain_model: explain model for the case, defaults to False
-        :return: response
-        """
-        if self.metadata.get("modality") == "text":
-            payload = {
-                "project_name": self.project_name,
-                "model_name": model_name,
-                "model_type": model_type,
-                "input_text": prompt,
-                "tag": tag,
-                "task_type": task_type,
-                "instance_type": instance_type,
-                "serverless_instance_type": serverless_instance_type,
-                "explainability_method": explainability_method,
-                "explain_model": explain_model,
-                "unique_identifier": unique_identifier
-            }
-            res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
-            if not res["success"]:
-                raise Exception(res["details"])
-            return res
-        else:
-            return "Text case generation is not supported for this modality type"
-
     def cases(
         self,
         unique_identifier: Optional[str] = None,
@@ -3660,14 +3569,9 @@ class Project(BaseModel):
         :return: Case object with details
         """
 
-        if self.metadata.get("modality") == "text":
-            res = self.api_client.get(
-                f"{CASE_LOGS_TEXT_URI}?project_name={self.project_name}&page={page}"
-            )
-        else:
-            res = self.api_client.get(
-                f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
-            )
+        res = self.api_client.get(
+            f"{CASE_LOGS_URI}?project_name={self.project_name}&page={page}"
+        )
 
         if not res["success"]:
             raise Exception(res.get("details", "Failed to get case logs"))
@@ -3705,8 +3609,8 @@ class Project(BaseModel):
 
         data = {**res["details"], **res["details"].get("result", {})}
         data["api_client"] = self.api_client
-        case = Case(**data)
-
+        if self.metadata.get("modality") != "text": case = Case(**data)
+        if self.metadata.get("modality") == "text": case = CaseText(**data)
         return case
 
     def get_notifications(self) -> pd.DataFrame:

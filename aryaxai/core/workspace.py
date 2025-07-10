@@ -15,6 +15,7 @@ from aryaxai.common.xai_uris import (
     CLEAR_NOTIFICATIONS_URI,
 )
 from aryaxai.core.project import Project
+from aryaxai.core.text import TextProject
 
 
 class Workspace(BaseModel):
@@ -146,20 +147,17 @@ class Workspace(BaseModel):
             f"{GET_WORKSPACES_DETAILS_URI}?workspace_name={self.workspace_name}"
         )
 
-        projects = [
-            Project(api_client=self.api_client, **project)
-            for project in workspace.get("data", {}).get("projects", [])
-        ]
-
         project = next(
-            filter(lambda project: project.user_project_name == project_name, projects),
+            filter(lambda project: project.get("user_project_name") == project_name, workspace.get("data", {}).get("projects", [])),
             None,
         )
 
         if project is None:
             raise Exception("Project Not Found")
+        
+        if project.get("metadata",{}).get("modality") == "text": return TextProject(api_client=self.api_client, **project)
 
-        return project
+        return Project(api_client=self.api_client, **project)
 
     def create_project(
         self,
@@ -203,7 +201,11 @@ class Workspace(BaseModel):
         if not res["success"]:
             raise Exception(res["details"])
 
-        project = Project(api_client=self.api_client, **res["details"])
+        if modality != "text":
+            project = Project(api_client=self.api_client, **res["details"])
+
+        if modality == "text":
+            project = TextProject(api_client=self.api_client, **res["details"])
 
         return project
 

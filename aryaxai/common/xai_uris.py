@@ -49,7 +49,6 @@ GET_DATA_DRIFT_DIAGNOSIS_URI = f"{API_VERSION_V2}/project/get_data_drift_diagnos
 GET_PROJECT_CONFIG = f"{API_VERSION_V2}/users/get_xai_config"
 AVAILABLE_TAGS_URI = f"{API_VERSION_V2}/project/get_all_available_tags_info"
 TAG_DATA_URI = f"{API_VERSION_V2}/project/tag_data"
-GET_AVAILABLE_TEXT_MODELS_URI = f"{API_VERSION_V2}/users/get_available_text_models"
 INITIALIZE_TEXT_MODEL_URI = f"{API_VERSION_V2}/users/initalize_text_model"
 GET_FEATURE_IMPORTANCE_URI = f"{API_VERSION_V2}/project/get_feature_importance"
 
@@ -173,3 +172,14 @@ IMAGE_DL = f"{API_VERSION_V2}/evals/"
 
 # Agents 
 EXPLAINABILITY_SUMMARY = f"{API_VERSION_V2}/agents/explainability_summary"
+
+#Text
+MESSAGES_URI =  f"sessions/get_session_messages"
+SESSIONS_URI = f"sessions/get_sessions"
+TRACES_URI = f"traces/get_traces"
+GET_GUARDRAILS_URI = f"guardrails/active_guardrails"
+UPDATE_GUARDRAILS_STATUS_URI = f"guardrails/update_guardrail_status"
+DELETE_GUARDRAILS_URI = f"guardrails/delete_guardrail"
+AVAILABLE_GUARDRAILS_URI = f"guardrails/all"
+CONFIGURE_GUARDRAILS_URI = f"guardrails/configure"
+GET_AVAILABLE_TEXT_MODELS_URI = f"{API_VERSION_V2}/users/get_available_text_models"
