@@ -9,7 +9,10 @@ from google import genai
 from mistralai import Mistral
 from pydantic import BaseModel
 from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_URI
-import asyncio
+from together import Together
+from groq import Groq
+import replicate
+from huggingface_hub import InferenceClient
 
 class Wrapper:
     def __init__(self, project_name, api_client):
@@ -219,9 +222,15 @@ class Wrapper:
                 elif method_name == "client.chat.complete":  # Mistral
                     input_data = kwargs.get("messages")
                     model_name = kwargs.get("model")
+                elif method_name == "client.chat_completion":
+                    input_data = kwargs.get("messages")
+                    model_name = kwargs.get("model")
                 elif method_name == "client.generate_text_case":  # AryaModels
                     input_data = kwargs.get("prompt")
                     model_name = kwargs.get("model_name")
+                elif method_name == "client.run":
+                    input_data = kwargs.get("input")
+                    model_name = args.index(0)
                 else:
                     input_data = kwargs
                     model_name = None
@@ -265,7 +274,7 @@ class Wrapper:
                 )
 
                 # Handle output data based on method
-                if method_name == "client.chat.completions.create":  # OpenAI
+                if method_name == "client.chat.completions.create" or "client.chat_completion":  # OpenAI
                     output_data = result.choices[0].message.content
                 elif method_name == "client.responses.create":
                     output_data = result.output_text    
@@ -279,6 +288,8 @@ class Wrapper:
                     output_data = result.choices[0].message.content
                 elif method_name == "client.generate_text_case":  # AryaModels
                     output_data = result.get("details", {}).get("result", {}).get("output")
+                elif method_name == "client.run":
+                    output_data == result
                 else:
                     output_data = result
 
@@ -378,23 +389,48 @@ def monitor(project, client, session_id=None):
             project_name=project.project_name
         )
     elif isinstance(client, Anthropic):
-        # Temporarily bypass model check for testing
         client.messages.create = wrapper._get_wrapper(
             original_method=client.messages.create,
             method_name="client.messages.create",
             session_id=session_id,
             project_name=project.project_name
         )
-    elif isinstance(client, genai.Client):
-        # Temporarily bypass model check for testing
+    elif isinstance(client, genai.Client):        
         client.models.generate_content = wrapper._get_wrapper(
             original_method=client.models.generate_content,
             method_name="client.models.generate_content",
             session_id=session_id,
             project_name=project.project_name
         )
-    elif isinstance(client, Mistral):
-        # Temporarily bypass model check for testing
+    elif isinstance(client , Groq):
+        client.chat.completions.create = wrapper._get_wrapper(
+            original_method=client.chat.completions.create,
+            method_name="client.chat.completions.create",
+            session_id=session_id,
+            project_name=project.project_name
+        )
+    elif isinstance(client , Together):
+        client.chat.completions.create = wrapper._get_wrapper(
+            original_method=client.chat.completions.create,
+            method_name="client.chat.completions.create",
+            session_id=session_id,
+            project_name=project.project_name
+        )
+    elif isinstance(client , InferenceClient):
+        client.chat_completion = wrapper._get_wrapper(
+            original_method=client.chat_completion,
+            method_name="client.chat_completion",
+            session_id=session_id,
+            project_name=project.project_name
+        )    
+    elif isinstance(client, replicate.Client) or client is replicate:        
+        client.run = wrapper._get_wrapper(
+            original_method=client.run,
+            method_name="run",
+            session_id=session_id,
+            project_name=project.project_name
+        )
+    elif isinstance(client, Mistral):        
         client.chat.complete = wrapper._get_wrapper(
             original_method=client.chat.complete,
             method_name="client.chat.complete",
