@@ -9,6 +9,7 @@ from google import genai
 from mistralai import Mistral
 from pydantic import BaseModel
 from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_URI
+import asyncio
 
 class Wrapper:
     def __init__(self, project_name, api_client):
@@ -30,6 +31,39 @@ class Wrapper:
             return res
         except Exception as e:
             raise e
+    
+    async def async_add_trace_details(self, session_id, trace_id, component, input_data, metadata, output_data=None, function_to_run=None):
+        start_time = time.perf_counter()
+        result = None
+        if function_to_run:
+            try:
+                result = await function_to_run()
+            except Exception as e:
+                print(f"Error in function_to_run ({component}):", str(e))
+                raise
+        duration = time.perf_counter() - start_time
+        if not output_data and result is not None:
+            output_data = result
+            if isinstance(result, BaseModel):
+                output_data = result.model_dump()
+        payload = {
+            "project_name": self.project_name,
+            "trace_id": trace_id,
+            "session_id": session_id,
+            "component": component,
+            "input_data": input_data,
+            "output_data": output_data,
+            "metadata": metadata,
+            "duration": duration,
+        }
+        res = self.api_client.post("traces/add_trace", payload=payload)
+        if function_to_run:
+            if component in ["Input Guardrails", "Output Guardrails"]:
+                if not result.get("success", True):
+                    print(f"Guardrail failed ({component}):", result.get("details"))
+                    return result.get("details")
+            return result
+        return res
 
     def add_trace_details(self, session_id, trace_id, component, input_data, metadata, output_data=None, function_to_run=None):
         start_time = time.perf_counter()
@@ -84,7 +118,81 @@ class Wrapper:
         if inspect.iscoroutinefunction(original_method):
             @functools.wraps(original_method)
             async def async_wrapper(*args, **kwargs):
-                result = await original_method(*args, **kwargs)
+                total_start_time = time.perf_counter()
+                trace_id = str(uuid.uuid4())
+                model_name = kwargs.get("model")
+                input_data = kwargs.get("messages")
+
+                trace_res = self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=session_id,
+                    component="Input",
+                    input_data=input_data,
+                    output_data=input_data,
+                    metadata={},
+                )
+                id_session = trace_res.get("details", {}).get("session_id")
+
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Input Guardrails",
+                    input_data=input_data,
+                    metadata={},
+                    function_to_run=lambda: self.run_guardrails(
+                        session_id=id_session,
+                        trace_id=trace_id,
+                        input_data=input_data,
+                        model_name=model_name,
+                        apply_on="input"
+                    )
+                )
+
+                result = await self.async_add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="LLM",
+                    input_data=input_data,
+                    metadata=kwargs,
+                    function_to_run= lambda : original_method(*args, **kwargs)
+                )
+
+                output_data = result.choices[0].message.content
+
+
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Output Guardrails",
+                    input_data=output_data,
+                    metadata={},
+                    function_to_run=lambda: self.run_guardrails(
+                        session_id=id_session,
+                        trace_id=trace_id,
+                        model_name=model_name,
+                        input_data=output_data,
+                        apply_on="output"
+                    )
+                )
+
+                self.add_trace_details(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    component="Output",
+                    input_data=input_data,
+                    output_data=output_data,
+                    metadata={},
+                )
+
+                self.add_message(
+                    trace_id=trace_id,
+                    session_id=id_session,
+                    input_data=input_data,
+                    output_data=output_data,
+                    duration=time.perf_counter() - total_start_time,
+                    metadata={}
+                )
+
                 return result
             return async_wrapper
         else:
@@ -96,8 +204,11 @@ class Wrapper:
                 input_data = None
 
                 # Handle input data based on method
-                if method_name == "client.chat.completions.create":  # OpenAI
+                if method_name == "client.chat.completions.create":  # OpenAI (Completions)
                     input_data = kwargs.get("messages")
+                    model_name = kwargs.get("model")
+                elif method_name == "client.responses.create":  # OpenAI (Response)
+                    input_data = kwargs.get("input")
                     model_name = kwargs.get("model")
                 elif method_name == "client.messages.create":  # Anthropic Messages API
                     input_data = kwargs.get("messages")
@@ -156,11 +267,15 @@ class Wrapper:
                 # Handle output data based on method
                 if method_name == "client.chat.completions.create":  # OpenAI
                     output_data = result.choices[0].message.content
+                elif method_name == "client.responses.create":
+                    output_data = result.output_text    
                 elif method_name == "client.messages.create":  # Anthropic Messages API
                     output_data = result.content[0].text
                 elif method_name == "client.models.generate_content":  # Gemini
                     output_data = result.text
-                elif method_name == "client.chat.complete":  # Mistral
+                elif method_name == "client.chat.complete":  # Mistral 
+                    output_data = result.choices[0].message.content
+                elif method_name == "client.chat.complete_async": # Mistral Async
                     output_data = result.choices[0].message.content
                 elif method_name == "client.generate_text_case":  # AryaModels
                     output_data = result.get("details", {}).get("result", {}).get("output")
@@ -181,7 +296,6 @@ class Wrapper:
                         apply_on="output"
                     )
                 )
-
 
                 self.add_trace_details(
                     trace_id=trace_id,
@@ -257,6 +371,12 @@ def monitor(project, client, session_id=None):
             session_id=session_id,
             project_name=project.project_name
         )
+        client.responses.create = wrapper._get_wrapper(
+            original_method=client.responses.create,
+            method_name="client.responses.create",
+            session_id=session_id,
+            project_name=project.project_name
+        )
     elif isinstance(client, Anthropic):
         # Temporarily bypass model check for testing
         client.messages.create = wrapper._get_wrapper(
@@ -278,6 +398,12 @@ def monitor(project, client, session_id=None):
         client.chat.complete = wrapper._get_wrapper(
             original_method=client.chat.complete,
             method_name="client.chat.complete",
+            session_id=session_id,
+            project_name=project.project_name
+        )
+        client.chat.complete_async = wrapper._get_wrapper(
+            original_method=client.chat.complete_async,
+            method_name="client.chat.complete_async",
             session_id=session_id,
             project_name=project.project_name
         )
