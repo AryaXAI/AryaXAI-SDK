@@ -47,7 +47,6 @@ class Wrapper:
             try:
                 result = await function_to_run()
             except Exception as e:
-                print(f"Error in function_to_run ({component}):", str(e))
                 raise
         duration = time.perf_counter() - start_time
         if not output_data and result is not None:
@@ -68,7 +67,6 @@ class Wrapper:
         if function_to_run:
             if component in ["Input Guardrails", "Output Guardrails"]:
                 if not result.get("success", True):
-                    print(f"Guardrail failed ({component}):", result.get("details"))
                     return result.get("details")
             return result
         return res
@@ -97,7 +95,6 @@ class Wrapper:
                 else:
                     result = function_to_run()
             except Exception as e:
-                print(f"Error in function_to_run ({component}):", str(e))
                 raise
         duration = time.perf_counter() - start_time
         if not output_data and result is not None:
@@ -119,7 +116,6 @@ class Wrapper:
         if function_to_run:
             if component in ["Input Guardrails", "Output Guardrails"]:
                 if not result.get("success", True):
-                    print(f"Guardrail failed ({component}):", result.get("details"))
                     return result.get("details")
             return result
         return res
@@ -137,7 +133,6 @@ class Wrapper:
             res = self.api_client.post("v2/ai-models/run_guardrails", payload=payload)
             return res
         except Exception as e:
-            print("run_guardrails Error:", str(e))
             raise
 
     def _get_wrapper(self, original_method: Callable, method_name: str, project_name: str, session_id: Optional[str] = None,chat=None , **extra_kwargs) -> Callable:
@@ -336,8 +331,6 @@ class Wrapper:
                     output_data = result
                 elif method_name == "client.converse": # Bedrock
                     output_data = result["output"]["message"]["content"][-1]["text"]
-                elif method_name == "client.chat.completions.create" or "client.chat_completion":  # OpenAI
-                    output_data = result.choices[0].message.content
                 elif method_name == "client.responses.create":
                     output_data = result.output_text
                 elif method_name == "client.messages.create":  # Anthropic Messages API
@@ -352,6 +345,8 @@ class Wrapper:
                     output_data = result.get("details", {}).get("result", {}).get("output")
                 elif method_name == "client.run":   # Replicate
                     output_data == result
+                elif method_name == "client.chat.completions.create" or "client.chat_completion":  # OpenAI
+                    output_data = result.choices[0].message.content
                 else:
                     output_data = result
 
