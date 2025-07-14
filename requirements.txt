@@ -14,3 +14,5 @@ xai-sdk>=1.0.0
 together>=1.5.19
 replicate>=1.0.7
 huggingface-hub>=0.33.2
+mistralai>=1.9.1
+boto3>=1.39.4
