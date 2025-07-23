@@ -1,6 +1,9 @@
+import json
 import os
+from typing import List, Optional
 import pandas as pd
 from pydantic import BaseModel
+import requests
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
 from aryaxai.core.organization import Organization
@@ -10,8 +13,10 @@ from aryaxai.common.xai_uris import (
     AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI,
     CLEAR_NOTIFICATIONS_URI,
     CREATE_ORGANIZATION_URI,
+    GET_CASE_PROFILE_URI,
     GET_NOTIFICATIONS_URI,
     LOGIN_URI,
+    UPLOAD_DATA_PROJECT_URI,
     USER_ORGANIZATION_URI,
 )
 import getpass
@@ -193,4 +198,80 @@ class XAI(BaseModel):
         :return: response
         """
         res = self.api_client.get(AVAILABLE_SYNTHETIC_CUSTOM_SERVERS_URI)
+        return res["details"]
+    
+    def register_case(
+        self,
+        token: str,
+        client_id: str,
+        unique_identifier: Optional[str] = None,
+        project_name: str = None,
+        tag: Optional[str] = None,
+        data: Optional[str] = None,
+        processed_data: Optional[bool] = False,
+        merge: Optional[bool] = False,
+        image_class: Optional[str] = None,
+        prompt: Optional[str] = None,
+        serverless_instance_type: Optional[str] = None,
+        explainability_method: Optional[str] = None,
+        explain_model: Optional[bool] = False,
+        file_path: Optional[str] = None
+    ):
+        form_data = {
+            "client_id": client_id,
+            "project_name": project_name,
+            "unique_identifier": unique_identifier,
+            "tag": tag,
+            "data": json.dumps(data) if isinstance(data, list) else data,
+            "processed_data": str(processed_data).lower(),
+            "merge": str(merge).lower(),
+            "image_class": image_class,
+            "prompt": prompt,
+            "serverless_instance_type": serverless_instance_type,
+            "explainability_method": explainability_method,
+            "explain_model": str(explain_model).lower()
+        }
+        headers = {
+            "x-api-token": token
+        }
+        form_data = {k: v for k, v in form_data.items() if v is not None}
+        files = {}
+        if file_path:
+            files["in_file"] = open(file_path, "rb")
+        response = requests.post(
+            self.env.get_base_url() + "/" + UPLOAD_DATA_PROJECT_URI,
+            data=form_data,
+            files=files if files else None,
+            headers=headers
+        ).json()
+        if files:
+            files["in_file"].close()
+        return response
+
+    def case_profile(
+        self,
+        token: str,
+        client_id: str,
+        unique_identifier: Optional[str] = None,
+        project_name: str = None,
+        tag: str = None,
+        xai: Optional[List[str]] = None,
+        refresh: Optional[bool] = None
+    ):
+        headers = {
+            "x-api-token": token
+        }
+        payload = {
+            "client_id": client_id,
+            "project_name": project_name,
+            "unique_identifier": unique_identifier,
+            "tag": tag,
+            "xai": xai,
+            "refresh": refresh
+        }
+        res = requests.post(
+            self.env.get_base_url() + "/" + GET_CASE_PROFILE_URI,
+            headers=headers,
+            json=payload
+        ).json()
         return res["details"]
