@@ -215,6 +215,8 @@ class XAI(BaseModel):
         serverless_instance_type: Optional[str] = None,
         explainability_method: Optional[str] = None,
         explain_model: Optional[bool] = False,
+        session_id: Optional[str] = None,
+        xai: Optional[str] = None,
         file_path: Optional[str] = None
     ):
         form_data = {
@@ -229,7 +231,9 @@ class XAI(BaseModel):
             "prompt": prompt,
             "serverless_instance_type": serverless_instance_type,
             "explainability_method": explainability_method,
-            "explain_model": str(explain_model).lower()
+            "explain_model": str(explain_model).lower(),
+            "session_id": str(session_id).lower(),
+            "xai": xai
         }
         headers = {
             "x-api-token": token
