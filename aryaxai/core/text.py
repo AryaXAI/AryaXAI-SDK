@@ -158,7 +158,7 @@ class TextProject(Project):
 
         return res.get("details")
 
-    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str) -> str:
+    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str) -> str:
         """Initialize text model
 
         :param model_provider: model of provider
@@ -171,6 +171,7 @@ class TextProject(Project):
             "model_name": model_name,
             "model_task_type": model_task_type,
             "project_name": self.project_name,
+            "model_type": model_type
         }
         res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
         if not res["success"]:
