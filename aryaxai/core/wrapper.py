@@ -194,8 +194,8 @@ class AryaModels:
                 "project_name": self.project.project_name,
                 "model_name": model_name,
                 "input_text": prompt,
-                "instance_type": serverless_instance_type,
-                "serverless_instance_type": instance_type,
+                "instance_type": instance_type,
+                "serverless_instance_type": serverless_instance_type,
                 "explainability_method": explainability_method,
                 "explain_model": explain_model,
             }
