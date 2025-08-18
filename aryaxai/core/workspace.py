@@ -164,6 +164,7 @@ class Workspace(BaseModel):
         project_name: str,
         modality: str,
         project_type: str,
+        project_sub_type: Optional[str] = None,
         server_type: Optional[str] = None,
     ) -> Project:
         """creates new project in the current workspace
@@ -179,6 +180,7 @@ class Workspace(BaseModel):
             "project_name": project_name,
             "modality": modality,
             "project_type": project_type,
+            "project_sub_type": project_sub_type,
             "workspace_name": self.workspace_name,
         }
 
