@@ -1263,20 +1263,12 @@ class Project(BaseModel):
         model_name: str,
         model_type: str,
         model_task_type: str,
-        assets: Optional[dict] = None,
+        hf_token: Optional[str] = None,
         file_path: Optional[str] = None,
     ):
-        payload_data = dict()
-        payload_data["project_name"] = self.project_name
-        payload_data["model_provider"] = model_provider
-        payload_data["model_name"] = model_name
-        payload_data["model_type"] = model_type
-        payload_data["model_task_type"] = model_task_type
-        payload_data["assets"] = assets
-        form_data = {k: v for k, v in payload_data.items() if v is not None}
         files = {"in_file": open(file_path, "rb")}
         res = self.api_client.file(
-            f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&model_provider={model_provider}&model_name={model_name}&model_type={model_type}&model_task_type={model_task_type}",
+            f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&model_provider={model_provider}&model_name={model_name}&model_type={model_type}&model_task_type={model_task_type}&hf_token={hf_token}",
             files=files
         )
         return res
