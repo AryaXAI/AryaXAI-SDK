@@ -1257,6 +1257,22 @@ class Project(BaseModel):
             lambda: self.delete_file(uploaded_path),
         )
 
+    def upload_docker_compose(
+        self, 
+        model_provider: str,
+        model_name: str,
+        model_type: str,
+        model_task_type: str,
+        hf_token: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ):
+        files = {"in_file": open(file_path, "rb")}
+        res = self.api_client.file(
+            f"{UPLOAD_DATA_FILE_URI}?project_name={self.project_name}&model_provider={model_provider}&model_name={model_name}&model_type={model_type}&model_task_type={model_task_type}&hf_token={hf_token}",
+            files=files
+        )
+        return res
+
     def data_observations(self, tag: str) -> pd.DataFrame:
         """Data Observations for the project
 
