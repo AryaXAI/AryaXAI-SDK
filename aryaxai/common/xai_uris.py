@@ -78,6 +78,8 @@ MODEL_SUMMARY_URI = f"{API_VERSION_V2}/project/get_model_perfermance"
 PROJECT_OVERVIEW_TEXT_URI = f"{API_VERSION_V2}/ai-models/project_overview"
 MODEL_SVG_URI = f"{API_VERSION_V2}/project/get_model_svg_plot"
 MODEL_INFERENCES_URI = f"{API_VERSION_V2}/ai-models/get_all_tags_for_models"
+UPLOAD_DATA_PROJECT_URI = f"{API_VERSION_V2}/project/case-register"
+GET_CASE_PROFILE_URI = f"{API_VERSION_V2}/project/get-case-profile"
 
 # Explainability
 GET_CASES_URI = f"{API_VERSION_V2}/ai-models/get_cases"
