@@ -46,31 +46,31 @@ class Wrapper:
             "metadata":metadata,
             "duration":duration,
         }
-        # res = self.api_client.post(
-        #     f"traces/add_trace",
-        #     payload=payload
-        # )
+        res = self.api_client.post(
+            f"traces/add_trace",
+            payload=payload
+        )
         if function_to_run:
             if component == "Input Guardrails" or component == "Output Guardrails":
                 if not result.get("success"):
                     return result.get("details")
             return result
-        return {"success": True}
+        return res
 
     def run_guardrails(self,input_data,trace_id,session_id,model_name, apply_on):
-        # res = self.api_client.post(
-        #     f"v2/ai-models/run_guardrails",
-        #     payload={
-        #         "trace_id": trace_id,
-        #         "session_id": session_id,
-        #         "input_data":input_data,
-        #         "model_name":model_name,
-        #         "project_name":self.project_name,
-        #         "apply_on": apply_on
-        #     }
-        # )
+        res = self.api_client.post(
+            f"v2/ai-models/run_guardrails",
+            payload={
+                "trace_id": trace_id,
+                "session_id": session_id,
+                "input_data":input_data,
+                "model_name":model_name,
+                "project_name":self.project_name,
+                "apply_on": apply_on
+            }
+        )
         
-        return {"success": True}
+        return res
     
     def _get_wrapper(self,original_method: Callable, method_name: str, project_name: str, session_id: Optional[str] = None) -> Callable:
         if inspect.iscoroutinefunction(original_method):
@@ -123,7 +123,7 @@ class Wrapper:
                     kwargs["trace_id"] = trace_id
                 result = self.add_trace_details(
                     trace_id=trace_id,
-                    session_id=trace_id,
+                    session_id=id_session,
                     component="LLM",
                     input_data=input_data,
                     metadata=kwargs,
@@ -135,7 +135,7 @@ class Wrapper:
                     output_data = result.get("details",{}).get("result",{}).get("output")
                 self.add_trace_details(
                     trace_id=trace_id,
-                    session_id=trace_id,
+                    session_id=id_session,
                     component="Output Guardrails",
                     input_data=output_data,
                     metadata={},
