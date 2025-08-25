@@ -18,8 +18,7 @@ class Tracer:
         
         # Extract project name or use default
         
-        project_name = getattr(project, 'user_project_name')
-        project_name=project_name.replace(" ", "_").strip()
+        project_name = getattr(project, 'project_name')
         # Create resource with service and project details
         resource = Resource(attributes={
             "service.name": "langgraph-app",
