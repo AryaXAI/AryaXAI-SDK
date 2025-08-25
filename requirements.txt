@@ -16,3 +16,6 @@ replicate>=1.0.7
 huggingface-hub>=0.33.2
 mistralai>=1.9.1
 boto3>=1.39.4
+opentelemetry-sdk==1.36.0
+opentelemetry-exporter-otlp==1.36.0
+openinference-instrumentation-langchain==0.1.50
