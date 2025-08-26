@@ -133,28 +133,29 @@ class Wrapper:
                     output_data = result.choices[0].message.content
                 if method_name == "client.generate_text_case":
                     output_data = result.get("details",{}).get("result",{}).get("output")
-                self.add_trace_details(
-                    trace_id=trace_id,
-                    session_id=id_session,
-                    component="Output Guardrails",
-                    input_data=output_data,
-                    metadata={},
-                    function_to_run=lambda: self.run_guardrails(
-                        session_id=id_session,
+                if output_data:
+                    self.add_trace_details(
                         trace_id=trace_id,
-                        model_name=model_name,
+                        session_id=id_session,
+                        component="Output Guardrails",
                         input_data=output_data,
-                        apply_on="output"
+                        metadata={},
+                        function_to_run=lambda: self.run_guardrails(
+                            session_id=id_session,
+                            trace_id=trace_id,
+                            model_name=model_name,
+                            input_data=output_data,
+                            apply_on="output"
+                        )
                     )
-                )
-                self.add_trace_details(
-                    trace_id=trace_id,
-                    session_id=id_session,
-                    component="Output",
-                    input_data=input_data,
-                    output_data=output_data,
-                    metadata={},
-                )
+                    self.add_trace_details(
+                        trace_id=trace_id,
+                        session_id=id_session,
+                        component="Output",
+                        input_data=input_data,
+                        output_data=output_data,
+                        metadata={},
+                    )
                 metadata = {}
                 if method_name == "client.generate_text_case":
                     metadata = {

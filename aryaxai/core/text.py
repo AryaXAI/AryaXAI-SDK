@@ -158,7 +158,7 @@ class TextProject(Project):
 
         return res.get("details")
 
-    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = None) -> str:
+    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = "gova-2", assets: Optional[dict] = None) -> str:
         """Initialize text model
 
         :param model_provider: model of provider
@@ -174,6 +174,8 @@ class TextProject(Project):
             "model_type": model_type,
             "instance_type": serverless_instance_type
         }
+        if assets:
+            payload["assets"] = assets
         res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
         if not res["success"]:
             raise Exception(res.get("details", "Model Initialization Failed"))
