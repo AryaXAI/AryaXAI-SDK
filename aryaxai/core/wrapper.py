@@ -187,7 +187,8 @@ class AryaModels:
         explain_model: Optional[bool] = False,
         trace_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        max_tokens: Optional[str] = None
+        min_tokens: Optional[int] = 100,
+        max_tokens: Optional[int] = 500
     ):
         if self.project.metadata.get("modality") == "text":
             payload = {
@@ -200,7 +201,8 @@ class AryaModels:
                 "serverless_instance_type": serverless_instance_type,
                 "explainability_method": explainability_method,
                 "explain_model": explain_model,
-                "max_tokens": max_tokens
+                "max_tokens": max_tokens,
+                "min_tokens": min_tokens
             }
             res = self.project.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res["success"]:

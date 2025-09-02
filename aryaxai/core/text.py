@@ -190,7 +190,8 @@ class TextProject(Project):
         explainability_method: Optional[list] = ["DLB"],
         explain_model: Optional[bool] = False,
         session_id: Optional[str] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        min_tokens: Optional[int] = None
     ) -> dict:
         """Generate Text Case
 
@@ -214,7 +215,8 @@ class TextProject(Project):
             serverless_instance_type=serverless_instance_type,
             explainability_method=explainability_method,
             explain_model=explain_model,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            min_tokens=min_tokens
         )
         return res
 
