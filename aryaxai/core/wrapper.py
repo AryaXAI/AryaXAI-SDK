@@ -232,7 +232,9 @@ class AryaModels:
                         text_piece = event.get("choices", [{}])[0].get("text", "")
                     except Exception as e:
                         text_piece = line
+                    buffer += text_piece
                     print(text_piece, end="", flush=True)
+            response = {"details": {"result": {"output": buffer}}}
             return response
         else:
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
