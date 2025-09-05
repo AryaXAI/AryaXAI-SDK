@@ -16,7 +16,7 @@ from openinference.instrumentation.smolagents import SmolagentsInstrumentor
 
 class Tracer:
     def __init__(self):
-        self.endpoint = "http://3.108.15.217:30075"
+        self.endpoint = "https://3.108.15.217:30075"
     def setup_langchain_tracing(self , project: object) -> None:
         """
         Sets up OpenTelemetry tracing for a given project with OTLP and console exporters.
@@ -40,7 +40,6 @@ class Tracer:
         
         # Add OTLP and console span processors
         tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(self.endpoint)))
-        
         # Instrument LangChain
         LangChainInstrumentor().instrument()
     
