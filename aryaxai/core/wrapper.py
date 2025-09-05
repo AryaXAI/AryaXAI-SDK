@@ -1,3 +1,4 @@
+import json
 import time
 import functools
 from typing import Callable, Optional
@@ -5,7 +6,9 @@ import inspect
 import uuid
 from openai import OpenAI
 from pydantic import BaseModel
-
+import requests
+from aryaxai.client.client import APIClient
+from aryaxai.common.environment import Environment
 from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_URI
 
 class Wrapper:
@@ -174,44 +177,69 @@ class Wrapper:
 
 
 class AryaModels:
-    def __init__(self, project):
+    def __init__(self, project, api_client: APIClient):
         self.project = project
+        self.api_client = api_client
 
     def generate_text_case(
         self,
         model_name: str,
         prompt: str,
-        instance_type: Optional[str] = "xsmall",
-        serverless_instance_type: Optional[str] = "gova-2",
-        explainability_method: Optional[list] = ["DLB"],
-        explain_model: Optional[bool] = False,
-        trace_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        min_tokens: Optional[int] = 100,
-        max_tokens: Optional[int] = 500
+        instance_type: str = "xsmall",
+        serverless_instance_type: str = "gova-2",
+        explainability_method: list = ["DLB"],
+        explain_model: bool = False,
+        trace_id: str = None,
+        session_id: str = None,
+        min_tokens: int = 100,
+        max_tokens: int = 500,
+        stream: bool = False,
     ):
-        if self.project.metadata.get("modality") == "text":
-            payload = {
-                "session_id": session_id,
-                "trace_id": trace_id,
-                "project_name": self.project.project_name,
-                "model_name": model_name,
-                "input_text": prompt,
-                "instance_type": instance_type,
-                "serverless_instance_type": serverless_instance_type,
-                "explainability_method": explainability_method,
-                "explain_model": explain_model,
-                "max_tokens": max_tokens,
-                "min_tokens": min_tokens
-            }
-            res = self.project.api_client.post(GENERATE_TEXT_CASE_URI, payload)
-            if not res["success"]:
-                raise Exception(res["details"])
-            return res
-        else:
-            return "Text case generation is not supported for this modality type"
-     
+        payload = {
+            "session_id": session_id,
+            "trace_id": trace_id,
+            "project_name": self.project.project_name,
+            "model_name": model_name,
+            "input_text": prompt,
+            "instance_type": instance_type,
+            "serverless_instance_type": serverless_instance_type,
+            "explainability_method": explainability_method,
+            "explain_model": explain_model,
+            "max_tokens": max_tokens,
+            "min_tokens": min_tokens,
+            "stream": stream,
+        }
+        
+        if stream:
+            env = Environment()
+            url = env.get_base_url() + "/" + GENERATE_TEXT_CASE_URI
+            with requests.post(
+                url,
+                headers={**self.api_client.headers, "Accept": "text/event-stream"},
+                json=payload,
+                stream=True,
+            ) as response:
+                response.raise_for_status()
 
+                buffer = ""
+                for line in response.iter_content(decode_unicode=True):
+                    if not line or line.strip() == "[DONE]":
+                        continue
+
+                    if line.startswith("data:"):
+                        line = line[len("data:"):].strip()
+                    try:
+                        event = json.loads(line)
+                        text_piece = event.get("choices", [{}])[0].get("text", "")
+                    except Exception as e:
+                        text_piece = line
+                    print(text_piece, end="", flush=True)
+            return response
+        else:
+            res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
+            if not res.get("success"):
+                raise Exception(res.get("details"))
+            return res
 
 def monitor(project, client, session_id=None):
     # print("client",client, type(client))

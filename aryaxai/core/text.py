@@ -191,7 +191,8 @@ class TextProject(Project):
         explain_model: Optional[bool] = False,
         session_id: Optional[str] = None,
         max_tokens: Optional[int] = None,
-        min_tokens: Optional[int] = None
+        min_tokens: Optional[int] = None,
+        stream: Optional[bool] = False,
     ) -> dict:
         """Generate Text Case
 
@@ -206,7 +207,7 @@ class TextProject(Project):
         :return: response
         """
         llm = monitor(
-            project=self, client=AryaModels(project=self), session_id=session_id
+            project=self, client=AryaModels(project=self, api_client=self.api_client), session_id=session_id
         )
         res = llm.generate_text_case(
             model_name=model_name,
@@ -216,7 +217,8 @@ class TextProject(Project):
             explainability_method=explainability_method,
             explain_model=explain_model,
             max_tokens=max_tokens,
-            min_tokens=min_tokens
+            min_tokens=min_tokens,
+            stream=stream
         )
         return res
 
