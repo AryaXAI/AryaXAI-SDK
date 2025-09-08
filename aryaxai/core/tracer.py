@@ -12,13 +12,13 @@ from openinference.instrumentation.dspy import DSPyInstrumentor
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from openinference.instrumentation.smolagents import SmolagentsInstrumentor
 # from pydantic import BaseModel
+import os
 
 
 class Tracer:
     def __init__(self):
-        self.endpoint = "https://3.108.15.217:30075"
-        # self.endpoint = "http://localhost:4317"
-        # self.endpoint = "https://aiapp-m.aryaxai.com/agent/telemetry"
+        self.base_url = os.getenv("XAI_API_URL", "https://apiv2.aryaxai.com")
+        self.endpoint = f"{self.base_url}"
     def setup_langchain_tracing(self , project: object) -> None:
         """
         Sets up OpenTelemetry tracing for a given project with OTLP and console exporters.
