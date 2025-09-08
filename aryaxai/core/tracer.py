@@ -17,6 +17,8 @@ from openinference.instrumentation.smolagents import SmolagentsInstrumentor
 class Tracer:
     def __init__(self):
         self.endpoint = "https://3.108.15.217:30075"
+        # self.endpoint = "http://localhost:4317"
+        # self.endpoint = "https://aiapp-m.aryaxai.com/agent/telemetry"
     def setup_langchain_tracing(self , project: object) -> None:
         """
         Sets up OpenTelemetry tracing for a given project with OTLP and console exporters.
