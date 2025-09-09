@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import requests
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
-from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_URI
+from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_STREAM_URI, GENERATE_TEXT_CASE_URI
 
 class Wrapper:
     def __init__(self, project_name, api_client):
@@ -211,7 +211,7 @@ class AryaModels:
         
         if stream:
             env = Environment()
-            url = env.get_base_url() + "/" + GENERATE_TEXT_CASE_URI
+            url = env.get_base_url() + "/" + GENERATE_TEXT_CASE_STREAM_URI
             with requests.post(
                 url,
                 headers={**self.api_client.headers, "Accept": "text/event-stream"},
@@ -221,7 +221,7 @@ class AryaModels:
                 response.raise_for_status()
 
                 buffer = ""
-                for line in response.iter_content(decode_unicode=True):
+                for line in response.iter_lines(decode_unicode=True):
                     if not line or line.strip() == "[DONE]":
                         continue
 
@@ -229,7 +229,7 @@ class AryaModels:
                         line = line[len("data:"):].strip()
                     try:
                         event = json.loads(line)
-                        text_piece = event.get("choices", [{}])[0].get("text", "")
+                        text_piece = event.get("text", "")
                     except Exception as e:
                         text_piece = line
                     buffer += text_piece
