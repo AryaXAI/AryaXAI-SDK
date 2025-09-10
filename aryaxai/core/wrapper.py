@@ -159,9 +159,23 @@ class Wrapper:
                     metadata={},
                 )
                 metadata = {}
+                input_tokens = 0
+                output_tokens = 0
+                if result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_tokens", None):
+                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_tokens")
+                elif result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_decoded_length", None):
+                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_decoded_length")
+                
+                if result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_tokens", None):
+                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_tokens")
+                elif result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_decoded_length", None):
+                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_decoded_length")
+                
                 if method_name == "client.generate_text_case":
                     metadata = {
-                        "case_id":result.get("details",{}).get("case_id")
+                        "case_id":result.get("details",{}).get("case_id"),
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
                     }
                 self.add_message(
                     trace_id=trace_id,
