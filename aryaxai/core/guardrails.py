@@ -498,13 +498,11 @@ class LangGraphGuardrail:
                     prompt = self._build_sanitize_prompt(guard_spec.get("name", "unknown"), current_content, content_type)
                     try:
                         sanitized = self.llm.invoke(prompt)
-                        print("here")
                         if hasattr(sanitized, "content"):
                             sanitized = sanitized.content
                     except Exception:
                         sanitized = current_content
                     retry_action = f"retry_{retry_count+1}"
-                    print(sanitized , 515)
                     self._handle_action(
                         original=current_content,
                         run_result=run_result,
