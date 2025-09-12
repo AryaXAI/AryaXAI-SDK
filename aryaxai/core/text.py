@@ -158,7 +158,7 @@ class TextProject(Project):
 
         return res.get("details")
 
-    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = None) -> str:
+    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = "gova-2", assets: Optional[dict] = None) -> str:
         """Initialize text model
 
         :param model_provider: model of provider
@@ -174,6 +174,8 @@ class TextProject(Project):
             "model_type": model_type,
             "instance_type": serverless_instance_type
         }
+        if assets:
+            payload["assets"] = assets
         res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
         if not res["success"]:
             raise Exception(res.get("details", "Model Initialization Failed"))
@@ -188,7 +190,9 @@ class TextProject(Project):
         explainability_method: Optional[list] = ["DLB"],
         explain_model: Optional[bool] = False,
         session_id: Optional[str] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        min_tokens: Optional[int] = None,
+        stream: Optional[bool] = False,
     ) -> dict:
         """Generate Text Case
 
@@ -203,7 +207,7 @@ class TextProject(Project):
         :return: response
         """
         llm = monitor(
-            project=self, client=AryaModels(project=self), session_id=session_id
+            project=self, client=AryaModels(project=self, api_client=self.api_client), session_id=session_id
         )
         res = llm.generate_text_case(
             model_name=model_name,
@@ -212,7 +216,9 @@ class TextProject(Project):
             serverless_instance_type=serverless_instance_type,
             explainability_method=explainability_method,
             explain_model=explain_model,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            min_tokens=min_tokens,
+            stream=stream
         )
         return res
 
