@@ -135,13 +135,14 @@ class Wrapper:
         except Exception as e:
             raise
 
-    def _get_wrapper(self, original_method: Callable, method_name: str, project_name: str, session_id: Optional[str] = None,chat=None , **extra_kwargs) -> Callable:
+    def _get_wrapper(self, original_method: Callable, method_name: str, provider: str, session_id: Optional[str] = None, chat=None , **extra_kwargs) -> Callable:
         if inspect.iscoroutinefunction(original_method):
             @functools.wraps(original_method)
             async def async_wrapper(*args, **kwargs):
                 total_start_time = time.perf_counter()
                 trace_id = str(uuid.uuid4())
-                model_name = kwargs.get("model")
+                # model_name = kwargs.get("model")
+                model_name = provider
                 input_data = kwargs.get("messages")
 
                 trace_res = self.add_trace_details(
@@ -230,34 +231,43 @@ class Wrapper:
                 # Handle input data based on method
                 if method_name == "client.chat.completions.create":  # OpenAI (Completions)
                     input_data = kwargs.get("messages")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.responses.create":  # OpenAI (Response)
                     input_data = kwargs.get("input")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.messages.create":  # Anthropic Messages API
                     input_data = kwargs.get("messages")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.models.generate_content":  # Gemini
                     input_data = kwargs.get("contents")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.chat.complete":  # Mistral
                     input_data = kwargs.get("messages")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.chat_completion":
                     input_data = kwargs.get("messages")
-                    model_name = kwargs.get("model")
+                    # model_name = kwargs.get("model")
+                    model_name = provider
                 elif method_name == "client.generate_text_case":  # AryaModels
                     input_data = kwargs.get("prompt")
                     model_name = kwargs.get("model_name")
                 elif method_name == "client.run":
                     input_data = kwargs.get("input")
-                    model_name = args.index(0)
+                    # model_name = args.index(0)
+                    model_name = provider
                 elif method_name == "client.converse":  #  Bedrock
                     input_data = kwargs.get("messages")
-                    model_name = kwargs.get("modelId")
+                    # model_name = kwargs.get("modelId")
+                    model_name = provider
                 elif method_name == "chat.sample":  # XAI Grok
                         input_data = chat.messages[1].content[0].text
-                        model_name = None
+                        # model_name = None
+                        model_name = provider
                 else:
                     input_data = kwargs
                     model_name = None
@@ -437,75 +447,75 @@ def monitor(project, client, session_id=None):
             original_method=client.chat.completions.create,
             method_name="client.chat.completions.create",
             session_id=session_id,
-            project_name=project.project_name
+            provider="OpenAI"
         )
         client.responses.create = wrapper._get_wrapper(
             original_method=client.responses.create,
             method_name="client.responses.create",
             session_id=session_id,
-            project_name=project.project_name
+            provider="OpenAI"
         )
     elif isinstance(client, Anthropic):
         client.messages.create = wrapper._get_wrapper(
             original_method=client.messages.create,
             method_name="client.messages.create",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Anthropic"
         )
     elif isinstance(client, genai.Client):        
         client.models.generate_content = wrapper._get_wrapper(
             original_method=client.models.generate_content,
             method_name="client.models.generate_content",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Gemini"
         )
     elif isinstance(client , Groq):
         client.chat.completions.create = wrapper._get_wrapper(
             original_method=client.chat.completions.create,
             method_name="client.chat.completions.create",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Groq"
         )
     elif isinstance(client , Together):
         client.chat.completions.create = wrapper._get_wrapper(
             original_method=client.chat.completions.create,
             method_name="client.chat.completions.create",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Together"
         )
     elif isinstance(client , InferenceClient):
         client.chat_completion = wrapper._get_wrapper(
             original_method=client.chat_completion,
             method_name="client.chat_completion",
             session_id=session_id,
-            project_name=project.project_name
+            provider="HuggingFace"
         )    
     elif isinstance(client, replicate.Client) or client is replicate:        
         client.run = wrapper._get_wrapper(
             original_method=client.run,
             method_name="run",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Replicate"
         )
     elif isinstance(client, Mistral):        
         client.chat.complete = wrapper._get_wrapper(
             original_method=client.chat.complete,
             method_name="client.chat.complete",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Mistral"
         )
         client.chat.complete_async = wrapper._get_wrapper(
             original_method=client.chat.complete_async,
             method_name="client.chat.complete_async",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Mistral"
         )
     elif isinstance(client, botocore.client.BaseClient):
         client.converse = wrapper._get_wrapper(
             original_method=client.converse,
             method_name="client.converse",
             session_id=session_id,
-            project_name=project.project_name
+            provider="AWS Bedrock"
         )
     elif isinstance(client, Client):  # XAI Client
     # Wrap the chat.create method to return a wrapped chat object
@@ -517,8 +527,8 @@ def monitor(project, client, session_id=None):
                 original_method=chat.sample,
                 method_name="chat.sample",
                 session_id=session_id,
-                project_name=project.project_name,
-                xai_kwargs=kwargs
+                xai_kwargs=kwargs,
+                provider="Grok"
             )
             return chat
         
@@ -529,7 +539,7 @@ def monitor(project, client, session_id=None):
             original_method=client.generate_text_case,
             method_name="client.generate_text_case",
             session_id=session_id,
-            project_name=project.project_name
+            provider="Arya"
         )
     else:
         raise Exception("Not a valid SDK to monitor")
