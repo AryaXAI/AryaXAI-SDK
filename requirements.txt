@@ -5,5 +5,14 @@ requests>=2.31.0
 pandas>=1.5.3
 plotly>=5.15.0
 ipython>=7.34.0
-Pillow==10.4.0
-openai>=1.86.0
+Pillow>=10.4.0
+google-genai>=1.24.0
+anthropic>=0.57.1
+openai>=1.93.1
+groq>=0.29.0
+xai-sdk>=1.0.0
+together>=1.5.19
+replicate>=1.0.7
+huggingface-hub>=0.33.2
+mistralai>=1.9.1
+boto3>=1.39.4
