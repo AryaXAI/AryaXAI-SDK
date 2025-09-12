@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import requests
 from aryaxai.client.client import APIClient
 from aryaxai.common.environment import Environment
-from aryaxai.common.xai_uris import GENERATE_TEXT_CASE_STREAM_URI, GENERATE_TEXT_CASE_URI
+from aryaxai.common.xai_uris import CASE_INFO_TEXT_URI, GENERATE_TEXT_CASE_STREAM_URI, GENERATE_TEXT_CASE_URI
 
 class Wrapper:
     def __init__(self, project_name, api_client):
@@ -161,21 +161,22 @@ class Wrapper:
                 metadata = {}
                 input_tokens = 0
                 output_tokens = 0
-                if result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_tokens", None):
-                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_tokens")
-                elif result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_decoded_length", None):
-                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("input_decoded_length")
+                if result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("input_tokens", None):
+                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("input_tokens")
+                elif result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("input_decoded_length", None):
+                    input_tokens = result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("input_decoded_length")
                 
-                if result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_tokens", None):
-                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_tokens")
-                elif result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_decoded_length", None):
-                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trails", {}).get("tokens", {}).get("output_decoded_length")
-                
+                if result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("output_tokens", None):
+                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("output_tokens")
+                elif result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("output_decoded_length", None):
+                    output_tokens = result.get("details", {}).get("result", {}).get("audit_trail", {}).get("tokens", {}).get("output_decoded_length")
+                total_tokens = input_tokens + output_tokens
                 if method_name == "client.generate_text_case":
                     metadata = {
                         "case_id":result.get("details",{}).get("case_id"),
                         "input_tokens": input_tokens,
                         "output_tokens": output_tokens,
+                        "total_tokens": total_tokens
                     }
                 self.add_message(
                     trace_id=trace_id,
@@ -249,7 +250,13 @@ class AryaModels:
                     buffer += text_piece
                     print(text_piece, end="", flush=True)
             response = {"details": {"result": {"output": buffer}}}
-            return response
+            payload = {
+                "session_id": session_id,
+                "trace_id": trace_id,
+                "project_name": self.project.project_name
+            }
+            res = self.api_client.post(CASE_INFO_TEXT_URI, payload)
+            return res
         else:
             res = self.api_client.post(GENERATE_TEXT_CASE_URI, payload)
             if not res.get("success"):
