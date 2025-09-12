@@ -92,6 +92,7 @@ CASE_LOGS_URI = f"{API_VERSION_V2}/ai-models/explainability_logs"
 CASE_LOGS_TEXT_URI = f"{API_VERSION_V2}/ai-models/explainability_logs_text"
 GET_VIEWED_CASE_URI = f"{API_VERSION_V2}/ai-models/get_viewed_case"
 GENERATE_TEXT_CASE_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data_text"
+GENERATE_TEXT_CASE_STREAM_URI = f"{API_VERSION_V2}/ai-models/run_model_on_data_text_stream"
 
 # Observations
 GET_OBSERVATIONS_URI = f"{API_VERSION_V2}/observations/get_observations"
