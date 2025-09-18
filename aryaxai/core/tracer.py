@@ -1,10 +1,11 @@
 from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor , BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from openinference.instrumentation.langchain import LangChainInstrumentor
 # from openinference.instrumentation.autogen_agent import AutogenInstrumentor
+# from opentelemetry.instrumentation.openai import OpenAIInstrumentor
 from openinference.instrumentation.autogen_agentchat import AutogenAgentChatInstrumentor
 from openinference.instrumentation.crewai import CrewAIInstrumentor
 from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
@@ -22,7 +23,7 @@ class Tracer:
     def setup_langchain_tracing(self , project: object) -> None:
         """
         Sets up OpenTelemetry tracing for a given project with OTLP and console exporters.
-        
+
         Args:
             project: An object containing project details, expected to have a 'name' attribute.
         """
@@ -68,7 +69,6 @@ class Tracer:
         
         # Add OTLP and console span processors
         tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(self.endpoint)))
-        # tracer_provider.add_span_processor(ConsoleSpanExporter())
         # Instrument Autogen
         AutogenAgentChatInstrumentor().instrument()
 
