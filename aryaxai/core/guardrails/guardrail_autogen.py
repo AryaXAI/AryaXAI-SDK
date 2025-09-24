@@ -116,7 +116,7 @@ class GuardrailSupervisor:
         try:
             body = {"input_data": input_data, "guard": guard}
             data = self.api_client.post(RUN_GUARDRAILS_URI, body)
-            print(data , "api ran")
+            # print(data , "api ran")
             end_time = datetime.now()
             details = data.get("details", {}) if isinstance(data, dict) else {}
             result: GuardrailRunResult = {
@@ -239,8 +239,6 @@ class GuardrailSupervisor:
         for agent in agents:
             # It's important to check for the more specific subclass first.
             if isinstance(agent, AssistantAgent):
-                self.instrument_assistant_agent(agent)
-            elif isinstance(agent, ConversableAgent):
                 self.instrument_agent(agent)
         return agents
 
