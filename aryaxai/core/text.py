@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union
 from aryaxai.common.utils import poll_events
 from aryaxai.common.xai_uris import (
     AVAILABLE_GUARDRAILS_URI,
@@ -11,12 +11,18 @@ from aryaxai.common.xai_uris import (
     SESSIONS_URI,
     TRACES_URI,
     UPDATE_GUARDRAILS_STATUS_URI,
+    RUN_CHAT_COMPLETION,
+    RUN_IMAGE_GENERATION
 )
 from aryaxai.core.project import Project
 import pandas as pd
 
 from aryaxai.core.wrapper import AryaModels, monitor
-
+import json
+import aiohttp
+from typing import AsyncIterator, Iterator
+import requests
+from uuid import UUID
 
 class TextProject(Project):
     """Project for text modality
@@ -158,7 +164,7 @@ class TextProject(Project):
 
         return res.get("details")
 
-    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = None) -> str:
+    def initialize_text_model(self, model_provider: str, model_name: str, model_task_type:str, model_type: str, serverless_instance_type: Optional[str] = "gova-2", assets: Optional[dict] = None) -> str:
         """Initialize text model
 
         :param model_provider: model of provider
@@ -174,6 +180,8 @@ class TextProject(Project):
             "model_type": model_type,
             "instance_type": serverless_instance_type
         }
+        if assets:
+            payload["assets"] = assets
         res = self.api_client.post(f"{INITIALIZE_TEXT_MODEL_URI}", payload)
         if not res["success"]:
             raise Exception(res.get("details", "Model Initialization Failed"))
@@ -188,7 +196,9 @@ class TextProject(Project):
         explainability_method: Optional[list] = ["DLB"],
         explain_model: Optional[bool] = False,
         session_id: Optional[str] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        min_tokens: Optional[int] = None,
+        stream: Optional[bool] = False,
     ) -> dict:
         """Generate Text Case
 
@@ -203,7 +213,7 @@ class TextProject(Project):
         :return: response
         """
         llm = monitor(
-            project=self, client=AryaModels(project=self), session_id=session_id
+            project=self, client=AryaModels(project=self, api_client=self.api_client), session_id=session_id
         )
         res = llm.generate_text_case(
             model_name=model_name,
@@ -212,7 +222,9 @@ class TextProject(Project):
             serverless_instance_type=serverless_instance_type,
             explainability_method=explainability_method,
             explain_model=explain_model,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            min_tokens=min_tokens,
+            stream=stream
         )
         return res
 
@@ -225,3 +237,80 @@ class TextProject(Project):
         if not res["success"]:
             raise Exception(res.get("details"," Failed to fetch available text models"))
         return pd.DataFrame(res.get("details"))
+    
+    def chat_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        provider: str,
+        api_key: str,
+        session_id : Optional[UUID] = None,
+        max_tokens: Optional[int] = None,
+        stream: Optional[bool] = False,
+    ) -> Union[dict, Iterator[str]]:
+        """Chat completion endpoint wrapper
+
+        :param model: name of the model
+        :param messages: list of chat messages
+        :param provider: model provider (e.g., "openai", "anthropic")
+        :param api_key: API key for the provider
+        :param max_tokens: maximum tokens to generate
+        :param stream: whether to stream the response
+        :return: chat completion response or stream iterator
+        """
+        payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "stream": stream,
+            "project_name": self.project_name,
+            "provider": provider,
+            "api_key": api_key,
+            "session_id" : session_id
+        }
+
+        if not stream:
+            return self.api_client.post(RUN_CHAT_COMPLETION, payload=payload)
+        
+        def stream_response() -> Iterator[str]:
+            url = f"{self.api_client.base_url}/{RUN_CHAT_COMPLETION}"
+            with requests.post(url, json=payload, stream=True) as response:
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode('utf-8')
+                        if decoded_line.startswith('data: '):
+                            if decoded_line.strip() == 'data: [DONE]':
+                                break
+                            chunk_data = json.loads(decoded_line[6:])
+                            yield chunk_data
+
+        return stream_response()
+
+    def image_generation(
+        self,
+        model: str,
+        prompt: str,
+        provider: str,
+        api_key: str,
+        session_id : Optional[UUID] = None,
+    ) -> dict:
+        """Image generation endpoint wrapper
+
+        :param model: name of the model
+        :param prompt: image generation prompt
+        :param provider: model provider (e.g., "openai", "stability")
+        :param api_key: API key for the provider
+        :return: image generation response
+        """
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "project_name": self.project_name,
+            "provider": provider,
+            "api_key": api_key,
+            "session_id" : session_id
+        }
+
+        res = self.api_client.post(RUN_IMAGE_GENERATION, payload=payload)
+            
+        return res
