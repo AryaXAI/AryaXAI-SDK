@@ -191,3 +191,4 @@ GET_AVAILABLE_TEXT_MODELS_URI = f"{API_VERSION_V2}/users/get_available_text_mode
 RUN_CHAT_COMPLETION = f"gateway/v1/chat/completions" 
 RUN_IMAGE_GENERATION = f"gateway/v1/images/generations"
 RUN_CREATE_EMBEDDING = f"gateway/v1/embeddings"
+RUN_COMPLETION = f"gateway/v1/completions"
