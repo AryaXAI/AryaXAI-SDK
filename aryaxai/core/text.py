@@ -12,7 +12,9 @@ from aryaxai.common.xai_uris import (
     TRACES_URI,
     UPDATE_GUARDRAILS_STATUS_URI,
     RUN_CHAT_COMPLETION,
-    RUN_IMAGE_GENERATION
+    RUN_IMAGE_GENERATION,
+    RUN_CREATE_EMBEDDING,
+    RUN_COMPLETION
 )
 from aryaxai.core.project import Project
 import pandas as pd
@@ -285,6 +287,65 @@ class TextProject(Project):
                             yield chunk_data
 
         return stream_response()
+
+    def create_embeddings(
+        self,
+        input : Union[str, List[str]],
+        model: str,
+        api_key : str,
+        provider: str,
+        session_id : Optional[UUID] = None,
+    ) -> dict:  
+        payload = {
+            "model": model,
+            "input": input,
+            "project_name": self.project_name,
+            "provider": provider,
+            "api_key": api_key,
+            "session_id" : session_id
+        }
+
+        res = self.api_client.post(RUN_CREATE_EMBEDDING, payload=payload)
+        return res
+    
+    def completion(
+        self,
+        model: str,
+        prompt: str,
+        provider: str,
+        api_key: str,
+        session_id : Optional[UUID] = None,
+        max_tokens: Optional[int] = None,
+        stream: Optional[bool] = False,            
+    ) -> dict:
+        
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "stream": stream,
+            "project_name": self.project_name,
+            "provider": provider,
+            "api_key": api_key,
+            "session_id" : session_id
+        }
+        if not stream:
+            return self.api_client.post(RUN_COMPLETION, payload=payload)
+        
+        def stream_response() -> Iterator[str]:
+            url = f"{self.api_client.base_url}/{RUN_COMPLETION}"
+            with requests.post(url, json=payload, stream=True) as response:
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode('utf-8')
+                        if decoded_line.startswith('data: '):
+                            if decoded_line.strip() == 'data: [DONE]':
+                                break
+                            chunk_data = json.loads(decoded_line[6:])
+                            yield chunk_data
+
+        return stream_response()
+
 
     def image_generation(
         self,
