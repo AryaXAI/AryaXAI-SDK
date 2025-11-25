@@ -12,7 +12,8 @@ from aryaxai.common.xai_uris import (
     TRACES_URI,
     UPDATE_GUARDRAILS_STATUS_URI,
     RUN_CHAT_COMPLETION,
-    RUN_IMAGE_GENERATION
+    RUN_IMAGE_GENERATION,
+    RUN_CREATE_EMBEDDING
 )
 from aryaxai.core.project import Project
 import pandas as pd
@@ -285,6 +286,26 @@ class TextProject(Project):
                             yield chunk_data
 
         return stream_response()
+
+    def create_embeddings(
+        self,
+        input : Union[str, List[str]],
+        model: str,
+        api_key : str,
+        provider: str,
+        session_id : Optional[UUID] = None,
+    ) -> dict:  
+        payload = {
+            "model": model,
+            "input": input,
+            "project_name": self.project_name,
+            "provider": provider,
+            "api_key": api_key,
+            "session_id" : session_id
+        }
+
+        res = self.api_client.post(RUN_CREATE_EMBEDDING, payload=payload)
+        return res
 
     def image_generation(
         self,
